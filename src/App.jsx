@@ -485,7 +485,7 @@ export default function App() {
               Nairrative
             </div>
             <div style={{ color: G.muted, fontSize: 12, marginTop: 3, letterSpacing: "1.5px", textTransform: "uppercase" }}>
-              {stats.total} books <span style={{ color: G.gold }}>•</span> The Reading Project
+              The Reading Project
             </div>
           </div>
           <div style={{ display: "flex", gap: 8, paddingBottom: 2 }}>
