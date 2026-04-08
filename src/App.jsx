@@ -98,11 +98,11 @@ function RangeFilter({ chartId, allYears, ranges, onSet }) {
     <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
       <span style={{ color: G.dimmed, fontSize: 10 }}>From</span>
       <select style={sel} value={r.from} onChange={e => onSet(chartId, Number(e.target.value), r.to)}>
-        {allYears.map(y => <option key={y} value={y}>{y}</option>)}
+        {allYears.map(y => <option key={y} value={y}>{y === 2010 ? "Pre-2011" : y}</option>)}
       </select>
       <span style={{ color: G.dimmed, fontSize: 10 }}>to</span>
       <select style={sel} value={r.to} onChange={e => onSet(chartId, r.from, Number(e.target.value))}>
-        {allYears.map(y => <option key={y} value={y}>{y}</option>)}
+        {allYears.map(y => <option key={y} value={y}>{y === 2010 ? "Pre-2011" : y}</option>)}
       </select>
     </div>
   );
@@ -218,17 +218,22 @@ export default function App() {
 
   // ── COMPUTED DATA ────────────────────────────────────────────────────────
   const stats = useMemo(() => {
-    const byYear = {}, byGenre = {}, byAuthor = {}, byCountry = {};
+    const byYear = {}, byYearTracked = {}, byGenre = {}, byAuthor = {}, byCountry = {};
     books.forEach(b => {
       byYear[b.year] = (byYear[b.year] || 0) + 1;
+      if (b.year_read_start === b.year_read_end)
+        byYearTracked[b.year] = (byYearTracked[b.year] || 0) + 1;
       (b.genre || []).forEach(g => { byGenre[g] = (byGenre[g] || 0) + 1; });
       byAuthor[b.author] = (byAuthor[b.author] || 0) + 1;
       if (b.country) byCountry[b.country] = (byCountry[b.country] || 0) + 1;
     });
     const sortedAuthors = Object.entries(byAuthor).sort((a, b) => b[1] - a[1]);
     const sortedGenres = Object.entries(byGenre).sort((a, b) => b[1] - a[1]);
-    const sortedYears = Object.entries(byYear).sort((a, b) => b[1] - a[1]);
-    return { total: books.length, byYear, byGenre, byAuthor, byCountry, sortedAuthors, sortedGenres, sortedYears };
+    const sortedYears = Object.entries(byYearTracked).sort((a, b) => b[1] - a[1]);
+    const minYearStart = books.length ? Math.min(...books.map(b => b.year_read_start)) : 1998;
+    const maxYearEnd = books.length ? Math.max(...books.map(b => b.year_read_end)) : new Date().getFullYear();
+    const readingSpan = maxYearEnd - minYearStart + 1;
+    return { total: books.length, byYear, byYearTracked, byGenre, byAuthor, byCountry, sortedAuthors, sortedGenres, sortedYears, readingSpan };
   }, [books]);
 
 
@@ -236,9 +241,10 @@ export default function App() {
     const fGen = new Set(["Fantasy","Sci-Fi","Thriller","Mystery","Literary Fiction","Historical Fiction","Classic","Horror"]);
 
     // Temporal
-    const years = Object.keys(stats.byYear).map(Number).sort();
+    const years = Object.keys(stats.byYearTracked).map(Number).sort();
     const fullRange = Array.from({length: years[years.length-1] - years[0] + 1}, (_, i) => years[0] + i);
-    const avgPerActive = Math.round(books.length / years.length);
+    const trackedBooks = books.filter(b => b.year_read_start === b.year_read_end);
+    const avgPerActive = Math.round(trackedBooks.length / years.length);
     let maxGap = 0, curGap = 0, gapStart = null, longestGapStart = null;
     for (const y of fullRange) {
       if (!stats.byYear[y]) { if (!curGap) gapStart = y; curGap++; if (curGap > maxGap) { maxGap = curGap; longestGapStart = gapStart; } }
@@ -318,7 +324,8 @@ export default function App() {
   const allGenres = useMemo(() => Object.keys(GENRE_COLORS), []);
   const allYears = useMemo(() => Object.keys(stats.byYear).sort().reverse(), [stats]);
   const allAuthors = useMemo(() => [...new Set(books.flatMap(b => (b.authors || []).map(a => a.name)))].sort(), [books]);
-  const allYearsList = useMemo(() => Object.keys(stats.byYear).sort().map(Number), [stats]);
+  const allYearsList = useMemo(() => Object.keys(stats.byYearTracked).sort().map(Number), [stats]);
+  const allYearsListFull = useMemo(() => Object.keys(stats.byYear).sort().map(Number), [stats]);
 
   // ── HANDLERS ──────────────────────────────────────────────────────────────
   const aiHeaders = () => ({
@@ -376,10 +383,11 @@ export default function App() {
 
   const getChartRange = (id) => {
     const timeCharts = new Set(["yc", "fn", "ge"]);
-    const defaultFrom = timeCharts.has(id) ? 2011 : (allYearsList[0] ?? 2010);
+    const defaultFrom = timeCharts.has(id) ? (allYearsList[0] ?? 2011) : (allYearsListFull[0] ?? 2010);
+    const defaultTo = timeCharts.has(id) ? (allYearsList[allYearsList.length - 1] ?? 2026) : (allYearsListFull[allYearsListFull.length - 1] ?? 2026);
     return {
       from: chartRanges[id]?.from ?? defaultFrom,
-      to: chartRanges[id]?.to ?? allYearsList[allYearsList.length - 1] ?? 2026,
+      to: chartRanges[id]?.to ?? defaultTo,
     };
   };
   const setChartRange = (id, from, to) => setChartRanges(p => ({ ...p, [id]: { from, to } }));
@@ -616,11 +624,12 @@ export default function App() {
           const coBooks = cb("co");
           const coData = Object.entries(coBooks.filter(b=>b.country).reduce((a,b)=>{a[b.country]=(a[b.country]||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([country,count])=>({country,count}));
 
+          const timeChartIds = new Set(["yc", "fn", "ge"]);
           const chartCard = (title, id, children) => (
             <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "18px 20px 12px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14, gap: 8, flexWrap: "wrap" }}>
                 <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text }}>{title}</div>
-                <RangeFilter chartId={id} allYears={allYearsList} ranges={chartRanges} onSet={setChartRange} />
+                <RangeFilter chartId={id} allYears={timeChartIds.has(id) ? allYearsList : allYearsListFull} ranges={chartRanges} onSet={setChartRange} />
               </div>
               {children}
             </div>
@@ -632,7 +641,7 @@ export default function App() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 14, marginBottom: 24 }}>
               {[
                 { label: "Books Read", value: stats.total, color: G.gold },
-                { label: "Years Reading", value: Object.keys(stats.byYear).length, color: G.blue },
+                { label: "Years Reading", value: stats.readingSpan, color: G.blue },
                 { label: "Peak Year", value: `${stats.sortedYears[0]?.[0]} (${stats.sortedYears[0]?.[1]})`, color: G.green },
                 { label: "#1 Author", value: stats.sortedAuthors[0]?.[0].split(" ").slice(-1)[0], sub: `${stats.sortedAuthors[0]?.[1]} books`, color: G.purple },
                 { label: "Top Genre", value: stats.sortedGenres[0]?.[0], sub: `${stats.sortedGenres[0]?.[1]} books`, color: "#ff9f7f" },
@@ -741,7 +750,7 @@ export default function App() {
           <div>
             <div style={{ marginBottom: 24 }}>
               <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, marginBottom: 6 }}>Reading Analysis</div>
-              <div style={{ color: G.muted, fontSize: 13 }}>Eleven lenses into {stats.total} books across {Object.keys(stats.byYear).length} active years.</div>
+              <div style={{ color: G.muted, fontSize: 13 }}>Eleven lenses into {stats.total} books across {Object.keys(stats.byYearTracked).length} tracked years (2011–present).</div>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 14 }}>
 
