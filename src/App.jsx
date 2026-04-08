@@ -6,10 +6,11 @@ import {
 
 // ── THEME ──────────────────────────────────────────────────────────────────
 const G = {
-  gold: "#9a6c00", goldLight: "#c9a84c", goldDim: "#d4a44c",
-  blue: "#2563eb", red: "#dc2626", green: "#16a34a", purple: "#7c3aed",
-  bg: "#f9f7f4", card: "#ffffff", card2: "#f3f1ec", border: "#e5e2db",
-  text: "#1c1917", muted: "#78716c", dimmed: "#c8c5be", hover: "#ede9e4",
+  gold: "#2d6a4f", goldLight: "#3d8a66", goldDim: "#6aab8a",
+  copper: "#c0522a",
+  blue: "#2563eb", red: "#dc2626", green: "#0e9488", purple: "#7c3aed",
+  bg: "#f7f8fa", card: "#ffffff", card2: "#f0f2f6", border: "#e4e7ed",
+  text: "#111827", muted: "#6b7280", dimmed: "#d1d5db", hover: "#e8eaef",
 };
 
 const GENRE_COLORS = {
@@ -458,7 +459,12 @@ const DarkTooltip = ({ active, payload, label }) => {
 // ── MAIN APP ──────────────────────────────────────────────────────────────
 export default function App() {
   const [activeTab, setActiveTab] = useState("overview");
-  const [books, setBooks] = useState(INITIAL_BOOKS);
+  const [books, setBooks] = useState(() => {
+    try {
+      const saved = localStorage.getItem("nairrative_books");
+      return saved ? JSON.parse(saved) : INITIAL_BOOKS;
+    } catch { return INITIAL_BOOKS; }
+  });
   const [search, setSearch] = useState("");
   const [libGenres, setLibGenres] = useState([]);
   const [libYears, setLibYears] = useState([]);
@@ -484,17 +490,22 @@ export default function App() {
   const [seriesLoading, setSeriesLoading] = useState(false);
   const [selectedSeries, setSelectedSeries] = useState("");
   const chatEndRef = useRef(null);
-  const nextId = useRef(346);
+  const nextId = useRef(parseInt(localStorage.getItem("nairrative_next_id") || "346"));
 
   useEffect(() => {
     const link = document.createElement("link");
     link.rel = "stylesheet";
-    link.href = "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap";
+    link.href = "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&family=Cormorant+Garamond:wght@300;400;600&family=Lora:ital,wght@0,400;0,700;1,400&family=DM+Serif+Display:ital@0;1&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Fraunces:ital,wght@0,300;1,300&display=swap";
     document.head.appendChild(link);
     return () => document.head.removeChild(link);
   }, []);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  useEffect(() => {
+    localStorage.setItem("nairrative_books", JSON.stringify(books));
+    localStorage.setItem("nairrative_next_id", String(nextId.current));
+  }, [books]);
 
   const AUTO_RECS = ["more-like", "more-by-last", "similar-author", "trending", "challenge", "quick", "gaps", "surprise", "finish"];
 
@@ -815,7 +826,7 @@ export default function App() {
     .genre-pill { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; }
     .input-dark { background: ${G.card2}; border: 1px solid ${G.border}; border-radius: 8px; color: ${G.text}; padding: 10px 14px; font-family: 'DM Sans', sans-serif; font-size: 13px; width: 100%; outline: none; transition: border-color 0.2s; }
     .input-dark:focus { border-color: ${G.goldDim}; }
-    .btn-gold { background: ${G.gold}; color: #000; border: none; border-radius: 8px; padding: 10px 20px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .btn-gold { background: ${G.gold}; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
     .btn-gold:hover { background: ${G.goldLight}; }
     .btn-ghost { background: transparent; color: ${G.muted}; border: 1px solid ${G.border}; border-radius: 8px; padding: 8px 16px; font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer; transition: all 0.2s; }
     .btn-ghost:hover { color: ${G.text}; border-color: ${G.dimmed}; }
@@ -848,18 +859,13 @@ export default function App() {
       <style>{css}</style>
 
       {/* HEADER */}
-      <div style={{ padding: "28px 28px 0", borderBottom: `1px solid ${G.border}`, paddingBottom: 0 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 12 }}>
-          <div>
-            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 26, fontWeight: 700, color: G.text, letterSpacing: "-0.3px" }}>
-              Nairrative
-            </div>
-            <div style={{ color: G.muted, fontSize: 12, marginTop: 3, letterSpacing: "1.5px", textTransform: "uppercase" }}>
-              The Reading Project
-            </div>
-          </div>
+      <div style={{ padding: "28px 28px 0", background: G.bg }}>
+        {/* Centered logo */}
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
+          <img src="./nairrative.png" alt="Nairrative" style={{ width: 349, height: 72, mixBlendMode: "multiply" }} />
         </div>
-        <div style={{ display: "flex", gap: 4, marginTop: 20, overflowX: "auto", paddingBottom: 0 }}>
+
+        <div style={{ display: "flex", gap: 4, overflowX: "auto", justifyContent: "center" }}>
           {TABS.map(t => (
             <button key={t.id} className={`tab-btn ${activeTab === t.id ? "active" : ""}`}
               onClick={() => setActiveTab(t.id)}>
@@ -870,7 +876,7 @@ export default function App() {
       </div>
 
       {/* CONTENT */}
-      <div style={{ padding: 24, maxHeight: "calc(100vh - 130px)", overflowY: "auto" }} className="fade-in">
+      <div style={{ padding: "24px 28px" }} className="fade-in">
 
         {/* ── OVERVIEW ──────────────────────────────────────────────────── */}
         {activeTab === "overview" && (() => {
@@ -1717,6 +1723,11 @@ export default function App() {
             )}
           </div>
         )}
+      </div>
+
+      {/* FOOTER */}
+      <div style={{ padding: "16px 28px", marginTop: 24, textAlign: "center" }}>
+        <div style={{ fontSize: 12, color: G.dimmed }}>© {new Date().getFullYear()} Viswas Nair · All rights reserved</div>
       </div>
     </div>
   );
