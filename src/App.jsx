@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import { supabase } from "./lib/supabase";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
   AreaChart, Area, CartesianGrid, Legend
@@ -23,355 +24,6 @@ const GENRE_COLORS = {
   "Economics": "#fdcb6e", "Psychology": "#6c5ce7", "Business": "#00b894",
 };
 
-// ── ALL BOOKS ──────────────────────────────────────────────────────────────
-const INITIAL_BOOKS = [
-  { id: 1, title: "The Naked Face", author: "Sidney Sheldon", year: 2010, genre: "Thriller", country: "USA", pages: 224, fiction: true, series: "", notes: "" },
-  { id: 2, title: "The Other Side of Midnight", author: "Sidney Sheldon", year: 2010, genre: "Thriller", country: "USA", pages: 528, fiction: true, series: "", notes: "" },
-  { id: 3, title: "A Stranger in the Mirror", author: "Sidney Sheldon", year: 2010, genre: "Thriller", country: "USA", pages: 384, fiction: true, series: "", notes: "" },
-  { id: 4, title: "Bloodline", author: "Sidney Sheldon", year: 2010, genre: "Thriller", country: "USA", pages: 352, fiction: true, series: "", notes: "" },
-  { id: 5, title: "Rage of Angels", author: "Sidney Sheldon", year: 2010, genre: "Thriller", country: "USA", pages: 512, fiction: true, series: "", notes: "" },
-  { id: 6, title: "Master of the Game", author: "Sidney Sheldon", year: 2010, genre: "Thriller", country: "USA", pages: 512, fiction: true, series: "", notes: "" },
-  { id: 7, title: "If Tomorrow Comes", author: "Sidney Sheldon", year: 2010, genre: "Thriller", country: "USA", pages: 400, fiction: true, series: "", notes: "" },
-  { id: 8, title: "Windmills of the Gods", author: "Sidney Sheldon", year: 2010, genre: "Thriller", country: "USA", pages: 384, fiction: true, series: "", notes: "" },
-  { id: 9, title: "The Sands of Time", author: "Sidney Sheldon", year: 2010, genre: "Thriller", country: "USA", pages: 384, fiction: true, series: "", notes: "" },
-  { id: 10, title: "Memories of Midnight", author: "Sidney Sheldon", year: 2010, genre: "Thriller", country: "USA", pages: 352, fiction: true, series: "", notes: "" },
-  { id: 11, title: "The Doomsday Conspiracy", author: "Sidney Sheldon", year: 2010, genre: "Thriller", country: "USA", pages: 352, fiction: true, series: "", notes: "" },
-  { id: 12, title: "The Stars Shine Down", author: "Sidney Sheldon", year: 2010, genre: "Thriller", country: "USA", pages: 352, fiction: true, series: "", notes: "" },
-  { id: 13, title: "Nothing Lasts Forever", author: "Sidney Sheldon", year: 2010, genre: "Thriller", country: "USA", pages: 288, fiction: true, series: "", notes: "" },
-  { id: 14, title: "Morning Noon and Night", author: "Sidney Sheldon", year: 2010, genre: "Thriller", country: "USA", pages: 304, fiction: true, series: "", notes: "" },
-  { id: 15, title: "The Best Laid Plans", author: "Sidney Sheldon", year: 2010, genre: "Thriller", country: "USA", pages: 352, fiction: true, series: "", notes: "" },
-  { id: 16, title: "Tell Me Your Dreams", author: "Sidney Sheldon", year: 2010, genre: "Thriller", country: "USA", pages: 320, fiction: true, series: "", notes: "" },
-  { id: 17, title: "The Sky is Falling", author: "Sidney Sheldon", year: 2010, genre: "Thriller", country: "USA", pages: 320, fiction: true, series: "", notes: "" },
-  { id: 18, title: "Are You Afraid of the Dark?", author: "Sidney Sheldon", year: 2010, genre: "Thriller", country: "USA", pages: 352, fiction: true, series: "", notes: "" },
-  { id: 19, title: "The Andromeda Strain", author: "Michael Crichton", year: 2010, genre: "Sci-Fi", country: "USA", pages: 288, fiction: true, series: "", notes: "" },
-  { id: 20, title: "The Terminal Man", author: "Michael Crichton", year: 2010, genre: "Thriller", country: "USA", pages: 247, fiction: true, series: "", notes: "" },
-  { id: 21, title: "The Great Train Robbery", author: "Michael Crichton", year: 2010, genre: "Historical Fiction", country: "USA", pages: 266, fiction: true, series: "", notes: "" },
-  { id: 22, title: "Congo", author: "Michael Crichton", year: 2010, genre: "Thriller", country: "USA", pages: 348, fiction: true, series: "", notes: "" },
-  { id: 23, title: "Sphere", author: "Michael Crichton", year: 2010, genre: "Sci-Fi", country: "USA", pages: 384, fiction: true, series: "", notes: "" },
-  { id: 24, title: "Jurassic Park", author: "Michael Crichton", year: 2010, genre: "Sci-Fi", country: "USA", pages: 448, fiction: true, series: "Jurassic Park", notes: "" },
-  { id: 25, title: "Rising Sun", author: "Michael Crichton", year: 2010, genre: "Thriller", country: "USA", pages: 384, fiction: true, series: "", notes: "" },
-  { id: 26, title: "Disclosure", author: "Michael Crichton", year: 2010, genre: "Thriller", country: "USA", pages: 397, fiction: true, series: "", notes: "" },
-  { id: 27, title: "The Lost World", author: "Michael Crichton", year: 2010, genre: "Sci-Fi", country: "USA", pages: 393, fiction: true, series: "Jurassic Park", notes: "" },
-  { id: 28, title: "Airframe", author: "Michael Crichton", year: 2010, genre: "Thriller", country: "USA", pages: 397, fiction: true, series: "", notes: "" },
-  { id: 29, title: "Timeline", author: "Michael Crichton", year: 2010, genre: "Sci-Fi", country: "USA", pages: 480, fiction: true, series: "", notes: "" },
-  { id: 30, title: "Prey", author: "Michael Crichton", year: 2010, genre: "Thriller", country: "USA", pages: 376, fiction: true, series: "", notes: "" },
-  { id: 31, title: "State of Fear", author: "Michael Crichton", year: 2010, genre: "Thriller", country: "USA", pages: 567, fiction: true, series: "", notes: "" },
-  { id: 32, title: "Next", author: "Michael Crichton", year: 2010, genre: "Thriller", country: "USA", pages: 432, fiction: true, series: "", notes: "" },
-  { id: 33, title: "Pirate Latitudes", author: "Michael Crichton", year: 2010, genre: "Thriller", country: "USA", pages: 312, fiction: true, series: "", notes: "Posthumous" },
-  { id: 34, title: "The Day of the Jackal", author: "Frederick Forsyth", year: 2010, genre: "Thriller", country: "UK", pages: 380, fiction: true, series: "", notes: "" },
-  { id: 35, title: "The Odessa File", author: "Frederick Forsyth", year: 2010, genre: "Thriller", country: "UK", pages: 312, fiction: true, series: "", notes: "" },
-  { id: 36, title: "The Dogs of War", author: "Frederick Forsyth", year: 2010, genre: "Thriller", country: "UK", pages: 408, fiction: true, series: "", notes: "" },
-  { id: 37, title: "The Fourth Protocol", author: "Frederick Forsyth", year: 2010, genre: "Thriller", country: "UK", pages: 415, fiction: true, series: "", notes: "" },
-  { id: 38, title: "The Fist of God", author: "Frederick Forsyth", year: 2010, genre: "Thriller", country: "UK", pages: 511, fiction: true, series: "", notes: "" },
-  { id: 39, title: "Icon", author: "Frederick Forsyth", year: 2010, genre: "Thriller", country: "UK", pages: 496, fiction: true, series: "", notes: "" },
-  { id: 40, title: "The Bourne Identity", author: "Robert Ludlum", year: 2010, genre: "Thriller", country: "USA", pages: 523, fiction: true, series: "Bourne", notes: "" },
-  { id: 41, title: "The Bourne Supremacy", author: "Robert Ludlum", year: 2010, genre: "Thriller", country: "USA", pages: 597, fiction: true, series: "Bourne", notes: "" },
-  { id: 42, title: "The Bourne Ultimatum", author: "Robert Ludlum", year: 2010, genre: "Thriller", country: "USA", pages: 608, fiction: true, series: "Bourne", notes: "" },
-  { id: 43, title: "The Sigma Protocol", author: "Robert Ludlum", year: 2010, genre: "Thriller", country: "USA", pages: 576, fiction: true, series: "", notes: "" },
-  { id: 44, title: "The Matarese Circle", author: "Robert Ludlum", year: 2010, genre: "Thriller", country: "USA", pages: 601, fiction: true, series: "", notes: "" },
-  { id: 45, title: "The Bourne Legacy", author: "Eric Van Lustbader", year: 2010, genre: "Thriller", country: "USA", pages: 432, fiction: true, series: "Bourne", notes: "" },
-  { id: 46, title: "The Bourne Betrayal", author: "Eric Van Lustbader", year: 2010, genre: "Thriller", country: "USA", pages: 432, fiction: true, series: "Bourne", notes: "" },
-  { id: 47, title: "The Firm", author: "John Grisham", year: 2010, genre: "Thriller", country: "USA", pages: 421, fiction: true, series: "", notes: "" },
-  { id: 48, title: "The Pelican Brief", author: "John Grisham", year: 2010, genre: "Thriller", country: "USA", pages: 432, fiction: true, series: "", notes: "" },
-  { id: 49, title: "The Client", author: "John Grisham", year: 2010, genre: "Thriller", country: "USA", pages: 422, fiction: true, series: "", notes: "" },
-  { id: 50, title: "A Time to Kill", author: "John Grisham", year: 2010, genre: "Thriller", country: "USA", pages: 515, fiction: true, series: "", notes: "" },
-  { id: 51, title: "The Rainmaker", author: "John Grisham", year: 2010, genre: "Thriller", country: "USA", pages: 466, fiction: true, series: "", notes: "" },
-  { id: 52, title: "Coma", author: "Robin Cook", year: 2010, genre: "Thriller", country: "USA", pages: 296, fiction: true, series: "", notes: "" },
-  { id: 53, title: "Brain", author: "Robin Cook", year: 2010, genre: "Thriller", country: "USA", pages: 340, fiction: true, series: "", notes: "" },
-  { id: 54, title: "Terminal", author: "Robin Cook", year: 2010, genre: "Thriller", country: "USA", pages: 364, fiction: true, series: "", notes: "" },
-  { id: 55, title: "Toxin", author: "Robin Cook", year: 2010, genre: "Thriller", country: "USA", pages: 352, fiction: true, series: "", notes: "" },
-  { id: 56, title: "Hotel", author: "Arthur Hailey", year: 2010, genre: "Thriller", country: "UK", pages: 376, fiction: true, series: "", notes: "" },
-  { id: 57, title: "Airport", author: "Arthur Hailey", year: 2010, genre: "Thriller", country: "UK", pages: 440, fiction: true, series: "", notes: "" },
-  { id: 58, title: "Wheels", author: "Arthur Hailey", year: 2010, genre: "Thriller", country: "UK", pages: 374, fiction: true, series: "", notes: "" },
-  { id: 59, title: "Not a Penny More, Not a Penny Less", author: "Jeffrey Archer", year: 2010, genre: "Thriller", country: "UK", pages: 272, fiction: true, series: "", notes: "" },
-  { id: 60, title: "Shall We Tell the President?", author: "Jeffrey Archer", year: 2010, genre: "Thriller", country: "UK", pages: 308, fiction: true, series: "", notes: "" },
-  { id: 61, title: "Kane and Abel", author: "Jeffrey Archer", year: 2010, genre: "Literary Fiction", country: "UK", pages: 540, fiction: true, series: "", notes: "" },
-  { id: 62, title: "First Among Equals", author: "Jeffrey Archer", year: 2010, genre: "Thriller", country: "UK", pages: 432, fiction: true, series: "", notes: "" },
-  { id: 63, title: "A Quiver Full of Arrows", author: "Jeffrey Archer", year: 2010, genre: "Thriller", country: "UK", pages: 224, fiction: true, series: "", notes: "" },
-  { id: 64, title: "A Twist in the Tale", author: "Jeffrey Archer", year: 2010, genre: "Thriller", country: "UK", pages: 256, fiction: true, series: "", notes: "" },
-  { id: 65, title: "The Hunt for Red October", author: "Tom Clancy", year: 2010, genre: "Thriller", country: "USA", pages: 387, fiction: true, series: "", notes: "" },
-  { id: 66, title: "The Sum of All Fears", author: "Tom Clancy", year: 2010, genre: "Thriller", country: "USA", pages: 798, fiction: true, series: "", notes: "" },
-  { id: 67, title: "Lucky", author: "Jackie Collins", year: 2010, genre: "Thriller", country: "UK", pages: 544, fiction: true, series: "", notes: "" },
-  { id: 68, title: "Foundation", author: "Isaac Asimov", year: 2010, genre: "Sci-Fi", country: "USA", pages: 244, fiction: true, series: "Foundation", notes: "" },
-  { id: 69, title: "Foundation and Empire", author: "Isaac Asimov", year: 2010, genre: "Sci-Fi", country: "USA", pages: 247, fiction: true, series: "Foundation", notes: "" },
-  { id: 70, title: "Second Foundation", author: "Isaac Asimov", year: 2010, genre: "Sci-Fi", country: "USA", pages: 243, fiction: true, series: "Foundation", notes: "" },
-  { id: 71, title: "2001: A Space Odyssey", author: "Arthur C. Clarke", year: 2010, genre: "Sci-Fi", country: "UK", pages: 297, fiction: true, series: "Space Odyssey", notes: "" },
-  { id: 72, title: "Dune", author: "Frank Herbert", year: 2010, genre: "Sci-Fi", country: "USA", pages: 688, fiction: true, series: "Dune", notes: "" },
-  { id: 73, title: "A Scanner Darkly", author: "Philip K. Dick", year: 2010, genre: "Sci-Fi", country: "USA", pages: 224, fiction: true, series: "", notes: "" },
-  { id: 74, title: "Neuromancer", author: "William Gibson", year: 2010, genre: "Sci-Fi", country: "USA", pages: 271, fiction: true, series: "Sprawl Trilogy", notes: "" },
-  { id: 75, title: "Snow Crash", author: "Neal Stephenson", year: 2010, genre: "Sci-Fi", country: "USA", pages: 468, fiction: true, series: "", notes: "" },
-  { id: 76, title: "Ender's Game", author: "Orson Scott Card", year: 2010, genre: "Sci-Fi", country: "USA", pages: 226, fiction: true, series: "Ender's Game", notes: "" },
-  { id: 77, title: "The Time Machine", author: "H.G. Wells", year: 2010, genre: "Sci-Fi", country: "UK", pages: 118, fiction: true, series: "", notes: "" },
-  { id: 78, title: "Rainbows End", author: "Vernor Vinge", year: 2010, genre: "Sci-Fi", country: "USA", pages: 380, fiction: true, series: "", notes: "" },
-  { id: 79, title: "Slaughterhouse-Five", author: "Kurt Vonnegut", year: 2010, genre: "Sci-Fi", country: "USA", pages: 215, fiction: true, series: "", notes: "" },
-  { id: 80, title: "The Hitchhiker's Guide to the Galaxy", author: "Douglas Adams", year: 2010, genre: "Sci-Fi", country: "UK", pages: 193, fiction: true, series: "Hitchhiker's Guide", notes: "" },
-  { id: 81, title: "Broca's Brain", author: "Carl Sagan", year: 2010, genre: "Popular Science", country: "USA", pages: 347, fiction: false, series: "", notes: "" },
-  { id: 82, title: "Guns, Germs, and Steel", author: "Jared Diamond", year: 2010, genre: "History", country: "USA", pages: 480, fiction: false, series: "", notes: "" },
-  { id: 83, title: "The Selfish Gene", author: "Richard Dawkins", year: 2010, genre: "Popular Science", country: "UK", pages: 360, fiction: false, series: "", notes: "" },
-  { id: 84, title: "The God Delusion", author: "Richard Dawkins", year: 2010, genre: "Philosophy", country: "UK", pages: 406, fiction: false, series: "", notes: "" },
-  { id: 85, title: "Surely You're Joking, Mr. Feynman", author: "Richard Feynman", year: 2010, genre: "Biography", country: "USA", pages: 352, fiction: false, series: "", notes: "" },
-  { id: 86, title: "The Pleasure of Finding Things Out", author: "Richard Feynman", year: 2010, genre: "Popular Science", country: "USA", pages: 270, fiction: false, series: "", notes: "" },
-  { id: 87, title: "Freakonomics", author: "Steven Levitt & Stephen Dubner", year: 2010, genre: "Economics", country: "USA", pages: 284, fiction: false, series: "", notes: "" },
-  { id: 88, title: "I, Cyborg", author: "Kevin Warwick", year: 2010, genre: "Popular Science", country: "UK", pages: 320, fiction: false, series: "", notes: "" },
-  { id: 89, title: "Born on a Blue Day", author: "Daniel Tammet", year: 2010, genre: "Biography", country: "UK", pages: 256, fiction: false, series: "", notes: "" },
-  { id: 90, title: "The Power of Now", author: "Eckhart Tolle", year: 2010, genre: "Philosophy", country: "Germany", pages: 236, fiction: false, series: "", notes: "" },
-  { id: 91, title: "The Story of My Experiments with Truth", author: "Mahatma Gandhi", year: 2010, genre: "Biography", country: "India", pages: 480, fiction: false, series: "", notes: "" },
-  { id: 92, title: "Mein Kampf", author: "Adolf Hitler", year: 2010, genre: "History", country: "Germany", pages: 720, fiction: false, series: "", notes: "" },
-  { id: 93, title: "The Motorcycle Diaries", author: "Che Guevara", year: 2010, genre: "Biography", country: "Argentina", pages: 175, fiction: false, series: "", notes: "" },
-  { id: 94, title: "A Short History of Nearly Everything", author: "Bill Bryson", year: 2010, genre: "Popular Science", country: "USA", pages: 544, fiction: false, series: "", notes: "" },
-  { id: 95, title: "The Hobbit", author: "J.R.R. Tolkien", year: 2010, genre: "Fantasy", country: "UK", pages: 310, fiction: true, series: "The Lord of the Rings", notes: "Prequel" },
-  { id: 96, title: "The Fellowship of the Ring", author: "J.R.R. Tolkien", year: 2010, genre: "Fantasy", country: "UK", pages: 423, fiction: true, series: "The Lord of the Rings", notes: "Books 2-3 unread" },
-  { id: 97, title: "The Da Vinci Code", author: "Dan Brown", year: 2010, genre: "Thriller", country: "USA", pages: 454, fiction: true, series: "Robert Langdon", notes: "" },
-  { id: 98, title: "Angels and Demons", author: "Dan Brown", year: 2010, genre: "Thriller", country: "USA", pages: 736, fiction: true, series: "Robert Langdon", notes: "" },
-  { id: 99, title: "Digital Fortress", author: "Dan Brown", year: 2010, genre: "Thriller", country: "USA", pages: 384, fiction: true, series: "", notes: "" },
-  { id: 100, title: "Deception Point", author: "Dan Brown", year: 2010, genre: "Thriller", country: "USA", pages: 560, fiction: true, series: "", notes: "" },
-  { id: 101, title: "The Alchemist", author: "Paulo Coelho", year: 2010, genre: "Literary Fiction", country: "Brazil", pages: 163, fiction: true, series: "", notes: "" },
-  { id: 102, title: "Veronika Decides to Die", author: "Paulo Coelho", year: 2010, genre: "Literary Fiction", country: "Brazil", pages: 211, fiction: true, series: "", notes: "" },
-  { id: 103, title: "Eleven Minutes", author: "Paulo Coelho", year: 2010, genre: "Literary Fiction", country: "Brazil", pages: 241, fiction: true, series: "", notes: "" },
-  { id: 104, title: "The Fountainhead", author: "Ayn Rand", year: 2010, genre: "Literary Fiction", country: "USA", pages: 753, fiction: true, series: "", notes: "Reread every 7-10 years" },
-  { id: 105, title: "Atlas Shrugged", author: "Ayn Rand", year: 2010, genre: "Literary Fiction", country: "USA", pages: 1168, fiction: true, series: "", notes: "Reread every 7-10 years" },
-  { id: 106, title: "We the Living", author: "Ayn Rand", year: 2010, genre: "Literary Fiction", country: "USA", pages: 433, fiction: true, series: "", notes: "" },
-  { id: 107, title: "Anthem", author: "Ayn Rand", year: 2010, genre: "Literary Fiction", country: "USA", pages: 105, fiction: true, series: "", notes: "" },
-  { id: 108, title: "Night of January 16th", author: "Ayn Rand", year: 2010, genre: "Literary Fiction", country: "USA", pages: 128, fiction: true, series: "", notes: "" },
-  { id: 109, title: "The Unbearable Lightness of Being", author: "Milan Kundera", year: 2010, genre: "Literary Fiction", country: "Czech Republic", pages: 314, fiction: true, series: "", notes: "" },
-  { id: 110, title: "Life of Pi", author: "Yann Martel", year: 2010, genre: "Literary Fiction", country: "Canada", pages: 319, fiction: true, series: "", notes: "" },
-  { id: 111, title: "The Curious Incident of the Dog in the Night-Time", author: "Mark Haddon", year: 2010, genre: "Literary Fiction", country: "UK", pages: 226, fiction: true, series: "", notes: "" },
-  { id: 112, title: "Siddhartha", author: "Hermann Hesse", year: 2010, genre: "Literary Fiction", country: "Germany", pages: 152, fiction: true, series: "", notes: "" },
-  { id: 113, title: "God's Debris", author: "Scott Adams", year: 2010, genre: "Philosophy", country: "USA", pages: 132, fiction: true, series: "", notes: "" },
-  { id: 114, title: "The Catcher in the Rye", author: "J.D. Salinger", year: 2010, genre: "Literary Fiction", country: "USA", pages: 277, fiction: true, series: "", notes: "" },
-  { id: 115, title: "To Kill a Mockingbird", author: "Harper Lee", year: 2010, genre: "Literary Fiction", country: "USA", pages: 281, fiction: true, series: "", notes: "" },
-  { id: 116, title: "The Enchantress of Florence", author: "Salman Rushdie", year: 2010, genre: "Literary Fiction", country: "India", pages: 368, fiction: true, series: "", notes: "" },
-  { id: 117, title: "1984", author: "George Orwell", year: 2010, genre: "Sci-Fi", country: "UK", pages: 328, fiction: true, series: "", notes: "" },
-  { id: 118, title: "Animal Farm", author: "George Orwell", year: 2010, genre: "Sci-Fi", country: "UK", pages: 112, fiction: true, series: "", notes: "" },
-  { id: 119, title: "Brave New World", author: "Aldous Huxley", year: 2010, genre: "Sci-Fi", country: "UK", pages: 311, fiction: true, series: "", notes: "" },
-  { id: 120, title: "The Mystery of the Whispering Mummy", author: "Robert Arthur", year: 2010, genre: "Mystery", country: "USA", pages: 192, fiction: true, series: "Three Investigators", notes: "" },
-  { id: 121, title: "Rendezvous with Rama", author: "Arthur C. Clarke", year: 2010, genre: "Sci-Fi", country: "UK", pages: 256, fiction: true, series: "Rama", notes: "" },
-  { id: 122, title: "Rama II", author: "Arthur C. Clarke & Gentry Lee", year: 2010, genre: "Sci-Fi", country: "UK", pages: 480, fiction: true, series: "Rama", notes: "" },
-  { id: 123, title: "The Garden of Rama", author: "Arthur C. Clarke & Gentry Lee", year: 2010, genre: "Sci-Fi", country: "UK", pages: 441, fiction: true, series: "Rama", notes: "" },
-  { id: 124, title: "Rama Revealed", author: "Arthur C. Clarke & Gentry Lee", year: 2010, genre: "Sci-Fi", country: "UK", pages: 512, fiction: true, series: "Rama", notes: "" },
-  { id: 125, title: "2010: Odyssey Two", author: "Arthur C. Clarke", year: 2010, genre: "Sci-Fi", country: "UK", pages: 291, fiction: true, series: "Space Odyssey", notes: "" },
-  { id: 126, title: "2061: Odyssey Three", author: "Arthur C. Clarke", year: 2010, genre: "Sci-Fi", country: "UK", pages: 256, fiction: true, series: "Space Odyssey", notes: "" },
-  { id: 127, title: "3001: The Final Odyssey", author: "Arthur C. Clarke", year: 2010, genre: "Sci-Fi", country: "UK", pages: 263, fiction: true, series: "Space Odyssey", notes: "" },
-  { id: 128, title: "Blindsight", author: "Peter Watts", year: 2010, genre: "Sci-Fi", country: "Canada", pages: 384, fiction: true, series: "Firefall", notes: "" },
-  { id: 129, title: "The Afghan", author: "Frederick Forsyth", year: 2010, genre: "Thriller", country: "UK", pages: 416, fiction: true, series: "", notes: "" },
-  { id: 130, title: "Childhood's End", author: "Arthur C. Clarke", year: 2010, genre: "Sci-Fi", country: "UK", pages: 224, fiction: true, series: "", notes: "" },
-  { id: 131, title: "Like the Flowing River", author: "Paulo Coelho", year: 2011, genre: "Literary Fiction", country: "Brazil", pages: 224, fiction: false, series: "", notes: "" },
-  { id: 132, title: "Eragon", author: "Christopher Paolini", year: 2011, genre: "Fantasy", country: "USA", pages: 503, fiction: true, series: "Inheritance Cycle", notes: "" },
-  { id: 133, title: "Eldest", author: "Christopher Paolini", year: 2011, genre: "Fantasy", country: "USA", pages: 668, fiction: true, series: "Inheritance Cycle", notes: "" },
-  { id: 134, title: "Brisingr", author: "Christopher Paolini", year: 2011, genre: "Fantasy", country: "USA", pages: 763, fiction: true, series: "Inheritance Cycle", notes: "" },
-  { id: 135, title: "The White Tiger", author: "Aravind Adiga", year: 2011, genre: "Literary Fiction", country: "India", pages: 276, fiction: true, series: "", notes: "" },
-  { id: 136, title: "Sea of Poppies", author: "Amitav Ghosh", year: 2011, genre: "Historical Fiction", country: "India", pages: 515, fiction: true, series: "Ibis Trilogy", notes: "" },
-  { id: 137, title: "Harry Potter and the Philosopher's Stone", author: "J.K. Rowling", year: 2011, genre: "Fantasy", country: "UK", pages: 223, fiction: true, series: "Harry Potter", notes: "" },
-  { id: 138, title: "Lolita", author: "Vladimir Nabokov", year: 2011, genre: "Literary Fiction", country: "Russia", pages: 317, fiction: true, series: "", notes: "" },
-  { id: 139, title: "World War Z", author: "Max Brooks", year: 2011, genre: "Thriller", country: "USA", pages: 342, fiction: true, series: "", notes: "" },
-  { id: 140, title: "House of Leaves", author: "Mark Z. Danielewski", year: 2011, genre: "Horror", country: "USA", pages: 709, fiction: true, series: "", notes: "" },
-  { id: 141, title: "Persepolis", author: "Marjane Satrapi", year: 2011, genre: "Biography", country: "Iran", pages: 341, fiction: false, series: "", notes: "" },
-  { id: 142, title: "Maus", author: "Art Spiegelman", year: 2011, genre: "History", country: "USA", pages: 296, fiction: false, series: "Maus", notes: "" },
-  { id: 143, title: "Breakfast of Champions", author: "Kurt Vonnegut", year: 2011, genre: "Literary Fiction", country: "USA", pages: 302, fiction: true, series: "", notes: "" },
-  { id: 144, title: "The Colour of Magic", author: "Terry Pratchett", year: 2011, genre: "Fantasy", country: "UK", pages: 210, fiction: true, series: "Discworld", notes: "" },
-  { id: 145, title: "The Light Fantastic", author: "Terry Pratchett", year: 2011, genre: "Fantasy", country: "UK", pages: 224, fiction: true, series: "Discworld", notes: "" },
-  { id: 146, title: "Journey to the Center of the Earth", author: "Jules Verne", year: 2011, genre: "Sci-Fi", country: "France", pages: 224, fiction: true, series: "", notes: "" },
-  { id: 147, title: "Gora", author: "Rabindranath Tagore", year: 2011, genre: "Literary Fiction", country: "India", pages: 548, fiction: true, series: "", notes: "" },
-  { id: 148, title: "Inheritance", author: "Christopher Paolini", year: 2011, genre: "Fantasy", country: "USA", pages: 849, fiction: true, series: "Inheritance Cycle", notes: "" },
-  { id: 149, title: "Elantris", author: "Brandon Sanderson", year: 2011, genre: "Fantasy", country: "USA", pages: 492, fiction: true, series: "Cosmere", notes: "" },
-  { id: 150, title: "Vagabonding", author: "Rolf Potts", year: 2011, genre: "Non-Fiction", country: "USA", pages: 224, fiction: false, series: "", notes: "" },
-  { id: 151, title: "Anzacs at War", author: "Commando Comics", year: 2011, genre: "Graphic Novel", country: "UK", pages: 64, fiction: false, series: "", notes: "" },
-  { id: 152, title: "Mistborn", author: "Brandon Sanderson", year: 2012, genre: "Fantasy", country: "USA", pages: 541, fiction: true, series: "Mistborn Era 1", notes: "" },
-  { id: 153, title: "The Well of Ascension", author: "Brandon Sanderson", year: 2012, genre: "Fantasy", country: "USA", pages: 590, fiction: true, series: "Mistborn Era 1", notes: "" },
-  { id: 154, title: "The Hero of Ages", author: "Brandon Sanderson", year: 2012, genre: "Fantasy", country: "USA", pages: 572, fiction: true, series: "Mistborn Era 1", notes: "" },
-  { id: 155, title: "The Alloy of Law", author: "Brandon Sanderson", year: 2012, genre: "Fantasy", country: "USA", pages: 336, fiction: true, series: "Mistborn Era 2", notes: "" },
-  { id: 156, title: "Warbreaker", author: "Brandon Sanderson", year: 2012, genre: "Fantasy", country: "USA", pages: 592, fiction: true, series: "Cosmere", notes: "" },
-  { id: 157, title: "The Way of Kings", author: "Brandon Sanderson", year: 2012, genre: "Fantasy", country: "USA", pages: 1007, fiction: true, series: "Stormlight Archive", notes: "" },
-  { id: 158, title: "Micro", author: "Michael Crichton", year: 2012, genre: "Thriller", country: "USA", pages: 416, fiction: true, series: "", notes: "Posthumous" },
-  { id: 159, title: "Love in the Time of Cholera", author: "Gabriel Garcia Marquez", year: 2012, genre: "Literary Fiction", country: "Colombia", pages: 368, fiction: true, series: "", notes: "" },
-  { id: 160, title: "Foundation's Edge", author: "Isaac Asimov", year: 2012, genre: "Sci-Fi", country: "USA", pages: 366, fiction: true, series: "Foundation", notes: "" },
-  { id: 161, title: "The Mysterious Flame of Queen Leona", author: "Umberto Eco", year: 2012, genre: "Literary Fiction", country: "Italy", pages: 469, fiction: true, series: "", notes: "" },
-  { id: 162, title: "Batman: Year One", author: "Frank Miller", year: 2012, genre: "Graphic Novel", country: "USA", pages: 96, fiction: true, series: "Batman", notes: "" },
-  { id: 163, title: "Batman: The Killing Joke", author: "Alan Moore", year: 2012, genre: "Graphic Novel", country: "UK", pages: 64, fiction: true, series: "Batman", notes: "" },
-  { id: 164, title: "My Story", author: "Kamala Das", year: 2012, genre: "Biography", country: "India", pages: 213, fiction: false, series: "", notes: "" },
-  { id: 165, title: "The Redbreast", author: "Jo Nesbo", year: 2012, genre: "Mystery", country: "Norway", pages: 521, fiction: true, series: "Harry Hole", notes: "" },
-  { id: 166, title: "The Story of Philosophy", author: "Will Durant", year: 2013, genre: "Philosophy", country: "USA", pages: 412, fiction: false, series: "", notes: "" },
-  { id: 167, title: "The Immortals of Meluha", author: "Amish Tripathi", year: 2013, genre: "Fantasy", country: "India", pages: 412, fiction: true, series: "Shiva Trilogy", notes: "" },
-  { id: 168, title: "The Secret of the Nagas", author: "Amish Tripathi", year: 2013, genre: "Fantasy", country: "India", pages: 388, fiction: true, series: "Shiva Trilogy", notes: "" },
-  { id: 169, title: "V for Vendetta", author: "Alan Moore & Dave Gibbons", year: 2013, genre: "Sci-Fi", country: "UK", pages: 296, fiction: true, series: "", notes: "" },
-  { id: 170, title: "The Oath of the Vayuputras", author: "Amish Tripathi", year: 2013, genre: "Fantasy", country: "India", pages: 450, fiction: true, series: "Shiva Trilogy", notes: "" },
-  { id: 171, title: "Upanishads", author: "Patrick Olivelle (trans.)", year: 2013, genre: "Philosophy", country: "India", pages: 320, fiction: false, series: "", notes: "" },
-  { id: 172, title: "White Mughals", author: "William Dalrymple", year: 2013, genre: "History", country: "UK", pages: 504, fiction: false, series: "", notes: "" },
-  { id: 173, title: "The Lost Symbol", author: "Dan Brown", year: 2013, genre: "Thriller", country: "USA", pages: 509, fiction: true, series: "Robert Langdon", notes: "" },
-  { id: 174, title: "The Eye of the World", author: "Robert Jordan", year: 2013, genre: "Fantasy", country: "USA", pages: 782, fiction: true, series: "Wheel of Time", notes: "" },
-  { id: 175, title: "Steve Jobs", author: "Walter Isaacson", year: 2013, genre: "Biography", country: "USA", pages: 630, fiction: false, series: "", notes: "" },
-  { id: 176, title: "The Great Indian Novel", author: "Shashi Tharoor", year: 2013, genre: "Literary Fiction", country: "India", pages: 424, fiction: true, series: "", notes: "" },
-  { id: 177, title: "The Lies of Locke Lamora", author: "Scott Lynch", year: 2013, genre: "Fantasy", country: "USA", pages: 499, fiction: true, series: "Gentleman Bastard", notes: "" },
-  { id: 178, title: "The Great Hunt", author: "Robert Jordan", year: 2014, genre: "Fantasy", country: "USA", pages: 681, fiction: true, series: "Wheel of Time", notes: "" },
-  { id: 179, title: "Phantoms in the Brain", author: "V.S. Ramachandran", year: 2014, genre: "Popular Science", country: "India", pages: 328, fiction: false, series: "", notes: "" },
-  { id: 180, title: "Moonward", author: "Appupen", year: 2014, genre: "Literary Fiction", country: "India", pages: 120, fiction: true, series: "", notes: "" },
-  { id: 181, title: "The Itch of the Wooden Splinter", author: "Sumit Kumar", year: 2014, genre: "Literary Fiction", country: "India", pages: 88, fiction: true, series: "", notes: "" },
-  { id: 182, title: "Manna", author: "Marshall Brain", year: 2014, genre: "Sci-Fi", country: "USA", pages: 200, fiction: true, series: "", notes: "" },
-  { id: 183, title: "You Just Don't Understand", author: "Deborah Tannen", year: 2014, genre: "Psychology", country: "USA", pages: 330, fiction: false, series: "", notes: "" },
-  { id: 184, title: "Masters of Doom", author: "David Kushner", year: 2014, genre: "Biography", country: "USA", pages: 335, fiction: false, series: "", notes: "" },
-  { id: 185, title: "The Day You Discard Your Body", author: "Marshall Brain", year: 2014, genre: "Popular Science", country: "USA", pages: 60, fiction: false, series: "", notes: "" },
-  { id: 186, title: "The Dragon Reborn", author: "Robert Jordan", year: 2014, genre: "Fantasy", country: "USA", pages: 624, fiction: true, series: "Wheel of Time", notes: "" },
-  { id: 187, title: "Kushiel's Dart", author: "Jacqueline Carey", year: 2014, genre: "Fantasy", country: "USA", pages: 701, fiction: true, series: "Kushiel's Legacy", notes: "" },
-  { id: 188, title: "Marker", author: "Robin Cook", year: 2015, genre: "Thriller", country: "USA", pages: 384, fiction: true, series: "", notes: "" },
-  { id: 189, title: "Paranoid", author: "Joseph Finder", year: 2015, genre: "Thriller", country: "USA", pages: 416, fiction: true, series: "", notes: "" },
-  { id: 190, title: "The Kill List", author: "Frederick Forsyth", year: 2015, genre: "Thriller", country: "UK", pages: 352, fiction: true, series: "", notes: "" },
-  { id: 191, title: "The Angel Experiment", author: "James Patterson", year: 2015, genre: "Sci-Fi", country: "USA", pages: 440, fiction: true, series: "Maximum Ride", notes: "" },
-  { id: 192, title: "The Player of Games", author: "Iain M. Banks", year: 2015, genre: "Sci-Fi", country: "UK", pages: 293, fiction: true, series: "Culture", notes: "" },
-  { id: 193, title: "The Atlantis Gene", author: "A.G. Riddle", year: 2015, genre: "Thriller", country: "USA", pages: 432, fiction: true, series: "Origin Mystery", notes: "" },
-  { id: 194, title: "The Silver Tower", author: "Matt Fitzgerald", year: 2015, genre: "Thriller", country: "USA", pages: 300, fiction: true, series: "", notes: "" },
-  { id: 195, title: "Lonely Planet South East Asia on a Shoestring", author: "Lonely Planet", year: 2015, genre: "Non-Fiction", country: "Australia", pages: 1000, fiction: false, series: "", notes: "" },
-  { id: 196, title: "The Martian", author: "Andy Weir", year: 2016, genre: "Sci-Fi", country: "USA", pages: 369, fiction: true, series: "", notes: "" },
-  { id: 197, title: "Words of Radiance", author: "Brandon Sanderson", year: 2016, genre: "Fantasy", country: "USA", pages: 1087, fiction: true, series: "Stormlight Archive", notes: "" },
-  { id: 198, title: "Shadows of Self", author: "Brandon Sanderson", year: 2016, genre: "Fantasy", country: "USA", pages: 383, fiction: true, series: "Mistborn Era 2", notes: "" },
-  { id: 199, title: "The Emperor's Soul", author: "Brandon Sanderson", year: 2016, genre: "Fantasy", country: "USA", pages: 175, fiction: true, series: "Cosmere", notes: "" },
-  { id: 200, title: "Harry Potter and the Chamber of Secrets", author: "J.K. Rowling", year: 2016, genre: "Fantasy", country: "UK", pages: 251, fiction: true, series: "Harry Potter", notes: "" },
-  { id: 201, title: "Harry Potter and the Prisoner of Azkaban", author: "J.K. Rowling", year: 2016, genre: "Fantasy", country: "UK", pages: 317, fiction: true, series: "Harry Potter", notes: "" },
-  { id: 202, title: "Harry Potter and the Goblet of Fire", author: "J.K. Rowling", year: 2016, genre: "Fantasy", country: "UK", pages: 636, fiction: true, series: "Harry Potter", notes: "" },
-  { id: 203, title: "Harry Potter and the Order of the Phoenix", author: "J.K. Rowling", year: 2016, genre: "Fantasy", country: "UK", pages: 766, fiction: true, series: "Harry Potter", notes: "" },
-  { id: 204, title: "Harry Potter and the Half-Blood Prince", author: "J.K. Rowling", year: 2016, genre: "Fantasy", country: "UK", pages: 607, fiction: true, series: "Harry Potter", notes: "" },
-  { id: 205, title: "Harry Potter and the Deathly Hallows", author: "J.K. Rowling", year: 2016, genre: "Fantasy", country: "UK", pages: 607, fiction: true, series: "Harry Potter", notes: "" },
-  { id: 206, title: "Inferno", author: "Dan Brown", year: 2016, genre: "Thriller", country: "USA", pages: 480, fiction: true, series: "Robert Langdon", notes: "" },
-  { id: 207, title: "A Thousand Splendid Suns", author: "Khaled Hosseini", year: 2016, genre: "Literary Fiction", country: "Afghanistan", pages: 372, fiction: true, series: "", notes: "" },
-  { id: 208, title: "Cradle and All", author: "James Patterson", year: 2017, genre: "Thriller", country: "USA", pages: 320, fiction: true, series: "", notes: "" },
-  { id: 209, title: "Step on a Crack", author: "James Patterson", year: 2017, genre: "Thriller", country: "USA", pages: 384, fiction: true, series: "Michael Bennett", notes: "" },
-  { id: 210, title: "The Vital Question", author: "Nick Lane", year: 2017, genre: "Popular Science", country: "UK", pages: 360, fiction: false, series: "", notes: "" },
-  { id: 211, title: "Scion of Ishvaku", author: "Amish Tripathi", year: 2017, genre: "Fantasy", country: "India", pages: 332, fiction: true, series: "Ram Chandra Series", notes: "" },
-  { id: 212, title: "Revelation Space", author: "Alastair Reynolds", year: 2017, genre: "Sci-Fi", country: "UK", pages: 585, fiction: true, series: "Revelation Space", notes: "" },
-  { id: 213, title: "Gone Girl", author: "Gillian Flynn", year: 2017, genre: "Thriller", country: "USA", pages: 422, fiction: true, series: "", notes: "" },
-  { id: 214, title: "Fahrenheit 451", author: "Ray Bradbury", year: 2017, genre: "Sci-Fi", country: "USA", pages: 256, fiction: true, series: "", notes: "" },
-  { id: 215, title: "Mahabharata", author: "Amar Chitra Katha", year: 2017, genre: "Historical Fiction", country: "India", pages: 400, fiction: true, series: "", notes: "" },
-  { id: 216, title: "Swami and Friends", author: "R.K. Narayan", year: 2017, genre: "Literary Fiction", country: "India", pages: 230, fiction: true, series: "Malgudi", notes: "" },
-  { id: 217, title: "Smoke and Mirrors", author: "Neil Gaiman", year: 2017, genre: "Fantasy", country: "UK", pages: 336, fiction: true, series: "", notes: "" },
-  { id: 218, title: "The God of Small Things", author: "Arundhati Roy", year: 2017, genre: "Literary Fiction", country: "India", pages: 321, fiction: true, series: "", notes: "" },
-  { id: 219, title: "Murder on the Orient Express", author: "Agatha Christie", year: 2017, genre: "Mystery", country: "UK", pages: 256, fiction: true, series: "Hercule Poirot", notes: "" },
-  { id: 220, title: "And Then There Were None", author: "Agatha Christie", year: 2017, genre: "Mystery", country: "UK", pages: 264, fiction: true, series: "", notes: "" },
-  { id: 221, title: "Sixth of the Dusk", author: "Brandon Sanderson", year: 2017, genre: "Fantasy", country: "USA", pages: 60, fiction: true, series: "Cosmere", notes: "" },
-  { id: 222, title: "Endless Night", author: "Agatha Christie", year: 2018, genre: "Mystery", country: "UK", pages: 224, fiction: true, series: "", notes: "" },
-  { id: 223, title: "The Murder of Roger Ackroyd", author: "Agatha Christie", year: 2018, genre: "Mystery", country: "UK", pages: 288, fiction: true, series: "Hercule Poirot", notes: "" },
-  { id: 224, title: "Zero to One", author: "Peter Thiel", year: 2018, genre: "Business", country: "USA", pages: 195, fiction: false, series: "", notes: "" },
-  { id: 225, title: "Statistics: A Graphic Guide", author: "Eileen Magnello & Borin Van Loon", year: 2018, genre: "Popular Science", country: "UK", pages: 176, fiction: false, series: "", notes: "" },
-  { id: 226, title: "The Emperor of All Maladies", author: "Siddhartha Mukherjee", year: 2018, genre: "Popular Science", country: "India", pages: 571, fiction: false, series: "", notes: "" },
-  { id: 227, title: "The Legends of Halahala", author: "Appupen", year: 2018, genre: "Fantasy", country: "India", pages: 136, fiction: true, series: "", notes: "" },
-  { id: 228, title: "Seveneves", author: "Neal Stephenson", year: 2018, genre: "Sci-Fi", country: "USA", pages: 880, fiction: true, series: "", notes: "" },
-  { id: 229, title: "The Songs of Distant Earth", author: "Arthur C. Clarke", year: 2018, genre: "Sci-Fi", country: "UK", pages: 255, fiction: true, series: "", notes: "" },
-  { id: 230, title: "Aspyrus", author: "Appupen", year: 2018, genre: "Literary Fiction", country: "India", pages: 120, fiction: true, series: "", notes: "" },
-  { id: 231, title: "Sum", author: "David Eagleman", year: 2018, genre: "Philosophy", country: "USA", pages: 107, fiction: true, series: "", notes: "" },
-  { id: 232, title: "Oathbringer", author: "Brandon Sanderson", year: 2018, genre: "Fantasy", country: "USA", pages: 1248, fiction: true, series: "Stormlight Archive", notes: "" },
-  { id: 233, title: "Arcanum Unbounded", author: "Brandon Sanderson", year: 2018, genre: "Fantasy", country: "USA", pages: 672, fiction: true, series: "Cosmere", notes: "" },
-  { id: 234, title: "Enlightenment Now", author: "Steven Pinker", year: 2018, genre: "History", country: "Canada", pages: 453, fiction: false, series: "", notes: "" },
-  { id: 235, title: "The Fox", author: "Frederick Forsyth", year: 2018, genre: "Thriller", country: "UK", pages: 272, fiction: true, series: "", notes: "" },
-  { id: 236, title: "Elon Musk", author: "Ashlee Vance", year: 2018, genre: "Biography", country: "USA", pages: 392, fiction: false, series: "", notes: "" },
-  { id: 237, title: "Origin", author: "Dan Brown", year: 2018, genre: "Thriller", country: "USA", pages: 461, fiction: true, series: "Robert Langdon", notes: "" },
-  { id: 238, title: "The Hidden Life of Trees", author: "Peter Wohlleben", year: 2018, genre: "Popular Science", country: "Germany", pages: 288, fiction: false, series: "", notes: "" },
-  { id: 239, title: "Cathedral", author: "Raymond Carver", year: 2018, genre: "Literary Fiction", country: "USA", pages: 228, fiction: true, series: "", notes: "" },
-  { id: 240, title: "Sita", author: "Amish Tripathi", year: 2018, genre: "Fantasy", country: "India", pages: 352, fiction: true, series: "Ram Chandra Series", notes: "" },
-  { id: 241, title: "The Guernsey Literary and Potato Peel Pie Society", author: "Mary Ann Shaffer & Annie Barrows", year: 2019, genre: "Literary Fiction", country: "USA", pages: 274, fiction: true, series: "", notes: "" },
-  { id: 242, title: "When Breath Becomes Air", author: "Paul Kalanithi", year: 2019, genre: "Biography", country: "USA", pages: 228, fiction: false, series: "", notes: "" },
-  { id: 243, title: "Marvel 1602", author: "Neil Gaiman", year: 2019, genre: "Graphic Novel", country: "UK", pages: 248, fiction: true, series: "", notes: "" },
-  { id: 244, title: "DC Universe Rebirth", author: "Geoff Johns", year: 2019, genre: "Graphic Novel", country: "USA", pages: 80, fiction: true, series: "", notes: "" },
-  { id: 245, title: "All the Names They Used for God", author: "Anjali Sachdeva", year: 2019, genre: "Literary Fiction", country: "India", pages: 224, fiction: true, series: "", notes: "" },
-  { id: 246, title: "The Pillars of the Earth", author: "Ken Follett", year: 2019, genre: "Historical Fiction", country: "UK", pages: 973, fiction: true, series: "Kingsbridge", notes: "" },
-  { id: 247, title: "World Without End", author: "Ken Follett", year: 2019, genre: "Historical Fiction", country: "UK", pages: 1014, fiction: true, series: "Kingsbridge", notes: "" },
-  { id: 248, title: "The Sirens of Titan", author: "Kurt Vonnegut", year: 2019, genre: "Sci-Fi", country: "USA", pages: 326, fiction: true, series: "", notes: "" },
-  { id: 249, title: "A Column of Fire", author: "Ken Follett", year: 2019, genre: "Historical Fiction", country: "UK", pages: 916, fiction: true, series: "Kingsbridge", notes: "" },
-  { id: 250, title: "How to Win an Indian Election", author: "Shivam Shankar Singh", year: 2019, genre: "Politics", country: "India", pages: 272, fiction: false, series: "", notes: "" },
-  { id: 251, title: "Em and the Big Hoom", author: "Jerry Pinto", year: 2019, genre: "Literary Fiction", country: "India", pages: 243, fiction: true, series: "", notes: "" },
-  { id: 252, title: "The Courtesan, the Mahatma & the Italian Brahmin", author: "Manu S. Pillai", year: 2019, genre: "History", country: "India", pages: 352, fiction: false, series: "", notes: "" },
-  { id: 253, title: "The Verdict", author: "Prannoy Roy & Dorab Sopariwala", year: 2019, genre: "Politics", country: "India", pages: 368, fiction: false, series: "", notes: "" },
-  { id: 254, title: "In Love with the World", author: "Yongey Mingyur Rinpoche", year: 2019, genre: "Philosophy", country: "Nepal", pages: 272, fiction: false, series: "", notes: "" },
-  { id: 255, title: "A Fine Balance", author: "Rohinton Mistry", year: 2019, genre: "Literary Fiction", country: "India", pages: 603, fiction: true, series: "", notes: "" },
-  { id: 256, title: "The Ministry of Utmost Happiness", author: "Arundhati Roy", year: 2019, genre: "Literary Fiction", country: "India", pages: 449, fiction: true, series: "", notes: "" },
-  { id: 257, title: "Alice in Wonderland", author: "Lewis Carroll", year: 2019, genre: "Literary Fiction", country: "UK", pages: 192, fiction: true, series: "", notes: "" },
-  { id: 258, title: "Superforecasting", author: "Philip Tetlock & Dan Gardner", year: 2019, genre: "Popular Science", country: "USA", pages: 340, fiction: false, series: "", notes: "" },
-  { id: 259, title: "Skyward", author: "Brandon Sanderson", year: 2019, genre: "Sci-Fi", country: "USA", pages: 510, fiction: true, series: "Skyward", notes: "" },
-  { id: 260, title: "One Part Woman", author: "Perumal Murugan", year: 2019, genre: "Literary Fiction", country: "India", pages: 229, fiction: true, series: "", notes: "" },
-  { id: 261, title: "Gujarat Files: Anatomy of a Cover Up", author: "Rana Ayyub", year: 2019, genre: "Politics", country: "India", pages: 168, fiction: false, series: "", notes: "" },
-  { id: 262, title: "I Am a Troll", author: "Swati Chaturvedi", year: 2019, genre: "Politics", country: "India", pages: 244, fiction: false, series: "", notes: "" },
-  { id: 263, title: "The Buddha's Non-Sectarian Teachings", author: "S.N. Goenka", year: 2019, genre: "Philosophy", country: "India", pages: 150, fiction: false, series: "", notes: "" },
-  { id: 264, title: "The Forty Rules of Love", author: "Elif Shafak", year: 2020, genre: "Literary Fiction", country: "Turkey", pages: 368, fiction: true, series: "", notes: "" },
-  { id: 265, title: "Eileen", author: "Ottessa Moshfegh", year: 2020, genre: "Literary Fiction", country: "USA", pages: 260, fiction: true, series: "", notes: "" },
-  { id: 266, title: "10 Minutes 38 Seconds in This Strange World", author: "Elif Shafak", year: 2020, genre: "Literary Fiction", country: "Turkey", pages: 326, fiction: true, series: "", notes: "" },
-  { id: 267, title: "A Suitable Boy", author: "Vikram Seth", year: 2020, genre: "Literary Fiction", country: "India", pages: 1349, fiction: true, series: "", notes: "" },
-  { id: 268, title: "Open", author: "Andre Agassi", year: 2020, genre: "Biography", country: "USA", pages: 385, fiction: false, series: "", notes: "" },
-  { id: 269, title: "Cari Mora", author: "Thomas Harris", year: 2020, genre: "Thriller", country: "USA", pages: 288, fiction: true, series: "", notes: "" },
-  { id: 270, title: "Einstein: His Life and Universe", author: "Walter Isaacson", year: 2020, genre: "Biography", country: "USA", pages: 551, fiction: false, series: "", notes: "" },
-  { id: 271, title: "Leonardo da Vinci", author: "Walter Isaacson", year: 2020, genre: "Biography", country: "USA", pages: 524, fiction: false, series: "", notes: "" },
-  { id: 272, title: "Ghalib: A Thousand Desires", author: "Raza Mir", year: 2020, genre: "History", country: "India", pages: 240, fiction: false, series: "", notes: "" },
-  { id: 273, title: "The Rise and Fall of the Dinosaurs", author: "Steve Brusatte", year: 2020, genre: "Popular Science", country: "USA", pages: 404, fiction: false, series: "", notes: "" },
-  { id: 274, title: "A Gentleman in Moscow", author: "Amor Towles", year: 2020, genre: "Literary Fiction", country: "USA", pages: 462, fiction: true, series: "", notes: "" },
-  { id: 275, title: "Ishmael", author: "Daniel Quinn", year: 2020, genre: "Literary Fiction", country: "USA", pages: 263, fiction: true, series: "", notes: "" },
-  { id: 276, title: "No One is Too Small to Make a Difference", author: "Greta Thunberg", year: 2020, genre: "Politics", country: "Sweden", pages: 128, fiction: false, series: "", notes: "" },
-  { id: 277, title: "The Ivory Throne", author: "Manu S. Pillai", year: 2020, genre: "History", country: "India", pages: 612, fiction: false, series: "", notes: "" },
-  { id: 278, title: "Born a Crime", author: "Trevor Noah", year: 2020, genre: "Biography", country: "South Africa", pages: 304, fiction: false, series: "", notes: "" },
-  { id: 279, title: "An Astronaut's Guide to Life on Earth", author: "Chris Hadfield", year: 2020, genre: "Biography", country: "Canada", pages: 304, fiction: false, series: "", notes: "" },
-  { id: 280, title: "I Am Malala", author: "Malala Yousafzai", year: 2020, genre: "Biography", country: "Pakistan", pages: 327, fiction: false, series: "", notes: "" },
-  { id: 281, title: "Buddha Vol. 1-8", author: "Osamu Tezuka", year: 2020, genre: "History", country: "Japan", pages: 2400, fiction: true, series: "", notes: "8 volumes combined" },
-  { id: 282, title: "The Shape of Ideas", author: "Grant Snider", year: 2020, genre: "Non-Fiction", country: "USA", pages: 192, fiction: false, series: "", notes: "" },
-  { id: 283, title: "The Audacity of Hope", author: "Barack Obama", year: 2020, genre: "Politics", country: "USA", pages: 375, fiction: false, series: "", notes: "" },
-  { id: 284, title: "Circe", author: "Madeline Miller", year: 2020, genre: "Fantasy", country: "USA", pages: 393, fiction: true, series: "", notes: "" },
-  { id: 285, title: "Becoming", author: "Michelle Obama", year: 2020, genre: "Biography", country: "USA", pages: 448, fiction: false, series: "", notes: "" },
-  { id: 286, title: "I Will Judge You by Your Bookshelf", author: "Grant Snider", year: 2020, genre: "Non-Fiction", country: "USA", pages: 128, fiction: false, series: "", notes: "" },
-  { id: 287, title: "A Promised Land", author: "Barack Obama", year: 2020, genre: "Biography", country: "USA", pages: 701, fiction: false, series: "", notes: "" },
-  { id: 288, title: "Macbeth", author: "Shakespeare & Matt Wiegle", year: 2021, genre: "Literary Fiction", country: "UK", pages: 176, fiction: true, series: "", notes: "" },
-  { id: 289, title: "To Sleep in a Sea of Stars", author: "Christopher Paolini", year: 2021, genre: "Sci-Fi", country: "USA", pages: 880, fiction: true, series: "", notes: "" },
-  { id: 290, title: "Caste", author: "Isabel Wilkerson", year: 2021, genre: "History", country: "USA", pages: 496, fiction: false, series: "", notes: "" },
-  { id: 291, title: "The Evening and the Morning", author: "Ken Follett", year: 2021, genre: "Historical Fiction", country: "UK", pages: 850, fiction: true, series: "Kingsbridge", notes: "Prequel" },
-  { id: 292, title: "Sapiens", author: "Yuval Noah Harari", year: 2021, genre: "History", country: "Israel", pages: 443, fiction: false, series: "", notes: "" },
-  { id: 293, title: "Homo Deus", author: "Yuval Noah Harari", year: 2021, genre: "History", country: "Israel", pages: 450, fiction: false, series: "", notes: "" },
-  { id: 294, title: "How Not to Be Wrong", author: "Jordan Ellenberg", year: 2021, genre: "Popular Science", country: "USA", pages: 468, fiction: false, series: "", notes: "" },
-  { id: 295, title: "Atomic Habits", author: "James Clear", year: 2021, genre: "Self-Help", country: "USA", pages: 320, fiction: false, series: "", notes: "" },
-  { id: 296, title: "Fall of Giants", author: "Ken Follett", year: 2021, genre: "Historical Fiction", country: "UK", pages: 985, fiction: true, series: "Century Trilogy", notes: "" },
-  { id: 297, title: "21 Lessons for the 21st Century", author: "Yuval Noah Harari", year: 2021, genre: "History", country: "Israel", pages: 352, fiction: false, series: "", notes: "" },
-  { id: 298, title: "Romeo and Juliet", author: "Shakespeare & Matt Wiegle", year: 2021, genre: "Literary Fiction", country: "UK", pages: 176, fiction: true, series: "", notes: "" },
-  { id: 299, title: "The Cock is the Culprit", author: "Unni R.", year: 2021, genre: "Literary Fiction", country: "India", pages: 200, fiction: true, series: "", notes: "" },
-  { id: 300, title: "An Era of Darkness", author: "Shashi Tharoor", year: 2021, genre: "History", country: "India", pages: 384, fiction: false, series: "", notes: "" },
-  { id: 301, title: "A Tiger for Malgudi", author: "R.K. Narayan", year: 2021, genre: "Literary Fiction", country: "India", pages: 222, fiction: true, series: "Malgudi", notes: "" },
-  { id: 302, title: "How to Avoid a Climate Disaster", author: "Bill Gates", year: 2021, genre: "Popular Science", country: "USA", pages: 272, fiction: false, series: "", notes: "" },
-  { id: 303, title: "The Reluctant Fundamentalist", author: "Mohsin Hamid", year: 2021, genre: "Literary Fiction", country: "Pakistan", pages: 184, fiction: true, series: "", notes: "" },
-  { id: 304, title: "Train to Pakistan", author: "Khushwant Singh", year: 2021, genre: "Literary Fiction", country: "India", pages: 192, fiction: true, series: "", notes: "" },
-  { id: 305, title: "The Spy and the Traitor", author: "Ben Macintyre", year: 2021, genre: "History", country: "UK", pages: 368, fiction: false, series: "", notes: "" },
-  { id: 306, title: "Yuganta", author: "Irawati Karve", year: 2021, genre: "History", country: "India", pages: 208, fiction: false, series: "", notes: "" },
-  { id: 307, title: "Crime and Punishment", author: "Fyodor Dostoevsky", year: 2021, genre: "Literary Fiction", country: "Russia", pages: 545, fiction: true, series: "", notes: "" },
-  { id: 308, title: "Meditations", author: "Marcus Aurelius", year: 2021, genre: "Philosophy", country: "Rome", pages: 256, fiction: false, series: "", notes: "" },
-  { id: 309, title: "Midnight's Children", author: "Salman Rushdie", year: 2021, genre: "Literary Fiction", country: "India", pages: 647, fiction: true, series: "", notes: "" },
-  { id: 310, title: "Born to Run", author: "Christopher McDougall", year: 2021, genre: "Biography", country: "USA", pages: 287, fiction: false, series: "", notes: "" },
-  { id: 311, title: "Artemis", author: "Andy Weir", year: 2021, genre: "Sci-Fi", country: "USA", pages: 305, fiction: true, series: "", notes: "" },
-  { id: 312, title: "Economics in One Lesson", author: "Henry Hazlitt", year: 2021, genre: "Economics", country: "USA", pages: 218, fiction: false, series: "", notes: "" },
-  { id: 313, title: "The Name of the Wind", author: "Patrick Rothfuss", year: 2021, genre: "Fantasy", country: "USA", pages: 662, fiction: true, series: "Kingkiller Chronicle", notes: "" },
-  { id: 314, title: "Project Hail Mary", author: "Andy Weir", year: 2021, genre: "Sci-Fi", country: "USA", pages: 476, fiction: true, series: "", notes: "" },
-  { id: 315, title: "Nudge", author: "Richard Thaler & Cass Sunstein", year: 2021, genre: "Psychology", country: "USA", pages: 293, fiction: false, series: "", notes: "" },
-  { id: 316, title: "The Wise Man's Fear", author: "Patrick Rothfuss", year: 2021, genre: "Fantasy", country: "USA", pages: 994, fiction: true, series: "Kingkiller Chronicle", notes: "" },
-  { id: 317, title: "Annihilation of Caste", author: "B.R. Ambedkar", year: 2021, genre: "History", country: "India", pages: 264, fiction: false, series: "", notes: "" },
-  { id: 318, title: "A Feast of Vultures", author: "Josy Joseph", year: 2021, genre: "Politics", country: "India", pages: 296, fiction: false, series: "", notes: "" },
-  { id: 319, title: "The Case for Climate Capitalism", author: "Tom Rand", year: 2021, genre: "Economics", country: "Canada", pages: 256, fiction: false, series: "", notes: "" },
-  { id: 320, title: "In Service of the Republic", author: "Vijay Kelkar & Ajay Shah", year: 2021, genre: "Economics", country: "India", pages: 320, fiction: false, series: "", notes: "" },
-  { id: 321, title: "Silent Spring", author: "Rachel Carson", year: 2021, genre: "Popular Science", country: "USA", pages: 368, fiction: false, series: "", notes: "" },
-  { id: 322, title: "Thinking, Fast and Slow", author: "Daniel Kahneman", year: 2021, genre: "Psychology", country: "Israel", pages: 499, fiction: false, series: "", notes: "" },
-  { id: 323, title: "The Notebook, The Proof, The Third Lie", author: "Agota Kristof", year: 2021, genre: "Literary Fiction", country: "Hungary", pages: 512, fiction: true, series: "The Claus Trilogy", notes: "Combined edition" },
-  { id: 324, title: "Good Economics for Hard Times", author: "Abhijit Banerjee & Esther Duflo", year: 2021, genre: "Economics", country: "India", pages: 432, fiction: false, series: "", notes: "" },
-  { id: 325, title: "Poonachi", author: "Perumal Murugan", year: 2021, genre: "Literary Fiction", country: "India", pages: 157, fiction: true, series: "", notes: "" },
-  { id: 326, title: "This Changes Everything", author: "Naomi Klein", year: 2021, genre: "Politics", country: "Canada", pages: 576, fiction: false, series: "", notes: "" },
-  { id: 327, title: "The Five Love Languages", author: "Gary Chapman", year: 2021, genre: "Self-Help", country: "USA", pages: 208, fiction: false, series: "", notes: "" },
-  { id: 328, title: "Child 44", author: "Tom Rob Smith", year: 2022, genre: "Thriller", country: "UK", pages: 439, fiction: true, series: "Leo Demidov", notes: "" },
-  { id: 329, title: "Starsight", author: "Brandon Sanderson", year: 2022, genre: "Sci-Fi", country: "USA", pages: 461, fiction: true, series: "Skyward", notes: "" },
-  { id: 330, title: "Thinking in Systems", author: "Donella Meadows", year: 2022, genre: "Popular Science", country: "USA", pages: 218, fiction: false, series: "", notes: "" },
-  { id: 331, title: "A Court of Thorns and Roses", author: "Sarah J. Maas", year: 2025, genre: "Fantasy", country: "USA", pages: 419, fiction: true, series: "ACOTAR", notes: "" },
-  { id: 332, title: "Dawnshard", author: "Brandon Sanderson", year: 2025, genre: "Fantasy", country: "USA", pages: 176, fiction: true, series: "Stormlight Archive", notes: "" },
-  { id: 333, title: "Secret of Secrets", author: "Dan Brown", year: 2025, genre: "Thriller", country: "USA", pages: 400, fiction: true, series: "Robert Langdon", notes: "" },
-  { id: 334, title: "Heart Lamp", author: "Banu Mushtaq", year: 2025, genre: "Literary Fiction", country: "India", pages: 192, fiction: true, series: "", notes: "Translated from Kannada; JCB Prize winner" },
-  { id: 335, title: "The Silent Patient", author: "Alex Michaelides", year: 2025, genre: "Thriller", country: "UK", pages: 336, fiction: true, series: "", notes: "" },
-  { id: 336, title: "Cinema Speculation", author: "Quentin Tarantino", year: 2025, genre: "Non-Fiction", country: "USA", pages: 392, fiction: false, series: "", notes: "" },
-  { id: 337, title: "A Court of Mist and Fury", author: "Sarah J. Maas", year: 2026, genre: "Fantasy", country: "USA", pages: 624, fiction: true, series: "ACOTAR", notes: "" },
-  { id: 338, title: "A Court of Wings and Ruin", author: "Sarah J. Maas", year: 2026, genre: "Fantasy", country: "USA", pages: 699, fiction: true, series: "ACOTAR", notes: "" },
-  { id: 339, title: "A Court of Frost and Starlight", author: "Sarah J. Maas", year: 2026, genre: "Fantasy", country: "USA", pages: 229, fiction: true, series: "ACOTAR", notes: "" },
-  { id: 340, title: "A Court of Silver Flames", author: "Sarah J. Maas", year: 2026, genre: "Fantasy", country: "USA", pages: 757, fiction: true, series: "ACOTAR", notes: "" },
-  { id: 341, title: "Fourth Wing", author: "Rebecca Yarros", year: 2026, genre: "Fantasy", country: "USA", pages: 512, fiction: true, series: "The Empyrean", notes: "" },
-  { id: 342, title: "Iron Flame", author: "Rebecca Yarros", year: 2026, genre: "Fantasy", country: "USA", pages: 623, fiction: true, series: "The Empyrean", notes: "" },
-  { id: 343, title: "Onyx Storm", author: "Rebecca Yarros", year: 2026, genre: "Fantasy", country: "USA", pages: 687, fiction: true, series: "The Empyrean", notes: "" },
-  { id: 344, title: "Tress of the Emerald Sea", author: "Brandon Sanderson", year: 2026, genre: "Fantasy", country: "USA", pages: 370, fiction: true, series: "Cosmere", notes: "" },
-  { id: 345, title: "Yumi and the Nightmare Painter", author: "Brandon Sanderson", year: 2026, genre: "Fantasy", country: "USA", pages: 480, fiction: true, series: "Cosmere", notes: "" },
-];
-
 const READING_CONTEXT = `This reader has consumed 345 books across 17 years (2010–2026). Key patterns:
 
 TOP AUTHORS: Brandon Sanderson (many books – Mistborn, Stormlight Archive, Skyward, Cosmere novellas), Sidney Sheldon (thrillers), Sarah J. Maas (ACOTAR series), Rebecca Yarros (Empyrean series), J.K. Rowling (Harry Potter), Christopher Paolini (Eragon), Ken Follett (Kingsbridge), Agatha Christie (mysteries), Amish Tripathi (Indian mythology fantasy), Robert Jordan (Wheel of Time), Dan Brown (thrillers), Andy Weir (sci-fi), Walter Isaacson (biographies), Yuval Noah Harari (non-fiction), Perumal Murugan (Indian literary), Arundhati Roy (Indian literary), Appupen (Indian graphic novels).
@@ -385,6 +37,21 @@ STRONG INTERESTS: Thrillers and crime fiction, epic fantasy, Indian literature, 
 POTENTIAL GAPS: Literary romance, poetry, westerns, African literature, Japanese fiction beyond manga, Latin American magical realism beyond Marquez, contemporary cozy mysteries, Nordic noir beyond Nesbo.
 
 RECENT DIRECTION (2025-26): Clear romantasy and fantasy phase – ACOTAR series, Empyrean series, Cosmere. Also some literary fiction. Suggests appetite for character-driven fantasy with romance, not just plot-heavy epic fantasy.`;
+
+// ── NORMALIZE BOOK (joins authors from Supabase nested select) ────────────
+function normalizeBook(b) {
+  const sortedAuthors = (b.book_authors || [])
+    .sort((x, y) => x.author_order - y.author_order)
+    .map(ba => ba.authors);
+  return {
+    ...b,
+    authors: sortedAuthors,
+    author: sortedAuthors.map(a => a.name).join(" & "),
+    country: sortedAuthors[0]?.country || "",
+    year: b.year_read_end,
+    genre: Array.isArray(b.genre) ? b.genre : (b.genre ? [b.genre] : []),
+  };
+}
 
 // ── MULTI SELECT ─────────────────────────────────────────────────────────
 function MultiSelect({ options, selected, onChange, placeholder, style }) {
@@ -459,12 +126,8 @@ const DarkTooltip = ({ active, payload, label }) => {
 // ── MAIN APP ──────────────────────────────────────────────────────────────
 export default function App() {
   const [activeTab, setActiveTab] = useState("overview");
-  const [books, setBooks] = useState(() => {
-    try {
-      const saved = localStorage.getItem("nairrative_books");
-      return saved ? JSON.parse(saved) : INITIAL_BOOKS;
-    } catch { return INITIAL_BOOKS; }
-  });
+  const [books, setBooks] = useState([]);
+  const [booksLoading, setBooksLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [libGenres, setLibGenres] = useState([]);
   const [libYears, setLibYears] = useState([]);
@@ -472,7 +135,7 @@ export default function App() {
   const [libSort, setLibSort] = useState("year");
   const [chartRanges, setChartRanges] = useState({});
   const [messages, setMessages] = useState([
-    { role: "assistant", content: "Hello! I know your complete reading history — 345 books across 17 years. Ask me anything: your patterns, what to read next, your top authors, surprising stats, or anything else!" }
+    { role: "assistant", content: "Hello! I know your complete reading history. Ask me anything: your patterns, what to read next, your top authors, surprising stats, or anything else!" }
   ]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
@@ -490,7 +153,6 @@ export default function App() {
   const [seriesLoading, setSeriesLoading] = useState(false);
   const [selectedSeries, setSelectedSeries] = useState("");
   const chatEndRef = useRef(null);
-  const nextId = useRef(parseInt(localStorage.getItem("nairrative_next_id") || "346"));
 
   useEffect(() => {
     const link = document.createElement("link");
@@ -503,9 +165,30 @@ export default function App() {
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   useEffect(() => {
-    localStorage.setItem("nairrative_books", JSON.stringify(books));
-    localStorage.setItem("nairrative_next_id", String(nextId.current));
-  }, [books]);
+    supabase
+      .from("books")
+      .select("*, book_authors(author_order, authors(id, name, country))")
+      .order("id")
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Supabase fetch error:", error);
+          setBooksLoading(false);
+          return;
+        }
+        if (data) {
+          try {
+            setBooks(data.map(normalizeBook));
+          } catch (e) {
+            console.error("normalizeBook error:", e, data[0]);
+          }
+        }
+        setBooksLoading(false);
+      })
+      .catch(e => {
+        console.error("Supabase connection error:", e);
+        setBooksLoading(false);
+      });
+  }, []);
 
   const AUTO_RECS = ["more-like", "more-by-last", "similar-author", "trending", "challenge", "quick", "gaps", "surprise", "finish"];
 
@@ -538,7 +221,7 @@ export default function App() {
     const byYear = {}, byGenre = {}, byAuthor = {}, byCountry = {};
     books.forEach(b => {
       byYear[b.year] = (byYear[b.year] || 0) + 1;
-      byGenre[b.genre] = (byGenre[b.genre] || 0) + 1;
+      (b.genre || []).forEach(g => { byGenre[g] = (byGenre[g] || 0) + 1; });
       byAuthor[b.author] = (byAuthor[b.author] || 0) + 1;
       if (b.country) byCountry[b.country] = (byCountry[b.country] || 0) + 1;
     });
@@ -563,12 +246,12 @@ export default function App() {
     }
 
     // Genre & Form
-    const fictionCount = books.filter(b => b.fiction !== undefined ? b.fiction : fGen.has(b.genre)).length;
+    const fictionCount = books.filter(b => b.fiction !== undefined ? b.fiction : (b.genre || []).some(g => fGen.has(g))).length;
     const fictionPct = Math.round(fictionCount / books.length * 100);
-    const graphicNovels = books.filter(b => b.genre === "Graphic Novel").length;
+    const graphicNovels = books.filter(b => (b.genre || []).includes("Graphic Novel")).length;
     const genreCount = Object.keys(stats.byGenre).length;
     const era = (s, e) => books.filter(b => b.year >= s && b.year <= e);
-    const topGenreIn = sub => Object.entries(sub.reduce((a, b) => { a[b.genre]=(a[b.genre]||0)+1; return a; }, {})).sort((a,b)=>b[1]-a[1])[0]?.[0] || "—";
+    const topGenreIn = sub => Object.entries(sub.reduce((a, b) => { (b.genre||[]).forEach(g=>{a[g]=(a[g]||0)+1;}); return a; }, {})).sort((a,b)=>b[1]-a[1])[0]?.[0] || "—";
     const genreEra = [
       { era: "2010–14", top: topGenreIn(era(2010,2014)) },
       { era: "2015–19", top: topGenreIn(era(2015,2019)) },
@@ -590,7 +273,7 @@ export default function App() {
 
     // Complexity
     const challengingAuthors = new Set(["Fyodor Dostoevsky","Vladimir Nabokov","Mark Z. Danielewski","Kurt Vonnegut","Salman Rushdie","Umberto Eco","Agota Kristof","Marcus Aurelius","B.R. Ambedkar","Irawati Karve","Arundhati Roy","Perumal Murugan"]);
-    const challengingCount = books.filter(b => challengingAuthors.has(b.author) || b.genre === "Classic" || b.genre === "Philosophy").length;
+    const challengingCount = books.filter(b => challengingAuthors.has(b.author) || (b.genre||[]).includes("Classic") || (b.genre||[]).includes("Philosophy")).length;
     const challengePct = Math.round(challengingCount / books.length * 100);
 
     // Series estimation
@@ -599,7 +282,7 @@ export default function App() {
     const seriesPct = Math.round(seriesCount / books.length * 100);
 
     // Emotional arc: fiction % by era
-    const eraFictionPct = (s, e) => { const sub = era(s,e); return sub.length ? Math.round(sub.filter(b=>b.fiction !== undefined ? b.fiction : fGen.has(b.genre)).length/sub.length*100) : 0; };
+    const eraFictionPct = (s, e) => { const sub = era(s,e); return sub.length ? Math.round(sub.filter(b=>b.fiction !== undefined ? b.fiction : (b.genre||[]).some(g=>fGen.has(g))).length/sub.length*100) : 0; };
     const fictionByEra = [
       { era: "2010–14", pct: eraFictionPct(2010,2014) },
       { era: "2015–19", pct: eraFictionPct(2015,2019) },
@@ -621,9 +304,9 @@ export default function App() {
   const filteredBooks = useMemo(() =>
     books.filter(b => {
       if (search && !b.title.toLowerCase().includes(search.toLowerCase()) && !b.author.toLowerCase().includes(search.toLowerCase())) return false;
-      if (libGenres.length > 0 && !libGenres.includes(b.genre)) return false;
+      if (libGenres.length > 0 && !(b.genre || []).some(g => libGenres.includes(g))) return false;
       if (libYears.length > 0 && !libYears.includes(String(b.year))) return false;
-      if (libAuthors.length > 0 && !libAuthors.includes(b.author)) return false;
+      if (libAuthors.length > 0 && !(b.authors || []).some(a => libAuthors.includes(a.name))) return false;
       return true;
     }).sort((a, b) => {
       if (libSort === "year") return b.year - a.year;
@@ -634,7 +317,7 @@ export default function App() {
 
   const allGenres = useMemo(() => Object.keys(GENRE_COLORS), []);
   const allYears = useMemo(() => Object.keys(stats.byYear).sort().reverse(), [stats]);
-  const allAuthors = useMemo(() => [...new Set(books.map(b => b.author))].sort(), [books]);
+  const allAuthors = useMemo(() => [...new Set(books.flatMap(b => (b.authors || []).map(a => a.name)))].sort(), [books]);
   const allYearsList = useMemo(() => Object.keys(stats.byYear).sort().map(Number), [stats]);
 
   // ── HANDLERS ──────────────────────────────────────────────────────────────
@@ -653,11 +336,12 @@ export default function App() {
     setChatInput("");
     setChatLoading(true);
     try {
+      const bookList = books.map(b => `${b.title} by ${b.author} (${b.year}, ${(b.genre||[]).join("/")}${b.pages ? ", " + b.pages + "pp" : ""}${b.series ? ", series: " + b.series : ""}${b.notes ? ", notes: " + b.notes : ""})`).join("\n");
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST", headers: aiHeaders(),
         body: JSON.stringify({
           model: "claude-sonnet-4-6", max_tokens: 1000,
-          system: `You are a witty, insightful personal reading assistant. Here is the user's complete reading history:\n\n${READING_CONTEXT}\n\nAnswer questions about their reading habits with specific details, surprising insights, and genuine personality. Be conversational and direct.`,
+          system: `You are a witty, insightful personal reading assistant. Here is the user's complete reading history of ${books.length} books:\n\n${bookList}\n\nAnswer questions about their reading habits with specific details, surprising insights, and genuine personality. Be conversational and direct.`,
           messages: updated.map(m => ({ role: m.role, content: m.content }))
         })
       });
@@ -675,7 +359,7 @@ export default function App() {
     setAnalysisChatInput("");
     setAnalysisChatLoading(true);
     try {
-      const bookList = books.map(b => `${b.title} by ${b.author} (${b.year}, ${b.genre}${b.pages ? ", " + b.pages + "pp" : ""})`).join("\n");
+      const bookList = books.map(b => `${b.title} by ${b.author} (${b.year}, ${(b.genre||[]).join("/")}${b.pages ? ", " + b.pages + "pp" : ""})`).join("\n");
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST", headers: aiHeaders(),
         body: JSON.stringify({
@@ -733,7 +417,7 @@ export default function App() {
         body: JSON.stringify({
           model: "claude-sonnet-4-6", max_tokens: 1500,
           system: `You are a knowledgeable literary companion helping a reader catch up on a book series before continuing. Write vivid, engaging recaps — not dry plot summaries, but the kind of catch-up a friend would give you over coffee. Include key characters, major plot turns, how each book ends, and the most important things to remember going into the next book. Keep each book recap to 3–5 sentences.`,
-          messages: [{ role: "user", content: `Please recap the "${seriesName}" series. The reader has read these books (in order): ${seriesBooks.map((b, i) => `${i+1}. ${b.title} (${b.year})`).join(", ")}. Give a short recap of each book and a "What to remember" section with the 3–5 most important things going into the next installment.` }]
+          messages: [{ role: "user", content: `Please recap the "${seriesName}" series. The reader has read these books (in order): ${seriesBooks.map((b, i) => `${i+1}. ${b.title} (${b.year_read_end})`).join(", ")}. Give a short recap of each book and a "What to remember" section with the 3–5 most important things going into the next installment.` }]
         })
       });
       const data = await res.json();
@@ -790,16 +474,42 @@ export default function App() {
     setIntentLoading(p => { const n = { ...p }; delete n[intentId]; return n; });
   };
 
-  const addBook = () => {
+  const addBook = async () => {
     if (!newBook.title.trim() || !newBook.author.trim()) { setAddMsg("Title and author are required."); return; }
-    setBooks(prev => [...prev, { ...newBook, id: nextId.current++, year: parseInt(newBook.year), pages: newBook.pages ? parseInt(newBook.pages) : null }]);
-    setNewBook({ title: "", author: "", year: 2026, genre: "Fantasy", country: "", pages: "" });
+    const yr = parseInt(newBook.year);
+    // 1. Insert book
+    const { data: book, error: bookErr } = await supabase.from("books").insert([{
+      user_id: "5c8d1748-16ec-45a3-b57e-a8bdb7a7db78",
+      title: newBook.title.trim(),
+      year_read_start: yr, year_read_end: yr,
+      genre: [newBook.genre],
+      format: newBook.format || "Novel",
+      fiction: newBook.fiction !== false,
+      series: newBook.series || "",
+      pages: newBook.pages ? parseInt(newBook.pages) : null,
+      notes: newBook.notes || "",
+      user_added: true,
+    }]).select().single();
+    if (bookErr) { setAddMsg("Error saving book. Check your connection."); return; }
+    // 2. Find or create author
+    let { data: author } = await supabase.from("authors").select().eq("name", newBook.author.trim()).maybeSingle();
+    if (!author) {
+      const { data: newAuthor, error: authErr } = await supabase.from("authors").insert([{ name: newBook.author.trim(), country: newBook.country || "" }]).select().single();
+      if (authErr) { setAddMsg("Error saving author. Check your connection."); return; }
+      author = newAuthor;
+    }
+    // 3. Link book to author
+    await supabase.from("book_authors").insert([{ book_id: book.id, author_id: author.id, author_order: 1 }]);
+    // 4. Update local state with normalized book
+    const normalized = normalizeBook({ ...book, book_authors: [{ author_order: 1, authors: author }] });
+    setBooks(prev => [...prev, normalized]);
+    setNewBook({ title: "", author: "", year: 2026, genre: "Fantasy", country: "", pages: "", format: "Novel", series: "", notes: "", fiction: true });
     setAddMsg(`✓ "${newBook.title}" added to your library!`);
     setTimeout(() => setAddMsg(""), 4000);
   };
 
   const downloadCSV = () => {
-    const rows = [["ID","Title","Author","Year","Genre","Country","Pages"], ...books.map(b => [b.id, `"${b.title}"`, `"${b.author}"`, b.year, b.genre, b.country || "", b.pages || ""])];
+    const rows = [["ID","Title","Author","Year Read Start","Year Read End","Genre","Country","Format","Pages","Series","Notes"], ...books.map(b => [b.id, `"${b.title}"`, `"${b.author}"`, b.year_read_start, b.year_read_end, `"${(b.genre||[]).join("/")}"`, b.country || "", b.format || "", b.pages || "", `"${b.series||""}"`, `"${b.notes||""}"`])];
     const blob = new Blob([rows.map(r => r.join(",")).join("\n")], { type: "text/csv" });
     const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: "my_reading_list.csv" });
     a.click();
@@ -888,17 +598,17 @@ export default function App() {
           const ycMax = Math.max(...ycData.map(d=>d.count),1);
 
           const gcBooks = cb("gc");
-          const gcData = Object.entries(gcBooks.reduce((a,b)=>{a[b.genre]=(a[b.genre]||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([genre,count])=>({genre,count}));
+          const gcData = Object.entries(gcBooks.reduce((a,b)=>{(b.genre||[]).forEach(g=>{a[g]=(a[g]||0)+1;});return a;},{})).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([genre,count])=>({genre,count}));
 
           const fnBooks = cb("fn");
           const fnYrs = [...new Set(fnBooks.map(b=>b.year))].sort();
-          const fnData = fnYrs.map(year=>{const yb=fnBooks.filter(b=>b.year===year);return{year,Fiction:yb.filter(b=>fGen.has(b.genre)).length,"Non-Fiction":yb.filter(b=>!fGen.has(b.genre)).length};});
+          const fnData = fnYrs.map(year=>{const yb=fnBooks.filter(b=>b.year===year);return{year,Fiction:yb.filter(b=>(b.genre||[]).some(g=>fGen.has(g))).length,"Non-Fiction":yb.filter(b=>!(b.genre||[]).some(g=>fGen.has(g))).length};});
 
           const geBooks = cb("ge");
           const geYrs = [...new Set(geBooks.map(b=>b.year))].sort();
-          const geCount = geBooks.reduce((a,b)=>{a[b.genre]=(a[b.genre]||0)+1;return a;},{});
+          const geCount = geBooks.reduce((a,b)=>{(b.genre||[]).forEach(g=>{a[g]=(a[g]||0)+1;});return a;},{});
           const geTop5 = Object.entries(geCount).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([g])=>g);
-          const geData = geYrs.map(year=>{const e={year};geTop5.forEach(g=>{e[g]=geBooks.filter(b=>b.year===year&&b.genre===g).length;});return e;});
+          const geData = geYrs.map(year=>{const e={year};geTop5.forEach(g=>{e[g]=geBooks.filter(b=>b.year===year&&(b.genre||[]).includes(g)).length;});return e;});
 
           const acBooks = cb("ac");
           const acData = Object.entries(acBooks.reduce((a,b)=>{a[b.author]=(a[b.author]||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([author,count])=>({author,count}));
@@ -1392,7 +1102,7 @@ export default function App() {
                 <div key={b.id} className="lib-row">
                   <div style={{ fontSize: 13, fontWeight: 500, color: G.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.title}</div>
                   <div style={{ fontSize: 12, color: G.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.author}</div>
-                  <div><span className="genre-pill" style={{ background: `${GENRE_COLORS[b.genre] || G.dimmed}20`, color: GENRE_COLORS[b.genre] || G.muted }}>{b.genre}</span></div>
+                  <div>{(b.genre||[]).map(g => <span key={g} className="genre-pill" style={{ background: `${GENRE_COLORS[g] || G.dimmed}20`, color: GENRE_COLORS[g] || G.muted, marginRight: 4 }}>{g}</span>)}</div>
                   <div style={{ fontSize: 12, color: G.muted }}>{b.pages || "—"}</div>
                   <div style={{ fontSize: 12, color: G.muted }}>{b.year}</div>
                 </div>
@@ -1455,16 +1165,16 @@ export default function App() {
               )}
             </div>
 
-            {books.length > INITIAL_BOOKS.length && (
+            {books.some(b => b.user_added) && (
               <div style={{ marginTop: 32 }}>
-                <div style={{ color: G.muted, fontSize: 11, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 12 }}>Recently Added This Session</div>
-                {books.slice(INITIAL_BOOKS.length).reverse().map(b => (
+                <div style={{ color: G.muted, fontSize: 11, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 12 }}>Added by You</div>
+                {books.filter(b => b.user_added).reverse().map(b => (
                   <div key={b.id} style={{ display: "flex", justifyContent: "space-between", padding: "10px 14px", background: G.card, border: `1px solid ${G.border}`, borderRadius: 8, marginBottom: 8 }}>
                     <div>
                       <span style={{ fontSize: 13, fontWeight: 500 }}>{b.title}</span>
                       <span style={{ color: G.muted, fontSize: 12, marginLeft: 8 }}>by {b.author}</span>
                     </div>
-                    <span className="genre-pill" style={{ background: `${GENRE_COLORS[b.genre] || G.dimmed}20`, color: GENRE_COLORS[b.genre] || G.muted }}>{b.genre}</span>
+                    <span>{(b.genre||[]).map(g => <span key={g} className="genre-pill" style={{ background: `${GENRE_COLORS[g] || G.dimmed}20`, color: GENRE_COLORS[g] || G.muted, marginRight: 4 }}>{g}</span>)}</span>
                   </div>
                 ))}
               </div>
