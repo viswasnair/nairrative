@@ -142,6 +142,8 @@ export default function App() {
   const [analysisChat, setAnalysisChat] = useState([]);
   const [analysisChatInput, setAnalysisChatInput] = useState("");
   const [analysisChatLoading, setAnalysisChatLoading] = useState(false);
+  const [analysisAI, setAnalysisAI] = useState(null);
+  const [analysisAILoading, setAnalysisAILoading] = useState(false);
   const [intentInputs, setIntentInputs] = useState({});
   const [intentResults, setIntentResults] = useState({});
   const [intentLoading, setIntentLoading] = useState({});
@@ -201,6 +203,11 @@ export default function App() {
     "occasion": ["a long flight", "book club", "summer reading", "a lazy weekend", "gift for a friend who loves thrillers", "something to read before bed"],
     "pair": ["Oppenheimer (film)", "Shogun (TV series)", "a trip to Japan", "watching the World Cup", "Interstellar (film)", "reading about WW2"],
   };
+
+  useEffect(() => {
+    if (activeTab !== "analysis" || !books.length) return;
+    fetchAnalysisAI();
+  }, [activeTab, booksFingerprint]);
 
   useEffect(() => {
     if (activeTab !== "recs") return;
@@ -277,33 +284,57 @@ export default function App() {
     const booksFromLoyal = loyal.reduce((s,[,c])=>s+c,0);
     const loyaltyRatio = Math.round(booksFromLoyal / books.length * 100);
 
-    // Complexity
-    const challengingAuthors = new Set(["Fyodor Dostoevsky","Vladimir Nabokov","Mark Z. Danielewski","Kurt Vonnegut","Salman Rushdie","Umberto Eco","Agota Kristof","Marcus Aurelius","B.R. Ambedkar","Irawati Karve","Arundhati Roy","Perumal Murugan"]);
-    const challengingCount = books.filter(b => challengingAuthors.has(b.author) || (b.genre||[]).includes("Classic") || (b.genre||[]).includes("Philosophy")).length;
+    // Complexity — derived from genre tags only, no hardcoded authors
+    const challengingCount = books.filter(b => (b.genre||[]).some(g => ["Classic","Philosophy","Literary Fiction"].includes(g))).length;
     const challengePct = Math.round(challengingCount / books.length * 100);
+    const challengingAuthorsFromData = [...new Set(books.filter(b => (b.genre||[]).some(g => ["Classic","Philosophy"].includes(g))).map(b => b.author))].slice(0, 8);
 
-    // Series estimation
-    const knownSeriesAuthors = new Set(["Brandon Sanderson","J.K. Rowling","Christopher Paolini","Ken Follett","Robert Jordan","Sarah J. Maas","Rebecca Yarros","Amish Tripathi","Agatha Christie"]);
-    const seriesCount = books.filter(b => knownSeriesAuthors.has(b.author)).length;
+    // Series — derived from books with a series field set
+    const seriesBooks = books.filter(b => b.series && b.series.trim() !== "");
+    const seriesCount = seriesBooks.length;
     const seriesPct = Math.round(seriesCount / books.length * 100);
 
-    // Emotional arc: fiction % by era
-    const eraFictionPct = (s, e) => { const sub = era(s,e); return sub.length ? Math.round(sub.filter(b=>b.fiction !== undefined ? b.fiction : (b.genre||[]).some(g=>fGen.has(g))).length/sub.length*100) : 0; };
-    const fictionByEra = [
-      { era: "2010–14", pct: eraFictionPct(2010,2014) },
-      { era: "2015–19", pct: eraFictionPct(2015,2019) },
-      { era: "2020–21", pct: eraFictionPct(2020,2021) },
-      { era: "2025–26", pct: eraFictionPct(2025,2026) },
+    // Emotional arc: fiction % across dynamic era buckets derived from actual year range
+    const allBookYears = [...new Set(books.map(b => b.year))].sort((a,b) => a-b);
+    const minY = allBookYears[0] ?? 2010;
+    const maxY = allBookYears[allBookYears.length - 1] ?? new Date().getFullYear();
+    const span = maxY - minY;
+    const eraFictionPct = (s, e) => { const sub = era(s,e); return sub.length ? Math.round(sub.filter(b=>b.fiction !== undefined ? b.fiction : (b.genre||[]).some(g=>fGen.has(g))).length/sub.length*100) : null; };
+    const eraBuckets = [
+      { era: `${minY}–${minY + Math.floor(span*0.25)}`, s: minY, e: minY + Math.floor(span*0.25) },
+      { era: `${minY + Math.floor(span*0.25)+1}–${minY + Math.floor(span*0.5)}`, s: minY + Math.floor(span*0.25)+1, e: minY + Math.floor(span*0.5) },
+      { era: `${minY + Math.floor(span*0.5)+1}–${minY + Math.floor(span*0.75)}`, s: minY + Math.floor(span*0.5)+1, e: minY + Math.floor(span*0.75) },
+      { era: `${minY + Math.floor(span*0.75)+1}–${maxY}`, s: minY + Math.floor(span*0.75)+1, e: maxY },
     ];
+    const fictionByEra = eraBuckets.map(({ era: e, s, e: end }) => ({ era: e, pct: eraFictionPct(s, end) })).filter(e => e.pct !== null);
+    const peakFictionEra = fictionByEra.reduce((a,b) => a.pct > b.pct ? a : b, fictionByEra[0]);
+    const lowFictionEra = fictionByEra.reduce((a,b) => a.pct < b.pct ? a : b, fictionByEra[0]);
+
+    // Notable years — computed from actual volume, no hardcoded life events
+    const yearCounts = Object.entries(stats.byYear).map(([y,c]) => ({ year: parseInt(y), count: c })).sort((a,b) => a.year - b.year);
+    const yearAvg = yearCounts.reduce((s,y) => s+y.count, 0) / yearCounts.length;
+    const notableYears = yearCounts.map(y => ({
+      year: String(y.year),
+      books: y.count,
+      label: y.count >= yearAvg * 2 ? "Peak year" : y.count <= 3 ? "Low activity" : y.count > yearAvg * 1.3 ? "Active year" : y.count < yearAvg * 0.5 ? "Quiet year" : null,
+    })).filter(y => y.label).sort((a,b) => b.books - a.books).slice(0, 5).sort((a,b) => a.year - b.year);
+
+    // Discovery: top author concentrations from actual data
+    const topAuthorChannels = loyal.slice(0, 4).map(([author, count]) => ({
+      channel: author,
+      example: `${count} books read`,
+      color: G.gold,
+    }));
 
     return {
       peakYear: stats.sortedYears[0], avgPerActive, maxGap, longestGapStart,
       fictionCount, nonFictionCount: books.length - fictionCount, fictionPct, graphicNovels, genreCount, genreEra,
       uniqueCountries, topCountries, indiaPct,
       loyal, sampledCount, booksFromLoyal, loyaltyRatio,
-      challengingCount, challengePct,
+      challengingCount, challengePct, challengingAuthorsFromData,
       seriesCount, seriesPct,
-      fictionByEra,
+      fictionByEra, peakFictionEra, lowFictionEra,
+      notableYears, topAuthorChannels,
     };
   }, [books, stats]);
 
@@ -325,6 +356,11 @@ export default function App() {
   const allYears = useMemo(() => Object.keys(stats.byYear).sort().reverse(), [stats]);
   const allAuthors = useMemo(() => [...new Set(books.flatMap(b => (b.authors || []).map(a => a.name)))].sort(), [books]);
   const allYearsList = useMemo(() => Object.keys(stats.byYearTracked).sort().map(Number), [stats]);
+
+  // Fingerprint catches adds, removes, and edits to title/year/genre
+  const booksFingerprint = useMemo(() =>
+    books.map(b => `${b.id}|${b.title}|${b.year}|${(b.genre||[]).join('')}`).join(','),
+  [books]);
   const allYearsListFull = useMemo(() => Object.keys(stats.byYear).sort().map(Number), [stats]);
 
   // ── HANDLERS ──────────────────────────────────────────────────────────────
@@ -432,6 +468,67 @@ export default function App() {
       setSeriesRecap({ series: seriesName, books: seriesBooks, text: data.content?.[0]?.text || data.error?.message || "Could not generate recap." });
     } catch { setSeriesRecap({ series: seriesName, books: seriesBooks, text: "Connection error. Please check your API key and try again." }); }
     finally { setSeriesLoading(false); }
+  };
+
+  const buildBookContext = () => {
+    const byYear = {}, byGenre = {}, byAuthor = {}, byCountry = {};
+    books.forEach(b => {
+      const yr = b.year_read_end || b.year;
+      byYear[yr] = (byYear[yr] || 0) + 1;
+      (b.genre || []).forEach(g => { byGenre[g] = (byGenre[g] || 0) + 1; });
+      byAuthor[b.author] = (byAuthor[b.author] || 0) + 1;
+      if (b.country) byCountry[b.country] = (byCountry[b.country] || 0) + 1;
+    });
+    const topAuthors = Object.entries(byAuthor).sort((a,b)=>b[1]-a[1]).slice(0,25).map(([a,c])=>`${a}(${c})`).join(", ");
+    const genres = Object.entries(byGenre).sort((a,b)=>b[1]-a[1]).map(([g,c])=>`${g}(${c})`).join(", ");
+    const years = Object.entries(byYear).sort((a,b)=>parseInt(a[0])-parseInt(b[0])).map(([y,c])=>`${y}:${c}`).join(", ");
+    const countries = Object.entries(byCountry).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([c,n])=>`${c}(${n})`).join(", ");
+    const seriesList = [...new Set(books.filter(b=>b.series?.trim()).map(b=>b.series))].join(", ");
+    const minYear = Math.min(...books.map(b=>b.year_read_start||b.year).filter(Boolean));
+    const maxYear = Math.max(...books.map(b=>b.year_read_end||b.year).filter(Boolean));
+    const fictionCount = books.filter(b=>b.fiction).length;
+    return `READING DATABASE: ${books.length} books, ${minYear}–${maxYear}.
+NOTE: Year 2010 is a collective entry representing all books read from 1998–2010. Not a single-year anomaly.
+BOOKS BY YEAR: ${years}
+TOP AUTHORS (name, count): ${topAuthors}
+GENRES (name, count): ${genres}
+COUNTRIES: ${countries}
+SERIES READ: ${seriesList}
+FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-FICTION: ${books.length-fictionCount}`;
+  };
+
+  const fetchAnalysisAI = async () => {
+    if (analysisAILoading || !books.length || !apiKey) return;
+
+    // Serve from cache if books haven't changed
+    const cachedFp = localStorage.getItem("nairrative_analysis_fp");
+    const cachedResult = localStorage.getItem("nairrative_analysis_ai");
+    if (cachedFp === booksFingerprint && cachedResult) {
+      try { setAnalysisAI(JSON.parse(cachedResult)); return; } catch {}
+    }
+
+    setAnalysisAILoading(true);
+    try {
+      const ctx = buildBookContext();
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST", headers: aiHeaders(),
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6", max_tokens: 2000,
+          system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly these keys: temporal, genre, geographic, author, thematic, contextual, complexity, series, emotional, discovery. Each value is 2-3 sentences of specific, data-driven insight. Do not invent facts — base everything strictly on the data provided. IMPORTANT CONTEXT: The year 2010 in the data is a collective placeholder representing all books read between 1998 and 2010 — it is not a single-year anomaly or data error. Do not flag it as unusual volume or an outlier. Treat it as cumulative reading across those early years.`,
+          messages: [{ role: "user", content: `${ctx}\n\nGenerate concise insights for each analysis dimension based strictly on this data.` }]
+        })
+      });
+      const data = await res.json();
+      const text = data.content?.[0]?.text || "{}";
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const result = JSON.parse(jsonMatch[0]);
+        setAnalysisAI(result);
+        localStorage.setItem("nairrative_analysis_ai", JSON.stringify(result));
+        localStorage.setItem("nairrative_analysis_fp", booksFingerprint);
+      }
+    } catch(e) { console.error("Analysis AI error:", e); }
+    setAnalysisAILoading(false);
   };
 
   const fetchIntentRecs = async (intentId, input = "") => {
@@ -778,9 +875,7 @@ export default function App() {
                     <div style={{ color: G.muted, fontSize: 10 }}>yr reading hiatus</div>
                   </div>
                 </div>
-                <div style={{ color: G.muted, fontSize: 12, lineHeight: 1.75 }}>
-                  Your reading falls into two clear phases: a decade of consistent engagement (2011–2021), capped by an extraordinary pandemic peak, followed by a near-total halt. The 2025–26 return signals re-entry — a different reader resuming the habit, not the same one continuing it.
-                </div>
+                {analysisAILoading ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div> : analysisAI?.temporal ? <div style={{ fontSize: 12, color: G.muted, lineHeight: 1.75, borderTop: `1px solid ${G.border}`, paddingTop: 10, marginTop: 4 }}>{analysisAI.temporal}</div> : null}
               </div>
 
               {/* 2 · GENRE & FORM */}
@@ -809,9 +904,7 @@ export default function App() {
                     </div>
                   ))}
                 </div>
-                <div style={{ color: G.muted, fontSize: 12, lineHeight: 1.75 }}>
-                  A classic arc: commercial epic fantasy as entry drug → non-fiction intellectual expansion → romantasy as emotional reset. {analysisInsights.graphicNovels} graphic novels signal a strong visual storytelling thread throughout.
-                </div>
+                {analysisAILoading ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div> : analysisAI?.genre ? <div style={{ fontSize: 12, color: G.muted, lineHeight: 1.75, borderTop: `1px solid ${G.border}`, paddingTop: 10, marginTop: 4 }}>{analysisAI.genre}</div> : null}
               </div>
 
               {/* 3 · GEOGRAPHIC & CULTURAL */}
@@ -841,9 +934,7 @@ export default function App() {
                     </div>
                   ))}
                 </div>
-                <div style={{ color: G.muted, fontSize: 12, lineHeight: 1.75 }}>
-                  Strong India thread — Tharoor, Mistry, Murugan, Rushdie, Roy, Ghosh — running alongside Western fantasy and global non-fiction. The library skews anglophone; French, Colombian, and Japanese voices are notable exceptions.
-                </div>
+                {analysisAILoading ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div> : analysisAI?.geographic ? <div style={{ fontSize: 12, color: G.muted, lineHeight: 1.75, borderTop: `1px solid ${G.border}`, paddingTop: 10, marginTop: 4 }}>{analysisAI.geographic}</div> : null}
               </div>
 
               {/* 4 · AUTHOR BEHAVIOR */}
@@ -868,54 +959,32 @@ export default function App() {
                     </div>
                   ))}
                 </div>
-                <div style={{ color: G.muted, fontSize: 12, lineHeight: 1.75 }}>
-                  You're a completionist. When an author clicks, you read everything — Sanderson's entire Cosmere, all seven HP books, every Kingsbridge novel. The discovery-to-catalogue pipeline is your dominant reading pattern.
-                </div>
+                {analysisAILoading ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div> : analysisAI?.author ? <div style={{ fontSize: 12, color: G.muted, lineHeight: 1.75, borderTop: `1px solid ${G.border}`, paddingTop: 10, marginTop: 4 }}>{analysisAI.author}</div> : null}
               </div>
 
               {/* 5 · THEMATIC */}
               <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
                 <span style={{ background: `${G.gold}18`, color: G.gold, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Thematic</span>
                 <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 14px" }}>Recurring Intellectual Preoccupations</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {[
-                    { theme: "Political Systems & Power", note: "Tharoor, Ambedkar, Obama, Kelkar/Shah, Ayyub, Chaturvedi — a sustained inquiry into how power is built and abused.", color: G.gold },
-                    { theme: "Indian Identity & History", note: "Roy, Mistry, Rushdie, Dalrymple, Pillai — reading India through multiple lenses simultaneously.", color: G.blue },
-                    { theme: "Science, Climate & Civilisation", note: "Harari, Pinker, Klein, Gates, Lane, Wohlleben — the arc of life, society, and its fragility.", color: G.green },
-                    { theme: "Philosophy of Mind", note: "Ramachandran, Kahneman, Eagleman — consciousness, cognition, and the strange machinery of the self.", color: G.purple },
-                  ].map(({ theme, note, color }) => (
-                    <div key={theme}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color, marginBottom: 2 }}>{theme}</div>
-                      <div style={{ fontSize: 11, color: G.muted, lineHeight: 1.6 }}>{note}</div>
-                    </div>
-                  ))}
-                </div>
+                {analysisAILoading ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div> : analysisAI?.thematic ? <div style={{ fontSize: 12, color: G.muted, lineHeight: 1.75 }}>{analysisAI.thematic}</div> : null}
               </div>
 
               {/* 6 · SOCIAL & CONTEXTUAL */}
               <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
                 <span style={{ background: `${G.blue}18`, color: G.blue, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Social & Contextual</span>
                 <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 14px" }}>Life Shapes the List</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {[
-                    { year: "2015", event: "World Tour", note: "Only 6 books during a 125-day journey. Travel replaced reading — lived experience over vicarious.", books: 6 },
-                    { year: "2019", event: "Literary Expansion", note: "26 books including a surge of Indian literary fiction — possibly tied to a period of national introspection.", books: 26 },
-                    { year: "2020–21", event: "Pandemic Peak", note: "64 books in two years. Lockdown created the rarest of gifts: uninterrupted reading time.", books: 64 },
-                    { year: "2022–24", event: "Life Transition", note: "Near-total halt after the pandemic peak. A major life change suppressed the reading habit.", books: 3 },
-                    { year: "2025–26", event: "Romantasy Return", note: "Comeback led by ACOTAR and Empyrean — lighter, character-driven escapism as re-entry mode.", books: 15 },
-                  ].map(({ year, event, note, books: b }) => (
-                    <div key={year} style={{ display: "flex", gap: 10 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+                  {analysisInsights.notableYears.map(({ year, books: b, label }) => (
+                    <div key={year} style={{ display: "flex", gap: 10, alignItems: "center" }}>
                       <div style={{ minWidth: 52 }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: G.gold }}>{year}</div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: G.blue }}>{year}</div>
                         <div style={{ fontSize: 10, color: G.muted }}>{b} books</div>
                       </div>
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: G.text, marginBottom: 2 }}>{event}</div>
-                        <div style={{ fontSize: 11, color: G.muted, lineHeight: 1.6 }}>{note}</div>
-                      </div>
+                      <div style={{ fontSize: 11, background: `${G.blue}12`, color: G.blue, padding: "2px 8px", borderRadius: 4, fontWeight: 600 }}>{label}</div>
                     </div>
                   ))}
                 </div>
+                {analysisAILoading ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div> : analysisAI?.contextual ? <div style={{ fontSize: 12, color: G.muted, lineHeight: 1.75, borderTop: `1px solid ${G.border}`, paddingTop: 10 }}>{analysisAI.contextual}</div> : null}
               </div>
 
               {/* 7 · COMPLEXITY & CHALLENGE */}
@@ -935,14 +1004,12 @@ export default function App() {
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 6 }}>Notable stretches</div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {["Dostoevsky", "Danielewski", "Nabokov", "Rushdie", "Eco", "Vonnegut", "Ambedkar", "Karve"].map(a => (
+                    {analysisInsights.challengingAuthorsFromData.map(a => (
                       <span key={a} style={{ background: `${G.red}15`, color: G.red, fontSize: 10, padding: "3px 8px", borderRadius: 4 }}>{a}</span>
                     ))}
                   </div>
                 </div>
-                <div style={{ color: G.muted, fontSize: 12, lineHeight: 1.75 }}>
-                  You oscillate between difficult and accessible — Dostoevsky and Danielewski sit alongside Eragon and Dan Brown. The intellectual stretches cluster in 2017–21; comfort reads bookend the journey.
-                </div>
+                {analysisAILoading ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div> : analysisAI?.complexity ? <div style={{ fontSize: 12, color: G.muted, lineHeight: 1.75, borderTop: `1px solid ${G.border}`, paddingTop: 10, marginTop: 4 }}>{analysisAI.complexity}</div> : null}
               </div>
 
               {/* 8 · SERIES VS STANDALONE */}
@@ -952,31 +1019,25 @@ export default function App() {
                 <div style={{ display: "flex", gap: 20, marginBottom: 14 }}>
                   <div>
                     <div style={{ color: G.green, fontSize: 26, fontFamily: "'Playfair Display', serif", fontWeight: 700 }}>{analysisInsights.seriesPct}%</div>
-                    <div style={{ color: G.muted, fontSize: 10 }}>in known series</div>
+                    <div style={{ color: G.muted, fontSize: 10 }}>in series</div>
                   </div>
                   <div>
                     <div style={{ color: G.gold, fontSize: 26, fontFamily: "'Playfair Display', serif", fontWeight: 700 }}>{analysisInsights.seriesCount}</div>
                     <div style={{ color: G.muted, fontSize: 10 }}>series books read</div>
                   </div>
                 </div>
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 8 }}>Series fates</div>
-                  {[
-                    { name: "Inheritance Cycle", status: "Completed", color: G.green },
-                    { name: "Mistborn + Cosmere", status: "Ongoing (current)", color: G.green },
-                    { name: "ACOTAR + Empyrean", status: "In progress", color: G.gold },
-                    { name: "Wheel of Time", status: "Abandoned at book 3", color: G.red },
-                    { name: "Skyward", status: "Paused at book 2", color: G.red },
-                  ].map(({ name, status, color }) => (
-                    <div key={name} style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                      <span style={{ fontSize: 11, color: G.text }}>{name}</span>
-                      <span style={{ fontSize: 10, color, fontWeight: 600 }}>{status}</span>
-                    </div>
-                  ))}
+                <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 12 }}>
+                  {[...new Set(books.filter(b => b.series?.trim()).map(b => b.series))].slice(0, 6).map(s => {
+                    const count = books.filter(b => b.series === s).length;
+                    return (
+                      <div key={s} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: 11, color: G.text }}>{s}</span>
+                        <span style={{ fontSize: 11, color: G.green, fontWeight: 600 }}>{count} books</span>
+                      </div>
+                    );
+                  })}
                 </div>
-                <div style={{ color: G.muted, fontSize: 12, lineHeight: 1.75 }}>
-                  You rarely abandon a series mid-stream — until you do. The WoT dropout and Skyward pause both correlate with life disruptions, not quality issues.
-                </div>
+                {analysisAILoading ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div> : analysisAI?.series ? <div style={{ fontSize: 12, color: G.muted, lineHeight: 1.75, borderTop: `1px solid ${G.border}`, paddingTop: 10 }}>{analysisAI.series}</div> : null}
               </div>
 
               {/* 9 · EMOTIONAL ARC */}
@@ -996,32 +1057,22 @@ export default function App() {
                     </div>
                   ))}
                 </div>
-                <div style={{ color: G.muted, fontSize: 12, lineHeight: 1.75 }}>
-                  Early years: pure escapism. Mid-journey: fiction drops as intellectual curiosity expands into non-fiction. Pandemic: both modes peak simultaneously. Return: fiction-dominant again, this time emotionally-driven romantasy.
-                </div>
+                {analysisAILoading ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div> : analysisAI?.emotional ? <div style={{ fontSize: 12, color: G.muted, lineHeight: 1.75, borderTop: `1px solid ${G.border}`, paddingTop: 10 }}>{analysisAI.emotional}</div> : null}
               </div>
-
 
               {/* 11 · DISCOVERY CHANNEL */}
               <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
                 <span style={{ background: `${G.blue}18`, color: G.blue, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Discovery Channel</span>
                 <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 14px" }}>How Books Find You</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
-                  {[
-                    { channel: "Author Rabbit Hole", example: "One Sanderson → 25 Cosmere books. One Follett → entire Kingsbridge series. The pipeline is your primary discovery mode.", color: G.gold },
-                    { channel: "Cultural Moment", example: "ACOTAR / Empyrean in 2025–26 — likely driven by streaming adaptations and social reading culture.", color: G.blue },
-                    { channel: "Geographic Identity", example: "Surge of Indian authors during 2017–21 — a period of deliberate cultural re-engagement visible in the data.", color: G.green },
-                    { channel: "Peer & Social", example: "Highly probable but untraceable — the unrecorded social layer beneath every reading list.", color: G.purple },
-                  ].map(({ channel, example, color }) => (
-                    <div key={channel}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color, marginBottom: 2 }}>{channel}</div>
-                      <div style={{ fontSize: 11, color: G.muted, lineHeight: 1.6 }}>{example}</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+                  {analysisInsights.topAuthorChannels.map(({ channel, example }) => (
+                    <div key={channel} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: G.card2, borderRadius: 6 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: G.text }}>{channel}</div>
+                      <div style={{ fontSize: 11, color: G.gold, fontWeight: 600 }}>{example}</div>
                     </div>
                   ))}
                 </div>
-                <div style={{ background: `${G.blue}10`, border: `1px solid ${G.blue}30`, borderRadius: 6, padding: "8px 12px" }}>
-                  <div style={{ fontSize: 11, color: G.blue }}>Add a "discovered via" field when logging future books to make this dimension fully trackable.</div>
-                </div>
+                {analysisAILoading ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div> : analysisAI?.discovery ? <div style={{ fontSize: 12, color: G.muted, lineHeight: 1.75, borderTop: `1px solid ${G.border}`, paddingTop: 10 }}>{analysisAI.discovery}</div> : null}
               </div>
 
 
