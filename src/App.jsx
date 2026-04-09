@@ -149,6 +149,7 @@ export default function App() {
   const [intentInputs, setIntentInputs] = useState({});
   const [intentResults, setIntentResults] = useState({});
   const [intentLoading, setIntentLoading] = useState({});
+  const [refreshCounts, setRefreshCounts] = useState({});
   const [newBook, setNewBook] = useState({ title: "", author: "", year: 2026, genre: "Fantasy", country: "", pages: "" });
   const [addMsg, setAddMsg] = useState("");
   const [autoFilling, setAutoFilling] = useState(false);
@@ -217,18 +218,16 @@ export default function App() {
   }, [activeTab, booksFingerprint]);
 
   useEffect(() => {
-    if (activeTab !== "recs") return;
-    // Auto panels
-    AUTO_RECS.forEach(id => { if (!intentResults[id] && !intentLoading[id]) fetchIntentRecs(id); });
-    // Input panels — set random defaults and fetch if not already done
+    if (activeTab !== "recs" || !books.length) return;
+    // Clear and reload all panels when books change
+    setIntentResults({});
+    AUTO_RECS.forEach(id => fetchIntentRecs(id));
     Object.entries(INPUT_DEFAULTS).forEach(([id, options]) => {
-      if (!intentResults[id] && !intentLoading[id]) {
-        const pick = options[Math.floor(Math.random() * options.length)];
-        setIntentInputs(p => ({ ...p, [id]: p[id] || pick }));
-        setTimeout(() => fetchIntentRecs(id, pick), 100);
-      }
+      const pick = options[Math.floor(Math.random() * options.length)];
+      setIntentInputs(p => ({ ...p, [id]: p[id] || pick }));
+      setTimeout(() => fetchIntentRecs(id, pick), 100);
     });
-  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeTab, booksFingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── COMPUTED DATA ────────────────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -543,32 +542,38 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
   const fetchIntentRecs = async (intentId, input = "") => {
     if (intentLoading[intentId]) return;
     setIntentLoading(p => ({ ...p, [intentId]: true }));
+    const rc = (refreshCounts[intentId] || 0) + 1;
+    setRefreshCounts(p => ({ ...p, [intentId]: rc }));
     const lastBook = books[books.length - 1];
     const lastAuthor = lastBook?.author || "Brandon Sanderson";
     const readTitles = new Set(books.map(b => b.title.toLowerCase()));
+    const seriesList = [...new Set(books.filter(b => b.series?.trim()).map(b => b.series))];
+    const randomSeries = seriesList[Math.floor(Math.random() * seriesList.length)] || "Wheel of Time";
+    const today = new Date().toISOString().slice(0, 10);
+    const variationNote = rc > 1 ? ` This is refresh #${rc} — you MUST pick a completely different book from any prior recommendation for this lens.` : "";
     const prompts = {
-      "more-like": `The user's most recent read is "${lastBook?.title}" by ${lastAuthor}. Recommend 3 unread books with the same feel, themes, or writing style that this reader would love.`,
-      "more-by-last": `The user's most recent author is ${lastAuthor}. Recommend 3 other books by ${lastAuthor} that the reader hasn't read yet. If all are read, recommend authors with very similar style.`,
-      "similar-author": `Based on the reader loving ${lastAuthor}, recommend 3 books by authors with a very similar writing style, themes, or storytelling approach.`,
-      "trending": `Recommend 3 books that are critically acclaimed, culturally buzzy, or award-shortlisted in 2024–2026 that fit this reader's taste profile.`,
-      "challenge": `This reader favors accessible genre fiction. Recommend 3 genuinely challenging, rewarding reads — dense classics, experimental fiction, or demanding long-form non-fiction.`,
-      "quick": `Recommend 3 books under 300 pages that are deeply rewarding given this reader's taste (thrillers, literary fiction, fantasy).`,
-      "gaps": `This reader's library skews Western/Indian/anglophone. Recommend 3 books from underrepresented literary traditions — Japanese, African, Latin American, Nordic, Arabic, or Southeast Asian voices.`,
-      "surprise": `Give 3 wildly unexpected book recommendations that this reader would never pick for themselves but would secretly love. Bold, surprising, off-pattern picks.`,
-      "finish": `This reader has started several long series. Recommend 3 books that are either perfect re-entry points to a series or similar series with satisfying completions.`,
-      "loved": `The user loved: "${input}". Recommend 3 books with similar appeal — themes, pacing, emotional tone, or narrative style.`,
-      "authors-like": `The user loves authors like ${input}. Recommend 3 books by different authors with very similar style, subject matter, or storytelling sensibility.`,
-      "mood": `The user is in the mood for: "${input}". Recommend 3 books that perfectly match this emotional register or atmosphere.`,
-      "genre-pick": `Recommend 3 excellent books in the genre: "${input}". Mix a modern standout, a timeless classic, and an underrated gem.`,
-      "topic": `Recommend 3 books about: "${input}". Cross genre if needed — fiction, non-fiction, memoir.`,
-      "occasion": `Recommend 3 books perfect for: "${input}". Match tone, length, and engagement level to the occasion.`,
-      "pair": `The user wants to pair a book with: "${input}" (a film, show, event, or experience). Recommend 3 ideal companion reads.`,
+      "more-like": `The user's most recent read is "${lastBook?.title}" by ${lastAuthor}. Recommend 1 unread book with the same feel, themes, or writing style that this reader would love.${variationNote}`,
+      "more-by-last": `The user's most recent author is ${lastAuthor}. Recommend 1 other book by ${lastAuthor} that the reader hasn't read yet. If all are read, recommend 1 book by an author with very similar style.${variationNote}`,
+      "similar-author": `Based on the reader loving ${lastAuthor}, recommend 1 book by an author with a very similar writing style, themes, or storytelling approach.${variationNote}`,
+      "trending": `Today is ${today}. Recommend 1 book that is critically acclaimed, culturally buzzy, or award-shortlisted in 2024–2026 that fits this reader's taste profile. Use web search to verify it is actually available and well-reviewed.${variationNote}`,
+      "challenge": `This reader favors accessible genre fiction. Recommend 1 genuinely challenging, rewarding read — dense classic, experimental fiction, or demanding long-form non-fiction.${variationNote}`,
+      "quick": `Recommend 1 book under 300 pages that is deeply rewarding given this reader's taste (thrillers, literary fiction, fantasy).${variationNote}`,
+      "gaps": `This reader's library skews Western/Indian/anglophone. Recommend 1 book from an underrepresented literary tradition — Japanese, African, Latin American, Nordic, Arabic, or Southeast Asian voices.${variationNote}`,
+      "surprise": `Give 1 wildly unexpected book recommendation that this reader would never pick for themselves but would secretly love. Bold, surprising, off-pattern pick.${variationNote}`,
+      "finish": `This reader has read books from the series "${randomSeries}". Recommend 1 book that is either the next unread entry in this series or a very similar series with satisfying completions.${variationNote}`,
+      "loved": `The user loved: "${input}". Recommend 1 book with similar appeal — themes, pacing, emotional tone, or narrative style.${variationNote}`,
+      "authors-like": `The user loves authors like ${input}. Recommend 1 book by a different author with very similar style, subject matter, or storytelling sensibility.${variationNote}`,
+      "mood": `The user is in the mood for: "${input}". Recommend 1 book that perfectly matches this emotional register or atmosphere.${variationNote}`,
+      "genre-pick": `Recommend 1 excellent book in the genre: "${input}". Today is ${today} — consider recent releases as well as classics.${variationNote}`,
+      "topic": `Recommend 1 book about: "${input}". Cross genre if needed — fiction, non-fiction, memoir. Today is ${today}.${variationNote}`,
+      "occasion": `Recommend 1 book perfect for: "${input}". Match tone, length, and engagement level to the occasion.${variationNote}`,
+      "pair": `The user wants to pair a book with: "${input}" (a film, show, event, or experience). Recommend 1 ideal companion read.${variationNote}`,
     };
     try {
       const useWebSearch = intentId === "trending" || intentId === "pair";
       const body = {
-        model: "claude-sonnet-4-6", max_tokens: 900,
-        system: `You are a precise book recommendation engine. Reader history: ${READING_CONTEXT}\n\nCRITICAL: The reader has already read ALL of these books — do NOT recommend any of them under any circumstances: ${[...readTitles].join(", ")}.\n\nOnly recommend books the reader has NOT read. Double-check each recommendation against the list above before including it.\n\n${prompts[intentId] || input}\n\nReturn ONLY a JSON array — no markdown, no explanation. Exactly 3 items. Each: {"title": "...", "author": "...", "year": 2024, "reason": "1-2 sentences why it fits this reader"}.`,
+        model: "claude-sonnet-4-6", max_tokens: 400,
+        system: `You are a precise book recommendation engine. Today is ${today}. Reader history:\n${buildBookContext()}\n\nCRITICAL: The reader has already read ALL of these books — do NOT recommend any of them: ${[...readTitles].join(", ")}.\n\nOnly recommend books the reader has NOT read. Recommend books published up to ${today} — include recent 2024–2026 releases where relevant.\n\n${prompts[intentId] || input}\n\nReturn ONLY a JSON array — no markdown, no explanation. Exactly 1 item. Format: [{"title": "...", "author": "...", "year": 2024, "reason": "1-2 sentences why it fits this reader"}].`,
         messages: [{ role: "user", content: "JSON array only." }],
       };
       if (useWebSearch) body.tools = [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }];
@@ -581,9 +586,9 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
       const txt = (data.content || []).filter(c => c.type === "text").map(c => c.text).join("");
       const m = txt.match(/\[[\s\S]*?\]/);
       const parsed = m ? JSON.parse(m[0]) : JSON.parse(txt.replace(/```json|```/g, "").trim());
-      setIntentResults(p => ({ ...p, [intentId]: Array.isArray(parsed) ? parsed.slice(0, 3) : [] }));
+      setIntentResults(p => ({ ...p, [intentId]: Array.isArray(parsed) ? parsed.slice(0, 1) : [] }));
     } catch (e) {
-      setIntentResults(p => ({ ...p, [intentId]: [{ title: "Could not load", author: "", year: 0, reason: e?.message || "Check your API key and try again." }] }));
+      setIntentResults(p => ({ ...p, [intentId]: [{ title: "Could not load", author: "", reason: e?.message || "Check your API key and try again." }] }));
     }
     setIntentLoading(p => { const n = { ...p }; delete n[intentId]; return n; });
   };
@@ -1103,20 +1108,6 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
                 {analysisAILoading ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div> : analysisAI?.emotional ? <div style={{ fontSize: 12, color: G.muted, lineHeight: 1.75, borderTop: `1px solid ${G.border}`, paddingTop: 10 }}>{analysisAI.emotional}</div> : null}
               </div>
 
-              {/* 11 · DISCOVERY CHANNEL */}
-              <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
-                <span style={{ background: `${G.blue}18`, color: G.blue, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Discovery Channel</span>
-                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 14px" }}>How Books Find You</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
-                  {analysisInsights.topAuthorChannels.map(({ channel, example }) => (
-                    <div key={channel} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: G.card2, borderRadius: 6 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: G.text }}>{channel}</div>
-                      <div style={{ fontSize: 11, color: G.gold, fontWeight: 600 }}>{example}</div>
-                    </div>
-                  ))}
-                </div>
-                {analysisAILoading ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div> : analysisAI?.discovery ? <div style={{ fontSize: 12, color: G.muted, lineHeight: 1.75, borderTop: `1px solid ${G.border}`, paddingTop: 10 }}>{analysisAI.discovery}</div> : null}
-              </div>
 
 
             </div>
@@ -1264,31 +1255,20 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
 
           const RecList = ({ results, loading }) => {
             if (loading) return (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
-                {[1,2,3].map(i => (
-                  <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                    <span style={{ color: G.dimmed, fontSize: 11, minWidth: 14, marginTop: 1 }}>{i}.</span>
-                    <div style={{ flex: 1 }}>
-                      <div className="pulse" style={{ height: 12, width: "70%", background: G.border, borderRadius: 4, marginBottom: 4 }} />
-                      <div style={{ height: 10, width: "50%", background: G.dimmed, borderRadius: 4 }} />
-                    </div>
-                  </div>
-                ))}
+              <div style={{ marginTop: 12 }}>
+                <div className="pulse" style={{ height: 12, width: "70%", background: G.border, borderRadius: 4, marginBottom: 6 }} />
+                <div className="pulse" style={{ height: 10, width: "40%", background: G.dimmed, borderRadius: 4, marginBottom: 6 }} />
+                <div className="pulse" style={{ height: 10, width: "90%", background: G.dimmed, borderRadius: 4 }} />
               </div>
             );
             if (!results) return null;
+            const r = results[0];
+            if (!r) return null;
             return (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
-                {results.map((r, i) => (
-                  <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                    <span style={{ color: G.gold, fontSize: 11, fontFamily: "'Playfair Display', serif", minWidth: 14, marginTop: 2 }}>{i + 1}.</span>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: G.text, lineHeight: 1.4 }}>{r.title}</div>
-                      <div style={{ fontSize: 11, color: G.gold, marginBottom: 2 }}>{r.author}{r.year ? ` · ${r.year}` : ""}</div>
-                      {r.reason && <div style={{ fontSize: 11, color: G.muted, lineHeight: 1.5 }}>{r.reason}</div>}
-                    </div>
-                  </div>
-                ))}
+              <div style={{ marginTop: 12, borderTop: `1px solid ${G.border}`, paddingTop: 10 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: G.text, lineHeight: 1.4, marginBottom: 3 }}>{r.title}</div>
+                <div style={{ fontSize: 11, color: G.gold, marginBottom: 6 }}>{r.author}{r.year ? ` · ${r.year}` : ""}</div>
+                {r.reason && <div style={{ fontSize: 11, color: G.muted, lineHeight: 1.6 }}>{r.reason}</div>}
               </div>
             );
           };
@@ -1296,7 +1276,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
           return (
             <div>
               <div style={{ marginBottom: 20, textAlign: "center" }}>
-                <div style={{ color: G.muted, fontSize: 13 }}>16 lenses for discovery — auto-loaded panels refresh instantly, input panels respond to your query.</div>
+                <div style={{ color: G.muted, fontSize: 13 }}>16 lenses for discovery — one curated pick per lens, refreshes on every new book added.</div>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
@@ -1309,17 +1289,14 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
                   return (
                     <div key={lens.id} style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "16px 18px", display: "flex", flexDirection: "column" }}>
                       {/* Header */}
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
-                        <div style={{ display: "flex", gap: 7, alignItems: "center" }}>
-                          <span style={{ color: G.gold, fontSize: 13 }}>{lens.icon}</span>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: G.text }}>{lens.title}</span>
-                        </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <span style={{ background: `${G.gold}18`, color: G.gold, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>{lens.icon} {lens.title}</span>
                         {(results || loading) && (
                           <button onClick={() => { setIntentResults(p => { const n={...p}; delete n[lens.id]; return n; }); fetchIntentRecs(lens.id, input); }}
-                            style={{ background: "none", border: "none", color: G.muted, fontSize: 10, cursor: "pointer", padding: 0, lineHeight: 1 }} title="Refresh">↺</button>
+                            style={{ background: "none", border: "none", color: G.muted, fontSize: 14, cursor: "pointer", padding: 0, lineHeight: 1 }} title="Refresh">↺</button>
                         )}
                       </div>
-                      {lens.sub && <div style={{ fontSize: 10, color: G.muted, marginBottom: 8, paddingLeft: 20 }}>{lens.sub}</div>}
+                      {lens.sub && <div style={{ fontSize: 11, color: G.muted, marginTop: 6 }}>{lens.sub}</div>}
 
                       {/* Input for non-auto panels */}
                       {!lens.auto && (
