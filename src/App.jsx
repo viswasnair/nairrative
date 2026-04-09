@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { supabase } from "./lib/supabase";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
-  AreaChart, Area, CartesianGrid, Legend
+  AreaChart, Area, CartesianGrid, Legend, LabelList
 } from "recharts";
 
 // ── THEME ──────────────────────────────────────────────────────────────────
@@ -628,9 +628,10 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
     .tab-btn { cursor: pointer; padding: 8px 18px; border-radius: 6px; border: 1px solid ${G.goldDim}; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; transition: all 0.2s; white-space: nowrap; color: ${G.goldDim}; background: transparent; }
     .tab-btn:hover { color: ${G.gold}; border-color: ${G.gold}; }
     .tab-btn.active { background: ${G.gold}; border-color: ${G.gold}; color: #ffffff; font-weight: 600; }
-    .stat-card { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 12px; padding: 20px 24px; transition: border-color 0.2s; }
+    .stat-card { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 12px; padding: 20px 24px; transition: border-color 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
     .stat-card:hover { border-color: ${G.goldDim}; }
     .genre-pill { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; }
+    .recharts-wrapper svg { overflow: visible !important; }
     .input-dark { background: ${G.card2}; border: 1px solid ${G.border}; border-radius: 8px; color: ${G.text}; padding: 10px 14px; font-family: 'DM Sans', sans-serif; font-size: 13px; width: 100%; outline: none; transition: border-color 0.2s; }
     .input-dark:focus { border-color: ${G.goldDim}; }
     .btn-gold { background: ${G.gold}; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
@@ -713,6 +714,17 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
           const coBooks = cb("co");
           const coData = Object.entries(coBooks.filter(b=>b.country).reduce((a,b)=>{a[b.country]=(a[b.country]||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([country,count])=>({country,count}));
 
+          const truncTick = (maxChars) => ({ x, y, payload }) => {
+            const full = String(payload.value);
+            const label = full.length > maxChars ? full.slice(0, maxChars - 2) + '..' : full;
+            return (
+              <g>
+                {label !== full && <title>{full}</title>}
+                <text x={x} y={y} dy={4} textAnchor="end" fill={G.text} fontSize={10}>{label}</text>
+              </g>
+            );
+          };
+
           const timeChartIds = new Set(["yc", "fn", "ge"]);
           const chartCard = (title, id, children) => (
             <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "18px 20px 12px" }}>
@@ -729,12 +741,12 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
             {/* Stat Cards */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 14, marginBottom: 24 }}>
               {[
-                { label: "Books Read", value: stats.total, color: G.gold },
+                { label: "Books Read", value: stats.total, color: "#d97706" },
                 { label: "Years Reading", value: stats.readingSpan, color: G.blue },
-                { label: "Peak Year", value: `${stats.sortedYears[0]?.[0]} (${stats.sortedYears[0]?.[1]})`, color: G.green },
-                { label: "#1 Author", value: stats.sortedAuthors[0]?.[0].split(" ").slice(-1)[0], sub: `${stats.sortedAuthors[0]?.[1]} books`, color: G.purple },
+                { label: "Peak Year", value: `${stats.sortedYears[0]?.[0]} (${stats.sortedYears[0]?.[1]})`, color: "#0284c7" },
+                { label: "#1 Author", value: stats.sortedAuthors[0]?.[0], sub: `${stats.sortedAuthors[0]?.[1]} books`, color: G.purple },
                 { label: "Top Genre", value: stats.sortedGenres[0]?.[0], sub: `${stats.sortedGenres[0]?.[1]} books`, color: "#ff9f7f" },
-                { label: "Authors Read", value: new Set(books.map(b => b.author)).size, color: "#81ecec" },
+                { label: "Authors Read", value: new Set(books.map(b => b.author)).size, color: "#db2777" },
               ].map((s, i) => (
                 <div key={i} className="stat-card">
                   <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 8 }}>{s.label}</div>
@@ -762,17 +774,49 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
 
               {/* Genre Breakdown */}
               {chartCard("Genre Breakdown", "gc",
-                <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={gcData} layout="vertical" barSize={13}>
-                    <CartesianGrid stroke={G.border} strokeDasharray="3 3" horizontal={false} />
-                    <XAxis type="number" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <YAxis type="category" dataKey="genre" tick={{ fill: G.text, fontSize: 10 }} axisLine={false} tickLine={false} width={100} />
-                    <Tooltip content={<DarkTooltip />} />
-                    <Bar dataKey="count" radius={[0, 4, 4, 0]}>
-                      {gcData.map((e, i) => <Cell key={i} fill={GENRE_COLORS[e.genre] || G.muted} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                <div style={{ overflow: "visible" }}>
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={gcData} layout="vertical" barSize={13} margin={{ top: 12, right: 10, bottom: 0, left: 0 }}>
+                      <CartesianGrid stroke={G.border} strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="genre" axisLine={false} tickLine={false} width={110} interval={0} tick={truncTick(17)} />
+                      <Tooltip content={<DarkTooltip />} />
+                      <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                        {gcData.map((e, i) => <Cell key={i} fill={GENRE_COLORS[e.genre] || G.muted} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
+              {/* Top Authors */}
+              {chartCard("Top Authors", "ac",
+                <div style={{ overflow: "visible" }}>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={acData} layout="vertical" barSize={11} margin={{ top: 12, right: 10, bottom: 0, left: 0 }}>
+                      <CartesianGrid stroke={G.border} strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="author" axisLine={false} tickLine={false} width={130} interval={0} tick={truncTick(20)} />
+                      <Tooltip content={<DarkTooltip />} />
+                      <Bar dataKey="count" fill={G.gold} radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
+              {/* Author Origins */}
+              {chartCard("Author Origins", "co",
+                <div style={{ overflow: "visible" }}>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={coData} layout="vertical" barSize={11} margin={{ top: 12, right: 10, bottom: 0, left: 0 }}>
+                      <CartesianGrid stroke={G.border} strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="country" axisLine={false} tickLine={false} width={90} interval={0} tick={truncTick(14)} />
+                      <Tooltip content={<DarkTooltip />} />
+                      <Bar dataKey="count" fill={G.blue} radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               )}
 
               {/* Fiction vs Non-Fiction */}
@@ -801,32 +845,6 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
                     <Legend wrapperStyle={{ color: G.muted, fontSize: 10 }} />
                     {geTop5.map(g => <Area key={g} type="monotone" dataKey={g} stackId="1" stroke={GENRE_COLORS[g]} fill={GENRE_COLORS[g]} fillOpacity={0.5} />)}
                   </AreaChart>
-                </ResponsiveContainer>
-              )}
-
-              {/* Top Authors */}
-              {chartCard("Top Authors", "ac",
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={acData} layout="vertical" barSize={11}>
-                    <CartesianGrid stroke={G.border} strokeDasharray="3 3" horizontal={false} />
-                    <XAxis type="number" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <YAxis type="category" dataKey="author" tick={{ fill: G.text, fontSize: 10 }} axisLine={false} tickLine={false} width={130} />
-                    <Tooltip content={<DarkTooltip />} />
-                    <Bar dataKey="count" fill={G.gold} radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-
-              {/* Author Origins */}
-              {chartCard("Author Origins", "co",
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={coData} layout="vertical" barSize={11}>
-                    <CartesianGrid stroke={G.border} strokeDasharray="3 3" horizontal={false} />
-                    <XAxis type="number" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <YAxis type="category" dataKey="country" tick={{ fill: G.text, fontSize: 10 }} axisLine={false} tickLine={false} width={90} />
-                    <Tooltip content={<DarkTooltip />} />
-                    <Bar dataKey="count" fill={G.green} radius={[0, 4, 4, 0]} />
-                  </BarChart>
                 </ResponsiveContainer>
               )}
             </div>
