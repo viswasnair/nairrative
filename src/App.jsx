@@ -204,6 +204,11 @@ export default function App() {
     "pair": ["Oppenheimer (film)", "Shogun (TV series)", "a trip to Japan", "watching the World Cup", "Interstellar (film)", "reading about WW2"],
   };
 
+  // Fingerprint catches adds, removes, and edits to title/year/genre
+  const booksFingerprint = useMemo(() =>
+    books.map(b => `${b.id}|${b.title}|${b.year}|${(b.genre||[]).join('')}`).join(','),
+  [books]);
+
   useEffect(() => {
     if (activeTab !== "analysis" || !books.length) return;
     fetchAnalysisAI();
@@ -357,10 +362,6 @@ export default function App() {
   const allAuthors = useMemo(() => [...new Set(books.flatMap(b => (b.authors || []).map(a => a.name)))].sort(), [books]);
   const allYearsList = useMemo(() => Object.keys(stats.byYearTracked).sort().map(Number), [stats]);
 
-  // Fingerprint catches adds, removes, and edits to title/year/genre
-  const booksFingerprint = useMemo(() =>
-    books.map(b => `${b.id}|${b.title}|${b.year}|${(b.genre||[]).join('')}`).join(','),
-  [books]);
   const allYearsListFull = useMemo(() => Object.keys(stats.byYear).sort().map(Number), [stats]);
 
   // ── HANDLERS ──────────────────────────────────────────────────────────────
@@ -854,8 +855,8 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
                 <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 12px" }}>Volume & Pace</div>
                 <div style={{ display: "flex", gap: 20, marginBottom: 14 }}>
                   <div>
-                    <div style={{ color: G.gold, fontSize: 26, fontFamily: "'Playfair Display', serif", fontWeight: 700 }}>{analysisInsights.peakYear[1]}</div>
-                    <div style={{ color: G.muted, fontSize: 10 }}>books in {analysisInsights.peakYear[0]}</div>
+                    <div style={{ color: G.gold, fontSize: 26, fontFamily: "'Playfair Display', serif", fontWeight: 700 }}>{analysisInsights.peakYear?.[1]}</div>
+                    <div style={{ color: G.muted, fontSize: 10 }}>books in {analysisInsights.peakYear?.[0]}</div>
                   </div>
                   <div>
                     <div style={{ color: G.blue, fontSize: 26, fontFamily: "'Playfair Display', serif", fontWeight: 700 }}>{analysisInsights.avgPerActive}</div>
@@ -918,7 +919,7 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
                       <span style={{ fontSize: 12, color: G.text }}>{country}</span>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <div style={{ width: 80, height: 4, background: G.border, borderRadius: 2, overflow: "hidden" }}>
-                          <div style={{ width: `${Math.round(count / analysisInsights.topCountries[0][1] * 100)}%`, height: "100%", background: G.green, borderRadius: 2 }} />
+                          <div style={{ width: `${Math.round(count / (analysisInsights.topCountries[0]?.[1] || 1) * 100)}%`, height: "100%", background: G.green, borderRadius: 2 }} />
                         </div>
                         <span style={{ fontSize: 11, color: G.muted, width: 20, textAlign: "right" }}>{count}</span>
                       </div>
