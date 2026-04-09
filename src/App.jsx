@@ -536,9 +536,9 @@ export default function App() {
     ::-webkit-scrollbar { width: 4px; height: 4px; }
     ::-webkit-scrollbar-track { background: ${G.bg}; }
     ::-webkit-scrollbar-thumb { background: ${G.dimmed}; border-radius: 4px; }
-    .tab-btn { cursor: pointer; padding: 8px 18px; border-radius: 6px; border: 1px solid transparent; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; transition: all 0.2s; white-space: nowrap; color: ${G.text}; opacity: 0.6; }
-    .tab-btn:hover { background: ${G.card2}; opacity: 1; }
-    .tab-btn.active { background: ${G.card2}; border-color: ${G.goldDim}; color: ${G.gold}; opacity: 1; font-weight: 600; }
+    .tab-btn { cursor: pointer; padding: 8px 18px; border-radius: 6px; border: 1px solid ${G.goldDim}; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; transition: all 0.2s; white-space: nowrap; color: ${G.goldDim}; background: transparent; }
+    .tab-btn:hover { color: ${G.gold}; border-color: ${G.gold}; }
+    .tab-btn.active { background: ${G.gold}; border-color: ${G.gold}; color: #ffffff; font-weight: 600; }
     .stat-card { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 12px; padding: 20px 24px; transition: border-color 0.2s; }
     .stat-card:hover { border-color: ${G.goldDim}; }
     .genre-pill { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; }
@@ -580,7 +580,7 @@ export default function App() {
       <div style={{ padding: "28px 28px 0", background: G.bg }}>
         {/* Centered logo */}
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
-          <img src="./nairrative.png" alt="Nairrative" style={{ width: 349, height: 72, mixBlendMode: "multiply" }} />
+          <img src="./nairrative.png" alt="Nairrative" style={{ width: 530, height: 150, mixBlendMode: "multiply" }} />
         </div>
 
         <div style={{ display: "flex", gap: 4, overflowX: "auto", justifyContent: "center" }}>
