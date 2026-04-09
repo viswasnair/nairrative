@@ -953,14 +953,12 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
                   {analysisInsights.topCountries.map(([country, count]) => (
-                    <div key={country} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: 12, color: G.text }}>{country}</span>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <div style={{ width: 80, height: 4, background: G.border, borderRadius: 2, overflow: "hidden" }}>
-                          <div style={{ width: `${Math.round(count / (analysisInsights.topCountries[0]?.[1] || 1) * 100)}%`, height: "100%", background: G.green, borderRadius: 2 }} />
-                        </div>
-                        <span style={{ fontSize: 11, color: G.muted, width: 20, textAlign: "right" }}>{count}</span>
+                    <div key={country} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 12, color: G.text, width: 90, textAlign: "right", flexShrink: 0 }}>{country}</span>
+                      <div style={{ width: 80, height: 4, background: G.border, borderRadius: 2, overflow: "hidden", flexShrink: 0 }}>
+                        <div style={{ width: `${Math.round(count / (analysisInsights.topCountries[0]?.[1] || 1) * 100)}%`, height: "100%", background: G.green, borderRadius: 2 }} />
                       </div>
+                      <span style={{ fontSize: 11, color: G.muted }}>{count}</span>
                     </div>
                   ))}
                 </div>
@@ -983,7 +981,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 12 }}>
                   {analysisInsights.loyal.slice(0, 5).map(([author, count]) => (
-                    <div key={author} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div key={author} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <span style={{ fontSize: 12, color: G.text }}>{author}</span>
                       <span style={{ fontSize: 11, color: G.gold, fontWeight: 600 }}>{count} books</span>
                     </div>
@@ -1060,7 +1058,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
                   {[...new Set(books.filter(b => b.series?.trim()).map(b => b.series))].slice(0, 6).map(s => {
                     const count = books.filter(b => b.series === s).length;
                     return (
-                      <div key={s} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div key={s} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <span style={{ fontSize: 11, color: G.text }}>{s}</span>
                         <span style={{ fontSize: 11, color: G.green, fontWeight: 600 }}>{count} books</span>
                       </div>
