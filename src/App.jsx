@@ -817,7 +817,7 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
                       <YAxis type="category" dataKey="country" axisLine={false} tickLine={false} width={90} interval={0} tick={truncTick(14)} />
                       <Tooltip content={<DarkTooltip />} />
                       <Bar dataKey="count" radius={[0, 4, 4, 0]}>
-                        {coData.map((_, i) => <Cell key={i} fill={`rgba(234, 88, 12, ${Math.max(0.25, 1 - i * 0.08)})`} />)}
+                        {coData.map((_, i) => <Cell key={i} fill={`rgba(20, 184, 166, ${Math.max(0.25, 1 - i * 0.08)})`} />)}
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
