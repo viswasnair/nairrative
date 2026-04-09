@@ -20,7 +20,7 @@ const GENRE_COLORS = {
   "Non-Fiction": "#ffd166", "Graphic Novel": "#06d6a0", "Memoir": "#74b9ff",
   "Biography": "#81ecec", "Classic": "#fab1a0", "Philosophy": "#a29bfe",
   "Popular Science": "#55c9a0", "Self-Help": "#fdcb6e", "Travel": "#e17055",
-  "Horror": "#b2bec3", "History": "#dfe6e9", "Politics": "#fd79a8",
+  "Horror": "#b2bec3", "History": "#e67e22", "Politics": "#fd79a8",
   "Economics": "#fdcb6e", "Psychology": "#6c5ce7", "Business": "#00b894",
 };
 
@@ -705,7 +705,7 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
           const geBooks = cb("ge");
           const geYrs = [...new Set(geBooks.map(b=>b.year))].sort();
           const geCount = geBooks.reduce((a,b)=>{(b.genre||[]).forEach(g=>{a[g]=(a[g]||0)+1;});return a;},{});
-          const geTop5 = Object.entries(geCount).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([g])=>g);
+          const geTop5 = Object.entries(geCount).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([g])=>g);
           const geData = geYrs.map(year=>{const e={year};geTop5.forEach(g=>{e[g]=geBooks.filter(b=>b.year===year&&(b.genre||[]).includes(g)).length;});return e;});
 
           const acBooks = cb("ac");
@@ -836,13 +836,24 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
 
               {/* Genre Evolution */}
               {chartCard("Genre Evolution", "ge",
-                <ResponsiveContainer width="100%" height={200}>
-                  <AreaChart data={geData}>
+                <ResponsiveContainer width="100%" height={220}>
+                  <AreaChart data={geData} margin={{ bottom: 10 }}>
                     <CartesianGrid stroke={G.border} strokeDasharray="3 3" />
                     <XAxis dataKey="year" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
                     <Tooltip content={<DarkTooltip />} />
-                    <Legend wrapperStyle={{ color: G.muted, fontSize: 10 }} />
+                    <Legend content={({ payload }) => (
+                      <div style={{ display: "flex", justifyContent: "center", marginTop: 10 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, auto)", gap: "4px 16px" }}>
+                          {payload.map(entry => (
+                            <div key={entry.value} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                              <div style={{ width: 8, height: 8, borderRadius: 2, background: entry.color, flexShrink: 0 }} />
+                              <span style={{ fontSize: 10, color: G.muted, whiteSpace: "nowrap" }}>{entry.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )} />
                     {geTop5.map(g => <Area key={g} type="monotone" dataKey={g} stackId="1" stroke={GENRE_COLORS[g]} fill={GENRE_COLORS[g]} fillOpacity={0.5} />)}
                   </AreaChart>
                 </ResponsiveContainer>
