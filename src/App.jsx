@@ -301,21 +301,34 @@ export default function App() {
     const seriesCount = seriesBooks.length;
     const seriesPct = Math.round(seriesCount / books.length * 100);
 
-    // Emotional arc: fiction % across dynamic era buckets derived from actual year range
+    // Mood mapping by era — derived from genre groupings
+    const MOOD_GENRES = {
+      "Dark & Tense":  ["Thriller", "Mystery", "Horror", "Crime", "Politics"],
+      "Imaginative":   ["Fantasy", "Sci-Fi", "Historical Fiction", "Graphic Novel"],
+      "Reflective":    ["Literary Fiction", "Classic", "Philosophy", "Memoir", "Poetry"],
+      "Informative":   ["Biography", "Popular Science", "History", "Non-Fiction", "Economics", "Self-Help", "Science"],
+    };
+    const MOOD_COLORS = { "Dark & Tense": "#e06c75", "Imaginative": "#4a9eff", "Reflective": "#c3a6ff", "Informative": "#ffd166" };
+    const bookMood = b => { const g = b.genre || []; for (const [m, tags] of Object.entries(MOOD_GENRES)) { if (g.some(t => tags.includes(t))) return m; } return null; };
     const allBookYears = [...new Set(books.map(b => b.year))].sort((a,b) => a-b);
-    const minY = allBookYears[0] ?? 2010;
+    const minY = allBookYears[0] ?? 2011;
     const maxY = allBookYears[allBookYears.length - 1] ?? new Date().getFullYear();
     const span = maxY - minY;
-    const eraFictionPct = (s, e) => { const sub = era(s,e); return sub.length ? Math.round(sub.filter(b=>b.fiction !== undefined ? b.fiction : (b.genre||[]).some(g=>fGen.has(g))).length/sub.length*100) : null; };
     const eraBuckets = [
       { era: `${minY}–${minY + Math.floor(span*0.25)}`, s: minY, e: minY + Math.floor(span*0.25) },
       { era: `${minY + Math.floor(span*0.25)+1}–${minY + Math.floor(span*0.5)}`, s: minY + Math.floor(span*0.25)+1, e: minY + Math.floor(span*0.5) },
       { era: `${minY + Math.floor(span*0.5)+1}–${minY + Math.floor(span*0.75)}`, s: minY + Math.floor(span*0.5)+1, e: minY + Math.floor(span*0.75) },
       { era: `${minY + Math.floor(span*0.75)+1}–${maxY}`, s: minY + Math.floor(span*0.75)+1, e: maxY },
     ];
-    const fictionByEra = eraBuckets.map(({ era: e, s, e: end }) => ({ era: e, pct: eraFictionPct(s, end) })).filter(e => e.pct !== null);
-    const peakFictionEra = fictionByEra.reduce((a,b) => a.pct > b.pct ? a : b, fictionByEra[0]);
-    const lowFictionEra = fictionByEra.reduce((a,b) => a.pct < b.pct ? a : b, fictionByEra[0]);
+    const moodByEra = eraBuckets.map(({ era: e, s, e: end }) => {
+      const sub = era(s, end).filter(b => bookMood(b));
+      if (!sub.length) return null;
+      const counts = {};
+      sub.forEach(b => { const m = bookMood(b); counts[m] = (counts[m] || 0) + 1; });
+      const dominant = Object.entries(counts).sort((a,b) => b[1]-a[1])[0][0];
+      return { era: e, dominant, counts, total: sub.length };
+    }).filter(Boolean);
+    const fictionByEra = moodByEra; const peakFictionEra = null; const lowFictionEra = null;
 
     // Notable years — computed from actual volume, no hardcoded life events
     const yearCounts = Object.entries(stats.byYear).map(([y,c]) => ({ year: parseInt(y), count: c })).filter(y => y.year >= 2011).sort((a,b) => a.year - b.year);
@@ -340,7 +353,7 @@ export default function App() {
       loyal, sampledCount, booksFromLoyal, loyaltyRatio,
       challengingCount, challengePct, challengingAuthorsFromData,
       seriesCount, seriesPct,
-      fictionByEra, peakFictionEra, lowFictionEra,
+      fictionByEra: moodByEra, peakFictionEra: null, lowFictionEra: null,
       notableYears, topAuthorChannels,
     };
   }, [books, stats]);
@@ -1072,15 +1085,17 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
               <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
                 <span style={{ background: `${G.purple}18`, color: G.purple, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Emotional Arc</span>
                 <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 14px" }}>Mood Mapping by Era</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
-                  {analysisInsights.fictionByEra.map(({ era, pct }) => (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 14 }}>
+                  {analysisInsights.fictionByEra.map(({ era, dominant, counts, total }) => (
                     <div key={era}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                        <span style={{ fontSize: 11, color: G.text }}>{era}</span>
-                        <span style={{ fontSize: 11, color: G.purple, fontWeight: 600 }}>{pct}% fiction</span>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                        <span style={{ fontSize: 11, color: G.text, fontWeight: 600 }}>{era}</span>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: { "Dark & Tense": "#e06c75", "Imaginative": "#4a9eff", "Reflective": "#c3a6ff", "Informative": "#ffd166" }[dominant] }}>{dominant}</span>
                       </div>
-                      <div style={{ height: 5, background: G.border, borderRadius: 3, overflow: "hidden" }}>
-                        <div style={{ width: `${pct}%`, height: "100%", background: `linear-gradient(to right, ${G.purple}, ${G.gold})`, borderRadius: 3 }} />
+                      <div style={{ display: "flex", height: 6, borderRadius: 3, overflow: "hidden", gap: 1 }}>
+                        {Object.entries(counts).sort((a,b) => b[1]-a[1]).map(([mood, c]) => (
+                          <div key={mood} title={`${mood}: ${c}`} style={{ width: `${Math.round(c/total*100)}%`, background: { "Dark & Tense": "#e06c75", "Imaginative": "#4a9eff", "Reflective": "#c3a6ff", "Informative": "#ffd166" }[mood], borderRadius: 2 }} />
+                        ))}
                       </div>
                     </div>
                   ))}
