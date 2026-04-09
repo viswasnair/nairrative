@@ -58,33 +58,42 @@ function normalizeBook(b) {
 // ── MULTI SELECT ─────────────────────────────────────────────────────────
 function MultiSelect({ options, selected, onChange, placeholder, style }) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const ref = useRef(null);
   useEffect(() => {
-    const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const h = e => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setSearch(""); } };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
   const toggle = v => onChange(selected.includes(v) ? selected.filter(x => x !== v) : [...selected, v]);
   const label = selected.length === 0 ? placeholder : selected.length === 1 ? selected[0] : `${selected.length} selected`;
+  const filtered = options.filter(o => o.toLowerCase().includes(search.toLowerCase()));
   return (
     <div ref={ref} style={{ position: "relative", ...style }}>
-      <div onClick={() => setOpen(o => !o)} style={{ background: G.card2, border: `1px solid ${open ? G.goldDim : G.border}`, borderRadius: 8, color: selected.length ? G.text : G.muted, padding: "10px 14px", fontFamily: "'DM Sans', sans-serif", fontSize: 13, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, userSelect: "none", transition: "border-color 0.2s" }}>
+      <div onClick={() => { setOpen(o => !o); setSearch(""); }} style={{ background: G.card2, border: `1px solid ${open ? G.goldDim : G.border}`, borderRadius: 8, color: selected.length ? G.text : G.muted, padding: "10px 14px", fontFamily: "'DM Sans', sans-serif", fontSize: 13, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, userSelect: "none", transition: "border-color 0.2s" }}>
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{label}</span>
         <span style={{ color: G.muted, fontSize: 10, flexShrink: 0 }}>▾</span>
       </div>
       {open && (
-        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: G.card, border: `1px solid ${G.border}`, borderRadius: 8, zIndex: 200, maxHeight: 220, overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,0.1)" }}>
-          {selected.length > 0 && (
-            <div onClick={() => onChange([])} style={{ padding: "8px 14px", fontSize: 11, color: G.gold, cursor: "pointer", borderBottom: `1px solid ${G.border}` }}>✕ Clear all</div>
-          )}
-          {options.map(o => (
-            <div key={o} onClick={() => toggle(o)} style={{ padding: "8px 14px", cursor: "pointer", display: "flex", gap: 10, alignItems: "center", fontSize: 12, color: selected.includes(o) ? G.text : G.muted, background: selected.includes(o) ? `${G.gold}10` : "transparent" }}>
-              <div style={{ width: 14, height: 14, border: `1px solid ${selected.includes(o) ? G.gold : G.border}`, borderRadius: 3, background: selected.includes(o) ? G.gold : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 9, color: "#000", fontWeight: 700 }}>
-                {selected.includes(o) && "✓"}
+        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: G.card, border: `1px solid ${G.border}`, borderRadius: 8, zIndex: 200, boxShadow: "0 8px 24px rgba(0,0,0,0.1)" }}>
+          <div style={{ padding: "8px 10px", borderBottom: `1px solid ${G.border}` }}>
+            <input autoFocus value={search} onChange={e => setSearch(e.target.value)} onClick={e => e.stopPropagation()}
+              placeholder="Search…" style={{ width: "100%", background: G.card2, border: `1px solid ${G.border}`, borderRadius: 6, color: G.text, padding: "5px 10px", fontFamily: "'DM Sans', sans-serif", fontSize: 12, outline: "none", boxSizing: "border-box" }} />
+          </div>
+          <div style={{ maxHeight: 200, overflowY: "auto" }}>
+            {selected.length > 0 && (
+              <div onClick={() => onChange([])} style={{ padding: "7px 14px", fontSize: 11, color: G.gold, cursor: "pointer", borderBottom: `1px solid ${G.border}` }}>✕ Clear all</div>
+            )}
+            {filtered.length === 0 && <div style={{ padding: "10px 14px", fontSize: 12, color: G.muted }}>No matches</div>}
+            {filtered.map(o => (
+              <div key={o} onClick={() => toggle(o)} style={{ padding: "8px 14px", cursor: "pointer", display: "flex", gap: 10, alignItems: "center", fontSize: 12, color: selected.includes(o) ? G.text : G.muted, background: selected.includes(o) ? `${G.gold}10` : "transparent" }}>
+                <div style={{ width: 14, height: 14, border: `1px solid ${selected.includes(o) ? G.gold : G.border}`, borderRadius: 3, background: selected.includes(o) ? G.gold : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 9, color: "#000", fontWeight: 700 }}>
+                  {selected.includes(o) && "✓"}
+                </div>
+                {o}
               </div>
-              {o}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -150,7 +159,7 @@ export default function App() {
   const [intentResults, setIntentResults] = useState({});
   const [intentLoading, setIntentLoading] = useState({});
   const [refreshCounts, setRefreshCounts] = useState({});
-  const EMPTY_DRAFT = { title: "", authors: [{ name: "", country: "" }], genres: [], year: new Date().getFullYear(), format: "Novel", fiction: true, series: "", pages: "", notes: "" };
+  const EMPTY_DRAFT = { title: "", authors: [{ name: "", country: "" }], genres: [], yearStart: new Date().getFullYear(), yearEnd: new Date().getFullYear(), format: "Novel", fiction: true, series: "", pages: "", notes: "" };
   const [showBookModal, setShowBookModal] = useState(false);
   const [editingBook, setEditingBook] = useState(null);
   const [bookDraft, setBookDraft] = useState(EMPTY_DRAFT);
@@ -447,7 +456,8 @@ Answer with specific references to books, authors, years, and patterns from the 
       title: b.title || "",
       authors: b.authors?.length ? b.authors.map(a => ({ name: a.name || "", country: a.country || "" })) : [{ name: b.author || "", country: b.country || "" }],
       genres: b.genre || [],
-      year: b.year_read_end || b.year || new Date().getFullYear(),
+      yearStart: b.year_read_start || b.year || new Date().getFullYear(),
+      yearEnd: b.year_read_end || b.year || new Date().getFullYear(),
       format: b.format || "Novel",
       fiction: b.fiction !== false,
       series: b.series || "",
@@ -488,21 +498,24 @@ Answer with specific references to books, authors, years, and patterns from the 
       format: bookChatPending.format || p.format,
       series: bookChatPending.series || p.series,
       pages: bookChatPending.pages ? String(bookChatPending.pages) : p.pages,
-      year: bookChatPending.year || p.year,
+      yearStart: bookChatPending.year || p.yearStart,
+      yearEnd: bookChatPending.year || p.yearEnd,
     }));
     setBookChatPending(null);
     setBookChatInput("");
   };
 
   const saveBook = async () => {
-    const { title, authors, genres, year, format, fiction, series, pages, notes } = bookDraft;
+    const { title, authors, genres, yearStart, yearEnd, format, fiction, series, pages, notes } = bookDraft;
     if (!title.trim() || !authors[0]?.name?.trim()) { setBookMsg("Title and at least one author are required."); return; }
     setBookSaving(true);
     try {
-      const yr = parseInt(year);
+      const ys = parseInt(yearStart);
+      const ye = parseInt(yearEnd);
+      if (isNaN(ys) || isNaN(ye) || ys > ye) { setBookMsg("Year Start must be ≤ Year End."); setBookSaving(false); return; }
       if (editingBook) {
         // UPDATE existing book
-        const { error } = await supabase.from("books").update({ title: title.trim(), year_read_start: yr, year_read_end: yr, genre: genres, format, fiction, series: series || "", pages: pages ? parseInt(pages) : null, notes: notes || "" }).eq("id", editingBook.id);
+        const { error } = await supabase.from("books").update({ title: title.trim(), year_read_start: ys, year_read_end: ye, genre: genres, format, fiction, series: series || "", pages: pages ? parseInt(pages) : null, notes: notes || "" }).eq("id", editingBook.id);
         if (error) throw error;
         await supabase.from("book_authors").delete().eq("book_id", editingBook.id);
         for (let i = 0; i < authors.length; i++) {
@@ -512,12 +525,12 @@ Answer with specific references to books, authors, years, and patterns from the 
           await supabase.from("book_authors").insert([{ book_id: editingBook.id, author_id: au.id, author_order: i + 1 }]);
         }
         const updatedAuthors = authors.filter(a => a.name.trim()).map((a, i) => ({ author_order: i + 1, authors: { id: 0, name: a.name, country: a.country } }));
-        const normalized = normalizeBook({ ...editingBook, title: title.trim(), year_read_end: yr, genre: genres, format, fiction, series, pages: pages ? parseInt(pages) : null, notes, book_authors: updatedAuthors });
+        const normalized = normalizeBook({ ...editingBook, title: title.trim(), year_read_start: ys, year_read_end: ye, genre: genres, format, fiction, series, pages: pages ? parseInt(pages) : null, notes, book_authors: updatedAuthors });
         setBooks(prev => prev.map(b => b.id === editingBook.id ? normalized : b));
         setBookMsg("✓ Book updated!");
       } else {
         // INSERT new book
-        const { data: book, error: bookErr } = await supabase.from("books").insert([{ user_id: "5c8d1748-16ec-45a3-b57e-a8bdb7a7db78", title: title.trim(), year_read_start: yr, year_read_end: yr, genre: genres, format, fiction, series: series || "", pages: pages ? parseInt(pages) : null, notes: notes || "", user_added: true }]).select().single();
+        const { data: book, error: bookErr } = await supabase.from("books").insert([{ user_id: "5c8d1748-16ec-45a3-b57e-a8bdb7a7db78", title: title.trim(), year_read_start: ys, year_read_end: ye, genre: genres, format, fiction, series: series || "", pages: pages ? parseInt(pages) : null, notes: notes || "", user_added: true }]).select().single();
         if (bookErr) throw bookErr;
         const bookAuthors = [];
         for (let i = 0; i < authors.length; i++) {
@@ -742,7 +755,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
     .rec-card { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 12px; padding: 18px; transition: all 0.2s; }
     .rec-card:hover { border-color: ${G.goldDim}; transform: translateY(-1px); }
     .chat-input-wrap { display: flex; gap: 10px; }
-    .lib-row { display: grid; grid-template-columns: 2fr 150px 110px 70px 80px 50px 56px 32px; gap: 10px; padding: 9px 14px; border-bottom: 1px solid ${G.border}; align-items: center; transition: background 0.15s; }
+    .lib-row { display: grid; grid-template-columns: 2fr 150px 110px 70px 80px 50px 56px 56px 32px; gap: 10px; padding: 9px 14px; border-bottom: 1px solid ${G.border}; align-items: center; transition: background 0.15s; }
     .lib-row:hover { background: ${G.card2}; }
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; }
     .modal-box { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 16px; width: 100%; max-width: 540px; max-height: 88vh; overflow-y: auto; padding: 28px; position: relative; }
@@ -1218,7 +1231,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
 
             {/* Table Header */}
             <div className="lib-row" style={{ background: G.card2, borderRadius: "8px 8px 0 0", borderBottom: `1px solid ${G.border}` }}>
-              {["Title", "Author", "Genre", "Format", "Type", "Pages", "Year", ""].map(h => (
+              {["Title", "Author", "Genre", "Format", "Type", "Pages", "Start", "End", ""].map(h => (
                 <div key={h} style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase" }}>{h}</div>
               ))}
             </div>
@@ -1230,19 +1243,24 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
                   <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     <a href={`https://en.wikipedia.org/wiki/Special:Search?search=${encodeURIComponent(b.title + " " + b.author)}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 500, color: G.text, textDecoration: "none" }} onMouseOver={e=>e.target.style.color=G.gold} onMouseOut={e=>e.target.style.color=G.text}>{b.title}</a>
                   </div>
-                  <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12, color: G.muted }}>
                     {(b.authors?.length ? b.authors : [{ name: b.author }]).map((a, i) => (
                       <span key={i}>
-                        {i > 0 && <span style={{ color: G.dimmed }}> & </span>}
-                        <a href={`https://en.wikipedia.org/wiki/Special:Search?search=${encodeURIComponent(a.name)}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: G.muted, textDecoration: "none" }} onMouseOver={e=>e.target.style.color=G.gold} onMouseOut={e=>e.target.style.color=G.muted}>{a.name}</a>
+                        {i > 0 && <span style={{ color: G.dimmed }}>, </span>}
+                        <a href={`https://en.wikipedia.org/wiki/Special:Search?search=${encodeURIComponent(a.name)}`} target="_blank" rel="noopener noreferrer" style={{ color: G.muted, textDecoration: "none" }} onMouseOver={e=>e.target.style.color=G.gold} onMouseOut={e=>e.target.style.color=G.muted}>{a.name}</a>
                       </span>
                     ))}
                   </div>
-                  <div style={{ overflow: "hidden" }}>{(b.genre||[]).slice(0,2).map(g => <span key={g} className="genre-pill" style={{ background: `${GENRE_COLORS[g]||G.dimmed}20`, color: GENRE_COLORS[g]||G.muted, marginRight: 3, fontSize: 10 }}>{g}</span>)}</div>
+                  <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 11, color: G.muted }}>
+                    {(b.genre||[]).map((g, i) => (
+                      <span key={g}>{i > 0 && <span style={{ color: G.dimmed }}>, </span>}<span style={{ color: GENRE_COLORS[g]||G.muted }}>{g}</span></span>
+                    ))}
+                  </div>
                   <div style={{ fontSize: 11, color: G.muted }}>{b.format || "—"}</div>
                   <div style={{ fontSize: 11, color: b.fiction ? G.blue : G.copper }}>{b.fiction !== undefined ? (b.fiction ? "Fiction" : "Non-Fiction") : "—"}</div>
                   <div style={{ fontSize: 12, color: G.muted }}>{b.pages || "—"}</div>
-                  <div style={{ fontSize: 12, color: G.muted }}>{b.year}</div>
+                  <div style={{ fontSize: 12, color: G.muted }}>{b.year_read_start || "—"}</div>
+                  <div style={{ fontSize: 12, color: G.muted }}>{b.year_read_end || "—"}</div>
                   <button onClick={() => openEditModal(b)} style={{ background: "none", border: "none", color: G.muted, cursor: "pointer", fontSize: 13, padding: 0 }} title="Edit">✎</button>
                 </div>
               ))}
@@ -1311,10 +1329,14 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
                   <MultiSelect options={Object.keys(GENRE_COLORS)} selected={bookDraft.genres} onChange={v => setBookDraft(p => ({ ...p, genres: v }))} placeholder="Select genres…" style={{ width: "100%" }} />
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                   <div>
-                    <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 5 }}>Year Read</div>
-                    <input className="input-dark" type="number" min="1900" max="2030" value={bookDraft.year} onChange={e => setBookDraft(p => ({ ...p, year: e.target.value }))} />
+                    <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 5 }}>Read Year Start</div>
+                    <input className="input-dark" type="number" min="1900" max="2030" value={bookDraft.yearStart} onChange={e => setBookDraft(p => ({ ...p, yearStart: e.target.value }))} />
+                  </div>
+                  <div>
+                    <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 5 }}>Read Year End</div>
+                    <input className="input-dark" type="number" min="1900" max="2030" value={bookDraft.yearEnd} onChange={e => setBookDraft(p => ({ ...p, yearEnd: e.target.value }))} />
                   </div>
                   <div>
                     <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 5 }}>Pages</div>
