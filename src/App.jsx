@@ -150,9 +150,15 @@ export default function App() {
   const [intentResults, setIntentResults] = useState({});
   const [intentLoading, setIntentLoading] = useState({});
   const [refreshCounts, setRefreshCounts] = useState({});
-  const [newBook, setNewBook] = useState({ title: "", author: "", year: 2026, genre: "Fantasy", country: "", pages: "" });
-  const [addMsg, setAddMsg] = useState("");
-  const [autoFilling, setAutoFilling] = useState(false);
+  const EMPTY_DRAFT = { title: "", authors: [{ name: "", country: "" }], genres: [], year: new Date().getFullYear(), format: "Novel", fiction: true, series: "", pages: "", notes: "" };
+  const [showBookModal, setShowBookModal] = useState(false);
+  const [editingBook, setEditingBook] = useState(null);
+  const [bookDraft, setBookDraft] = useState(EMPTY_DRAFT);
+  const [bookChatInput, setBookChatInput] = useState("");
+  const [bookChatLoading, setBookChatLoading] = useState(false);
+  const [bookChatPending, setBookChatPending] = useState(null);
+  const [bookSaving, setBookSaving] = useState(false);
+  const [bookMsg, setBookMsg] = useState("");
   const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY || "";
   const [seriesRecap, setSeriesRecap] = useState(null);
   const [seriesLoading, setSeriesLoading] = useState(false);
@@ -434,26 +440,99 @@ Answer with specific references to books, authors, years, and patterns from the 
   };
   const setChartRange = (id, from, to) => setChartRanges(p => ({ ...p, [id]: { from, to } }));
 
-  const autoFillBookDetails = async () => {
-    if (!newBook.title.trim() || !newBook.author.trim()) { setAddMsg("Enter title and author first."); return; }
-    setAutoFilling(true);
+  const openAddModal = () => { setEditingBook(null); setBookDraft(EMPTY_DRAFT); setBookChatInput(""); setBookChatPending(null); setBookMsg(""); setShowBookModal(true); };
+  const openEditModal = (b) => {
+    setEditingBook(b);
+    setBookDraft({
+      title: b.title || "",
+      authors: b.authors?.length ? b.authors.map(a => ({ name: a.name || "", country: a.country || "" })) : [{ name: b.author || "", country: b.country || "" }],
+      genres: b.genre || [],
+      year: b.year_read_end || b.year || new Date().getFullYear(),
+      format: b.format || "Novel",
+      fiction: b.fiction !== false,
+      series: b.series || "",
+      pages: b.pages ? String(b.pages) : "",
+      notes: b.notes || "",
+    });
+    setBookChatInput(""); setBookChatPending(null); setBookMsg(""); setShowBookModal(true);
+  };
+
+  const chatFillBook = async () => {
+    if (!bookChatInput.trim() || bookChatLoading) return;
+    setBookChatLoading(true);
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST", headers: aiHeaders(),
         body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001", max_tokens: 200,
-          system: `You are a book database. Given a book title and author, return ONLY valid JSON (no markdown) with: genre (one of: Fantasy, Sci-Fi, Thriller, Mystery, Literary Fiction, Historical Fiction, Non-Fiction, Graphic Novel, Memoir, Biography, Classic, Philosophy, Science, Self-Help, Travel, Horror, History), country (author's country of birth/nationality), year (original publication year as number), pages (approximate page count as number).`,
-          messages: [{ role: "user", content: `Book: "${newBook.title}" by ${newBook.author}` }]
+          model: "claude-haiku-4-5-20251001", max_tokens: 400,
+          system: `You are a book database assistant. Given a natural language description of a book, extract and return ONLY valid JSON (no markdown) with these fields: title (string), authors (array of {name, country}), genres (array, pick from: Fantasy, Sci-Fi, Thriller, Mystery, Literary Fiction, Historical Fiction, Non-Fiction, Graphic Novel, Memoir, Biography, Classic, Philosophy, Popular Science, Self-Help, Travel, Horror, History, Politics, Economics, Psychology, Business), fiction (boolean), format (one of: Novel, Novella, Short Stories, Graphic Novel, Non-Fiction), series (string or ""), pages (number or null), year (original publication year as number).`,
+          messages: [{ role: "user", content: bookChatInput }]
         })
       });
       const data = await res.json();
       const txt = data.content?.[0]?.text || "";
       const parsed = JSON.parse(txt.replace(/```json|```/g, "").trim());
-      setNewBook(p => ({ ...p, genre: parsed.genre || p.genre, country: parsed.country || p.country, year: parsed.year || p.year, pages: parsed.pages ? String(parsed.pages) : p.pages }));
-      setAddMsg("✓ Details auto-filled! Review and adjust if needed.");
-    } catch { setAddMsg("Could not auto-fill. Please enter details manually."); }
-    setAutoFilling(false);
-    setTimeout(() => setAddMsg(""), 5000);
+      setBookChatPending(parsed);
+    } catch { setBookMsg("Could not parse. Try: 'Dune by Frank Herbert, sci-fi novel'."); }
+    setBookChatLoading(false);
+  };
+
+  const applyPending = () => {
+    if (!bookChatPending) return;
+    setBookDraft(p => ({
+      ...p,
+      title: bookChatPending.title || p.title,
+      authors: bookChatPending.authors?.length ? bookChatPending.authors : p.authors,
+      genres: bookChatPending.genres?.length ? bookChatPending.genres : p.genres,
+      fiction: bookChatPending.fiction !== undefined ? bookChatPending.fiction : p.fiction,
+      format: bookChatPending.format || p.format,
+      series: bookChatPending.series || p.series,
+      pages: bookChatPending.pages ? String(bookChatPending.pages) : p.pages,
+      year: bookChatPending.year || p.year,
+    }));
+    setBookChatPending(null);
+    setBookChatInput("");
+  };
+
+  const saveBook = async () => {
+    const { title, authors, genres, year, format, fiction, series, pages, notes } = bookDraft;
+    if (!title.trim() || !authors[0]?.name?.trim()) { setBookMsg("Title and at least one author are required."); return; }
+    setBookSaving(true);
+    try {
+      const yr = parseInt(year);
+      if (editingBook) {
+        // UPDATE existing book
+        const { error } = await supabase.from("books").update({ title: title.trim(), year_read_start: yr, year_read_end: yr, genre: genres, format, fiction, series: series || "", pages: pages ? parseInt(pages) : null, notes: notes || "" }).eq("id", editingBook.id);
+        if (error) throw error;
+        await supabase.from("book_authors").delete().eq("book_id", editingBook.id);
+        for (let i = 0; i < authors.length; i++) {
+          const aName = authors[i].name.trim(); if (!aName) continue;
+          let { data: au } = await supabase.from("authors").select().eq("name", aName).maybeSingle();
+          if (!au) { const { data: newAu } = await supabase.from("authors").insert([{ name: aName, country: authors[i].country || "" }]).select().single(); au = newAu; }
+          await supabase.from("book_authors").insert([{ book_id: editingBook.id, author_id: au.id, author_order: i + 1 }]);
+        }
+        const updatedAuthors = authors.filter(a => a.name.trim()).map((a, i) => ({ author_order: i + 1, authors: { id: 0, name: a.name, country: a.country } }));
+        const normalized = normalizeBook({ ...editingBook, title: title.trim(), year_read_end: yr, genre: genres, format, fiction, series, pages: pages ? parseInt(pages) : null, notes, book_authors: updatedAuthors });
+        setBooks(prev => prev.map(b => b.id === editingBook.id ? normalized : b));
+        setBookMsg("✓ Book updated!");
+      } else {
+        // INSERT new book
+        const { data: book, error: bookErr } = await supabase.from("books").insert([{ user_id: "5c8d1748-16ec-45a3-b57e-a8bdb7a7db78", title: title.trim(), year_read_start: yr, year_read_end: yr, genre: genres, format, fiction, series: series || "", pages: pages ? parseInt(pages) : null, notes: notes || "", user_added: true }]).select().single();
+        if (bookErr) throw bookErr;
+        const bookAuthors = [];
+        for (let i = 0; i < authors.length; i++) {
+          const aName = authors[i].name.trim(); if (!aName) continue;
+          let { data: au } = await supabase.from("authors").select().eq("name", aName).maybeSingle();
+          if (!au) { const { data: newAu } = await supabase.from("authors").insert([{ name: aName, country: authors[i].country || "" }]).select().single(); au = newAu; }
+          await supabase.from("book_authors").insert([{ book_id: book.id, author_id: au.id, author_order: i + 1 }]);
+          bookAuthors.push({ author_order: i + 1, authors: au });
+        }
+        setBooks(prev => [...prev, normalizeBook({ ...book, book_authors: bookAuthors })]);
+        setBookMsg("✓ Book added!");
+      }
+      setTimeout(() => { setShowBookModal(false); setBookMsg(""); }, 1200);
+    } catch (e) { setBookMsg("Error saving. Check your connection."); }
+    setBookSaving(false);
   };
 
   const generateSeriesRecap = async (seriesName) => {
@@ -663,8 +742,11 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
     .rec-card { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 12px; padding: 18px; transition: all 0.2s; }
     .rec-card:hover { border-color: ${G.goldDim}; transform: translateY(-1px); }
     .chat-input-wrap { display: flex; gap: 10px; }
-    .lib-row { display: grid; grid-template-columns: 1fr 140px 100px 56px 64px; gap: 12px; padding: 10px 16px; border-bottom: 1px solid ${G.border}; align-items: center; transition: background 0.15s; }
+    .lib-row { display: grid; grid-template-columns: 2fr 150px 110px 70px 80px 50px 56px 32px; gap: 10px; padding: 9px 14px; border-bottom: 1px solid ${G.border}; align-items: center; transition: background 0.15s; }
     .lib-row:hover { background: ${G.card2}; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .modal-box { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 16px; width: 100%; max-width: 540px; max-height: 88vh; overflow-y: auto; padding: 28px; position: relative; }
+    .modal-box::-webkit-scrollbar { width: 4px; } .modal-box::-webkit-scrollbar-track { background: transparent; } .modal-box::-webkit-scrollbar-thumb { background: ${G.dimmed}; border-radius: 4px; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
     .fade-in { animation: fadeIn 0.3s ease; }
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
@@ -676,7 +758,6 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
     { id: "overview", icon: "◎", label: "Overview" },
     { id: "analysis", icon: "▦", label: "Analysis" },
     { id: "library", icon: "≡", label: "Library" },
-    { id: "add", icon: "+", label: "Add Book" },
     { id: "recs", icon: "✦", label: "Recommendations" },
     { id: "series", icon: "⊙", label: "Series Recap" },
     { id: "chat", icon: "◈", label: "AI Chat" },
@@ -1117,13 +1198,13 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
         {/* ── LIBRARY ────────────────────────────────────────────────────── */}
         {activeTab === "library" && (
           <div>
-            {/* Single filter row */}
+            {/* Filter row */}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 16 }}>
-              <input className="input-dark" style={{ width: 200, flex: "0 0 auto" }} placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} />
-              <MultiSelect options={allGenres} selected={libGenres} onChange={setLibGenres} placeholder="Genre" style={{ width: 148, flex: "0 0 auto" }} />
-              <MultiSelect options={allYears} selected={libYears} onChange={setLibYears} placeholder="Year" style={{ width: 108, flex: "0 0 auto" }} />
-              <MultiSelect options={allAuthors} selected={libAuthors} onChange={setLibAuthors} placeholder="Author" style={{ width: 180, flex: "0 0 auto" }} />
-              <select className="input-dark" style={{ width: 128, flex: "0 0 auto" }} value={libSort} onChange={e => setLibSort(e.target.value)}>
+              <input className="input-dark" style={{ width: 190, flex: "0 0 auto" }} placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} />
+              <MultiSelect options={allGenres} selected={libGenres} onChange={setLibGenres} placeholder="Genre" style={{ width: 130, flex: "0 0 auto" }} />
+              <MultiSelect options={allYears} selected={libYears} onChange={setLibYears} placeholder="Year" style={{ width: 100, flex: "0 0 auto" }} />
+              <MultiSelect options={allAuthors} selected={libAuthors} onChange={setLibAuthors} placeholder="Author" style={{ width: 160, flex: "0 0 auto" }} />
+              <select className="input-dark" style={{ width: 120, flex: "0 0 auto" }} value={libSort} onChange={e => setLibSort(e.target.value)}>
                 <option value="year">Sort: Year</option>
                 <option value="title">Sort: Title</option>
                 <option value="author">Sort: Author</option>
@@ -1132,11 +1213,12 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
               <div style={{ flex: 1 }} />
               <button className="btn-ghost" onClick={downloadCSV}>↓ CSV</button>
               <button className="btn-ghost" onClick={downloadJSON}>↓ JSON</button>
+              <button className="btn-gold" style={{ padding: "7px 16px", fontSize: 12 }} onClick={openAddModal}>+ Add Book</button>
             </div>
 
             {/* Table Header */}
             <div className="lib-row" style={{ background: G.card2, borderRadius: "8px 8px 0 0", borderBottom: `1px solid ${G.border}` }}>
-              {["Title", "Author", "Genre", "Pages", "Year"].map(h => (
+              {["Title", "Author", "Genre", "Format", "Type", "Pages", "Year", ""].map(h => (
                 <div key={h} style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase" }}>{h}</div>
               ))}
             </div>
@@ -1145,11 +1227,23 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
             <div style={{ background: G.card, border: `1px solid ${G.border}`, borderTop: "none", borderRadius: "0 0 8px 8px", maxHeight: 520, overflowY: "auto" }}>
               {filteredBooks.map(b => (
                 <div key={b.id} className="lib-row">
-                  <div style={{ fontSize: 13, fontWeight: 500, color: G.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.title}</div>
-                  <div style={{ fontSize: 12, color: G.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.author}</div>
-                  <div>{(b.genre||[]).map(g => <span key={g} className="genre-pill" style={{ background: `${GENRE_COLORS[g] || G.dimmed}20`, color: GENRE_COLORS[g] || G.muted, marginRight: 4 }}>{g}</span>)}</div>
+                  <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <a href={`https://en.wikipedia.org/wiki/Special:Search?search=${encodeURIComponent(b.title + " " + b.author)}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 500, color: G.text, textDecoration: "none" }} onMouseOver={e=>e.target.style.color=G.gold} onMouseOut={e=>e.target.style.color=G.text}>{b.title}</a>
+                  </div>
+                  <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {(b.authors?.length ? b.authors : [{ name: b.author }]).map((a, i) => (
+                      <span key={i}>
+                        {i > 0 && <span style={{ color: G.dimmed }}> & </span>}
+                        <a href={`https://en.wikipedia.org/wiki/Special:Search?search=${encodeURIComponent(a.name)}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: G.muted, textDecoration: "none" }} onMouseOver={e=>e.target.style.color=G.gold} onMouseOut={e=>e.target.style.color=G.muted}>{a.name}</a>
+                      </span>
+                    ))}
+                  </div>
+                  <div style={{ overflow: "hidden" }}>{(b.genre||[]).slice(0,2).map(g => <span key={g} className="genre-pill" style={{ background: `${GENRE_COLORS[g]||G.dimmed}20`, color: GENRE_COLORS[g]||G.muted, marginRight: 3, fontSize: 10 }}>{g}</span>)}</div>
+                  <div style={{ fontSize: 11, color: G.muted }}>{b.format || "—"}</div>
+                  <div style={{ fontSize: 11, color: b.fiction ? G.blue : G.copper }}>{b.fiction !== undefined ? (b.fiction ? "Fiction" : "Non-Fiction") : "—"}</div>
                   <div style={{ fontSize: 12, color: G.muted }}>{b.pages || "—"}</div>
                   <div style={{ fontSize: 12, color: G.muted }}>{b.year}</div>
+                  <button onClick={() => openEditModal(b)} style={{ background: "none", border: "none", color: G.muted, cursor: "pointer", fontSize: 13, padding: 0 }} title="Edit">✎</button>
                 </div>
               ))}
               {filteredBooks.length === 0 && (
@@ -1159,71 +1253,105 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
           </div>
         )}
 
-        {/* ── ADD BOOK ───────────────────────────────────────────────────── */}
-        {activeTab === "add" && (
-          <div style={{ maxWidth: 560 }}>
-            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, marginBottom: 6 }}>Log a New Book</div>
-            <div style={{ color: G.muted, fontSize: 13, marginBottom: 24 }}>Add it to your permanent reading record</div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div>
-                <div style={{ color: G.muted, fontSize: 11, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 6 }}>Title *</div>
-                <input className="input-dark" placeholder="e.g. The Name of the Wind" value={newBook.title} onChange={e => setNewBook(p => ({ ...p, title: e.target.value }))} />
-              </div>
-              <div>
-                <div style={{ color: G.muted, fontSize: 11, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 6 }}>Author *</div>
-                <input className="input-dark" placeholder="e.g. Patrick Rothfuss" value={newBook.author} onChange={e => setNewBook(p => ({ ...p, author: e.target.value }))} />
+        {/* ── BOOK MODAL (Add / Edit) ─────────────────────────────────────── */}
+        {showBookModal && (
+          <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setShowBookModal(false); }}>
+            <div className="modal-box">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, color: G.text }}>{editingBook ? "Edit Book" : "Add Book"}</div>
+                <button onClick={() => setShowBookModal(false)} style={{ background: "none", border: "none", color: G.muted, fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
               </div>
 
-              <button className="btn-ghost" onClick={autoFillBookDetails} disabled={autoFilling || !newBook.title.trim() || !newBook.author.trim()}
-                style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "center", borderColor: G.goldDim, color: autoFilling ? G.muted : G.gold }}>
-                {autoFilling ? "Filling in details…" : "✦ Auto-fill Genre, Country & Pages via AI"}
-              </button>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                <div>
-                  <div style={{ color: G.muted, fontSize: 11, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 6 }}>Year</div>
-                  <input className="input-dark" type="number" min="1900" max="2030" value={newBook.year} onChange={e => setNewBook(p => ({ ...p, year: e.target.value }))} />
+              {/* Chat prompt */}
+              <div style={{ background: G.card2, border: `1px solid ${G.border}`, borderRadius: 10, padding: "12px 14px", marginBottom: 16 }}>
+                <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 8 }}>✦ Describe the book — AI will fill in the details</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input className="input-dark" style={{ flex: 1, fontSize: 12 }} placeholder='e.g. "Dune by Frank Herbert, 1965 sci-fi epic"'
+                    value={bookChatInput} onChange={e => setBookChatInput(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && chatFillBook()} />
+                  <button className="btn-gold" style={{ padding: "8px 14px", fontSize: 12, flexShrink: 0 }} onClick={chatFillBook} disabled={bookChatLoading || !bookChatInput.trim()}>
+                    {bookChatLoading ? "…" : "Fill"}
+                  </button>
                 </div>
-                <div>
-                  <div style={{ color: G.muted, fontSize: 11, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 6 }}>Pages</div>
-                  <input className="input-dark" type="number" min="1" placeholder="e.g. 350" value={newBook.pages} onChange={e => setNewBook(p => ({ ...p, pages: e.target.value }))} />
-                </div>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                <div>
-                  <div style={{ color: G.muted, fontSize: 11, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 6 }}>Genre</div>
-                  <select className="input-dark" value={newBook.genre} onChange={e => setNewBook(p => ({ ...p, genre: e.target.value }))}>
-                    {Object.keys(GENRE_COLORS).map(g => <option key={g}>{g}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <div style={{ color: G.muted, fontSize: 11, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 6 }}>Country of Author</div>
-                  <input className="input-dark" placeholder="e.g. USA" value={newBook.country} onChange={e => setNewBook(p => ({ ...p, country: e.target.value }))} />
-                </div>
-              </div>
-              <button className="btn-gold" style={{ marginTop: 6 }} onClick={addBook}>Add to My Library</button>
-              {addMsg && (
-                <div style={{ padding: "12px 16px", borderRadius: 8, background: addMsg.startsWith("✓") ? "#1a2e1a" : "#2e1a1a", border: `1px solid ${addMsg.startsWith("✓") ? "#2d5a2d" : "#5a2d2d"}`, color: addMsg.startsWith("✓") ? G.green : G.red, fontSize: 13 }}>
-                  {addMsg}
-                </div>
-              )}
-            </div>
-
-            {books.some(b => b.user_added) && (
-              <div style={{ marginTop: 32 }}>
-                <div style={{ color: G.muted, fontSize: 11, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 12 }}>Added by You</div>
-                {books.filter(b => b.user_added).reverse().map(b => (
-                  <div key={b.id} style={{ display: "flex", justifyContent: "space-between", padding: "10px 14px", background: G.card, border: `1px solid ${G.border}`, borderRadius: 8, marginBottom: 8 }}>
-                    <div>
-                      <span style={{ fontSize: 13, fontWeight: 500 }}>{b.title}</span>
-                      <span style={{ color: G.muted, fontSize: 12, marginLeft: 8 }}>by {b.author}</span>
+                {bookChatPending && (
+                  <div style={{ marginTop: 10, padding: "10px 12px", background: `${G.gold}12`, border: `1px solid ${G.goldDim}`, borderRadius: 8 }}>
+                    <div style={{ fontSize: 12, color: G.text, fontWeight: 600, marginBottom: 4 }}>"{bookChatPending.title}" by {bookChatPending.authors?.map(a=>a.name).join(" & ")}</div>
+                    <div style={{ fontSize: 11, color: G.muted, marginBottom: 8 }}>{bookChatPending.genres?.join(", ")} · {bookChatPending.fiction ? "Fiction" : "Non-Fiction"} · {bookChatPending.format} · {bookChatPending.year}{bookChatPending.pages ? ` · ${bookChatPending.pages}pp` : ""}</div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button className="btn-gold" style={{ fontSize: 11, padding: "5px 12px" }} onClick={applyPending}>Apply to form</button>
+                      <button className="btn-ghost" style={{ fontSize: 11, padding: "5px 12px" }} onClick={() => setBookChatPending(null)}>Dismiss</button>
                     </div>
-                    <span>{(b.genre||[]).map(g => <span key={g} className="genre-pill" style={{ background: `${GENRE_COLORS[g] || G.dimmed}20`, color: GENRE_COLORS[g] || G.muted, marginRight: 4 }}>{g}</span>)}</span>
                   </div>
-                ))}
+                )}
               </div>
-            )}
+
+              {/* Form */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div>
+                  <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 5 }}>Title *</div>
+                  <input className="input-dark" value={bookDraft.title} onChange={e => setBookDraft(p => ({ ...p, title: e.target.value }))} placeholder="Book title" />
+                </div>
+
+                {/* Authors */}
+                <div>
+                  <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 5 }}>Authors *</div>
+                  {bookDraft.authors.map((a, i) => (
+                    <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                      <input className="input-dark" style={{ flex: 2, fontSize: 12 }} placeholder="Author name" value={a.name} onChange={e => setBookDraft(p => { const au=[...p.authors]; au[i]={...au[i],name:e.target.value}; return {...p,authors:au}; })} />
+                      <input className="input-dark" style={{ flex: 1, fontSize: 12 }} placeholder="Country" value={a.country} onChange={e => setBookDraft(p => { const au=[...p.authors]; au[i]={...au[i],country:e.target.value}; return {...p,authors:au}; })} />
+                      {bookDraft.authors.length > 1 && <button onClick={() => setBookDraft(p => ({ ...p, authors: p.authors.filter((_,j)=>j!==i) }))} style={{ background:"none",border:"none",color:G.muted,cursor:"pointer",fontSize:16,padding:"0 4px" }}>×</button>}
+                    </div>
+                  ))}
+                  <button className="btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }} onClick={() => setBookDraft(p => ({ ...p, authors: [...p.authors, { name: "", country: "" }] }))}>+ Add author</button>
+                </div>
+
+                {/* Genres */}
+                <div>
+                  <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 5 }}>Genres</div>
+                  <MultiSelect options={Object.keys(GENRE_COLORS)} selected={bookDraft.genres} onChange={v => setBookDraft(p => ({ ...p, genres: v }))} placeholder="Select genres…" style={{ width: "100%" }} />
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div>
+                    <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 5 }}>Year Read</div>
+                    <input className="input-dark" type="number" min="1900" max="2030" value={bookDraft.year} onChange={e => setBookDraft(p => ({ ...p, year: e.target.value }))} />
+                  </div>
+                  <div>
+                    <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 5 }}>Pages</div>
+                    <input className="input-dark" type="number" min="1" placeholder="e.g. 350" value={bookDraft.pages} onChange={e => setBookDraft(p => ({ ...p, pages: e.target.value }))} />
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div>
+                    <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 5 }}>Format</div>
+                    <select className="input-dark" value={bookDraft.format} onChange={e => setBookDraft(p => ({ ...p, format: e.target.value }))}>
+                      {["Novel", "Novella", "Short Stories", "Graphic Novel", "Non-Fiction"].map(f => <option key={f}>{f}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 5 }}>Type</div>
+                    <select className="input-dark" value={bookDraft.fiction ? "fiction" : "nonfiction"} onChange={e => setBookDraft(p => ({ ...p, fiction: e.target.value === "fiction" }))}>
+                      <option value="fiction">Fiction</option>
+                      <option value="nonfiction">Non-Fiction</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 5 }}>Series</div>
+                  <input className="input-dark" placeholder="Series name (optional)" value={bookDraft.series} onChange={e => setBookDraft(p => ({ ...p, series: e.target.value }))} />
+                </div>
+
+                {bookMsg && (
+                  <div style={{ padding: "10px 14px", borderRadius: 8, background: bookMsg.startsWith("✓") ? `${G.green}18` : `${G.red}18`, color: bookMsg.startsWith("✓") ? G.green : G.red, fontSize: 12 }}>{bookMsg}</div>
+                )}
+
+                <button className="btn-gold" style={{ marginTop: 4 }} onClick={saveBook} disabled={bookSaving}>
+                  {bookSaving ? "Saving…" : editingBook ? "Save Changes" : "Add to Library"}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
