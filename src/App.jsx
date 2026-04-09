@@ -30,7 +30,9 @@ TOP AUTHORS: Brandon Sanderson (many books – Mistborn, Stormlight Archive, Sky
 
 GENRES (ranked): Thriller (~83 books) > Literary Fiction (~55) > Fantasy (~54) > Sci-Fi (~47) > Biography (~19) > Popular Science (~17) > History (~17) > Philosophy (~9) > Politics (~8) > Historical Fiction (~8) > Mystery (~6) > Economics (~5) > Graphic Novel (~5) > Non-Fiction (~5) > Psychology (~3) > Self-Help (~2) > Horror (~1) > Business (~1).
 
-YEAR HIGHLIGHTS: 2010 (heavy reading – 130 books, likely early reading list), 2011-2014 (fantasy exploration), 2015-2017 (diverse non-fiction phase), 2018-19 (literary fiction surge), 2020-21 (pandemic reading peak – 24+40 books), 2022 (sudden drop to 3), 2023-24 (hiatus), 2025-26 (comeback with romantasy – ACOTAR + Empyrean).
+CRITICAL NOTE ON 2010: The year 2010 in this database is a collective placeholder representing ALL books read between 1998 and 2010 — roughly 12 years of reading before annual tracking began. It is NOT a single year with unusually high volume. Do not describe it as a peak year, anomaly, or outlier. Never say the reader read 130 books in 2010.
+
+YEAR HIGHLIGHTS: Pre-2011 (collective 1998–2010 reading, entered as a single block before annual tracking began), 2011-2014 (fantasy exploration), 2015-2017 (diverse non-fiction phase), 2018-19 (literary fiction surge), 2020-21 (pandemic reading peak – 24+40 books), 2022 (sudden drop to 3), 2023-24 (hiatus), 2025-26 (comeback with romantasy – ACOTAR + Empyrean).
 
 STRONG INTERESTS: Thrillers and crime fiction, epic fantasy, Indian literature, science non-fiction, literary fiction, biographies of scientists/leaders, graphic novels, history and politics.
 
@@ -316,7 +318,7 @@ export default function App() {
     const lowFictionEra = fictionByEra.reduce((a,b) => a.pct < b.pct ? a : b, fictionByEra[0]);
 
     // Notable years — computed from actual volume, no hardcoded life events
-    const yearCounts = Object.entries(stats.byYear).map(([y,c]) => ({ year: parseInt(y), count: c })).sort((a,b) => a.year - b.year);
+    const yearCounts = Object.entries(stats.byYear).map(([y,c]) => ({ year: parseInt(y), count: c })).filter(y => y.year >= 2011).sort((a,b) => a.year - b.year);
     const yearAvg = yearCounts.reduce((s,y) => s+y.count, 0) / yearCounts.length;
     const notableYears = yearCounts.map(y => ({
       year: String(y.year),
@@ -506,7 +508,9 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
         method: "POST", headers: aiHeaders(),
         body: JSON.stringify({
           model: "claude-sonnet-4-6", max_tokens: 2000,
-          system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly these keys: temporal, genre, geographic, author, thematic, contextual, complexity, series, emotional, discovery. Each value is 2-3 sentences of specific, data-driven insight. Do not invent facts — base everything strictly on the data provided. IMPORTANT CONTEXT: The year 2010 in the data is a collective placeholder representing all books read between 1998 and 2010 — it is not a single-year anomaly or data error. Do not flag it as unusual volume or an outlier. Treat it as cumulative reading across those early years.`,
+          system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly these keys: temporal, genre, geographic, author, thematic, contextual, complexity, series, emotional, discovery. Each value is 2-3 sentences of specific, data-driven insight. Do not invent facts — base everything strictly on the data provided.
+
+CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a collective placeholder representing ALL books read between 1998 and 2010 (roughly 12 years of reading before annual tracking began). It is absolutely NOT a single calendar year with high volume. NEVER describe 2010 as a peak year, anomaly, outlier, or unusually productive year. NEVER say the reader read 130 (or any large number of) books in 2010. If you reference that period, say "pre-2011 reading" or "books read before annual tracking began (1998–2010)".`,
           messages: [{ role: "user", content: `${ctx}\n\nGenerate concise insights for each analysis dimension based strictly on this data.` }]
         })
       });
