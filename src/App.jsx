@@ -748,10 +748,16 @@ export default function App() {
         {/* ── ANALYSIS ─────────────────────────────────────────────────── */}
         {activeTab === "analysis" && (
           <div>
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, marginBottom: 6 }}>Reading Analysis</div>
-              <div style={{ color: G.muted, fontSize: 13 }}>Eleven lenses into {stats.total} books across {Object.keys(stats.byYearTracked).length} tracked years (2011–present).</div>
-            </div>
+            {(() => {
+              const minYear = Math.min(...books.map(b => b.year_read_start));
+              const maxYear = Math.max(...books.map(b => b.year_read_end));
+              const span = maxYear - minYear + 1;
+              return (
+                <div style={{ marginBottom: 24, textAlign: "center" }}>
+                  <div style={{ color: G.muted, fontSize: 13 }}>Twelve lenses into {stats.total} books across {span} years ({minYear}–present).</div>
+                </div>
+              );
+            })()}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 14 }}>
 
               {/* 1 · TEMPORAL */}
@@ -1250,8 +1256,7 @@ export default function App() {
 
           return (
             <div>
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, marginBottom: 4 }}>Recommendations</div>
+              <div style={{ marginBottom: 20, textAlign: "center" }}>
                 <div style={{ color: G.muted, fontSize: 13 }}>16 lenses for discovery — auto-loaded panels refresh instantly, input panels respond to your query.</div>
               </div>
 
@@ -1326,8 +1331,7 @@ export default function App() {
 
           return (
             <div>
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, marginBottom: 4 }}>Series Recap</div>
+              <div style={{ marginBottom: 20, textAlign: "center" }}>
                 <div style={{ color: G.muted, fontSize: 13 }}>Pick a series to get an AI catch-up before continuing — key characters, plot beats, and what to remember.</div>
               </div>
 
@@ -1394,8 +1398,7 @@ export default function App() {
         {/* ── CHAT ──────────────────────────────────────────────────────── */}
         {activeTab === "chat" && (
           <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 200px)" }}>
-            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, marginBottom: 4 }}>Chat with Your Reading Data</div>
-            <div style={{ color: G.muted, fontSize: 12, marginBottom: 16 }}>Ask anything — patterns, recommendations, deep dives, what you've forgotten you read…</div>
+            <div style={{ color: G.muted, fontSize: 12, marginBottom: 16, textAlign: "center" }}>Ask anything — patterns, recommendations, deep dives, what you've forgotten you read…</div>
 
             {/* Messages */}
             <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14, paddingBottom: 12 }}>
