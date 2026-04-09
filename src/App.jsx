@@ -714,7 +714,8 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
           const coBooks = cb("co");
           const coData = Object.entries(coBooks.filter(b=>b.country).reduce((a,b)=>{a[b.country]=(a[b.country]||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([country,count])=>({country,count}));
 
-          const truncTick = (maxChars) => ({ x, y, payload }) => {
+          const truncTick = (maxChars) => ({ x, y, payload, index }) => {
+            if (index % 2 !== 0) return null;
             const full = String(payload.value);
             const label = full.length > maxChars ? full.slice(0, maxChars - 2) + '..' : full;
             return (
