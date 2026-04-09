@@ -670,7 +670,7 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
       <div style={{ padding: "28px 28px 0", background: G.bg }}>
         {/* Centered logo */}
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
-          <img src="./nairrative.png" alt="Nairrative" style={{ width: 530, height: 150, mixBlendMode: "multiply" }} />
+          <img src="./nairrative.png" alt="Nairrative" style={{ width: 398, height: 113, mixBlendMode: "multiply" }} />
         </div>
 
         <div style={{ display: "flex", gap: 4, overflowX: "auto", justifyContent: "center" }}>
