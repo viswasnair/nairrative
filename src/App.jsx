@@ -799,7 +799,9 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
                       <XAxis type="number" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
                       <YAxis type="category" dataKey="author" axisLine={false} tickLine={false} width={130} interval={0} tick={truncTick(20)} />
                       <Tooltip content={<DarkTooltip />} />
-                      <Bar dataKey="count" fill={G.gold} radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                        {acData.map((_, i) => <Cell key={i} fill={`rgba(74, 158, 255, ${Math.max(0.25, 1 - i * 0.07)})`} />)}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -814,7 +816,9 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
                       <XAxis type="number" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
                       <YAxis type="category" dataKey="country" axisLine={false} tickLine={false} width={90} interval={0} tick={truncTick(14)} />
                       <Tooltip content={<DarkTooltip />} />
-                      <Bar dataKey="count" fill={G.blue} radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                        {coData.map((_, i) => <Cell key={i} fill={`rgba(234, 88, 12, ${Math.max(0.25, 1 - i * 0.08)})`} />)}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
