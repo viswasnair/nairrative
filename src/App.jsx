@@ -754,7 +754,7 @@ export default function App() {
               const span = maxYear - minYear + 1;
               return (
                 <div style={{ marginBottom: 24, textAlign: "center" }}>
-                  <div style={{ color: G.muted, fontSize: 13 }}>Twelve lenses into {stats.total} books across {span} years ({minYear}–present).</div>
+                  <div style={{ color: G.muted, fontSize: 13 }}>Ten lenses into {stats.total} books across {span} years ({minYear}–present).</div>
                 </div>
               );
             })()}
@@ -962,7 +962,6 @@ export default function App() {
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 8 }}>Series fates</div>
                   {[
-                    { name: "Harry Potter", status: "Completed", color: G.green },
                     { name: "Inheritance Cycle", status: "Completed", color: G.green },
                     { name: "Mistborn + Cosmere", status: "Ongoing (current)", color: G.green },
                     { name: "ACOTAR + Empyrean", status: "In progress", color: G.gold },
@@ -1002,21 +1001,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 10 · RE-READ BEHAVIOR */}
-              <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
-                <span style={{ background: `${G.gold}18`, color: G.gold, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Re-read Behavior</span>
-                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 14px" }}>What Gets Revisited</div>
-                <div style={{ background: G.card2, border: `1px solid ${G.border}`, borderRadius: 8, padding: "12px 14px", marginBottom: 12 }}>
-                  <div style={{ fontSize: 12, color: G.text, marginBottom: 4, fontWeight: 600 }}>Known re-read: Harry Potter (2016)</div>
-                  <div style={{ fontSize: 11, color: G.muted, lineHeight: 1.6 }}>Five years after the first read, suggesting an emotional return rather than a critical one. Re-reads of formative books function as anchor rituals, not nostalgia.</div>
-                </div>
-                <div style={{ color: G.muted, fontSize: 12, lineHeight: 1.75, marginBottom: 12 }}>
-                  Re-read data isn't currently tracked. Given your completionist patterns, revisits are likely deliberate — worth capturing as a separate event. Consider adding a re-read flag when logging.
-                </div>
-                <div style={{ background: `${G.gold}10`, border: `1px solid ${G.goldDim}`, borderRadius: 6, padding: "8px 12px" }}>
-                  <div style={{ fontSize: 11, color: G.gold }}>Prediction: early Cosmere and ACOTAR are likely re-read candidates when the next Stormlight or Empyrean installment releases.</div>
-                </div>
-              </div>
 
               {/* 11 · DISCOVERY CHANNEL */}
               <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
@@ -1025,7 +1009,7 @@ export default function App() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
                   {[
                     { channel: "Author Rabbit Hole", example: "One Sanderson → 25 Cosmere books. One Follett → entire Kingsbridge series. The pipeline is your primary discovery mode.", color: G.gold },
-                    { channel: "Cultural Moment", example: "HP re-read in 2016. ACOTAR / Empyrean in 2025–26 — likely driven by streaming adaptations and social reading culture.", color: G.blue },
+                    { channel: "Cultural Moment", example: "ACOTAR / Empyrean in 2025–26 — likely driven by streaming adaptations and social reading culture.", color: G.blue },
                     { channel: "Geographic Identity", example: "Surge of Indian authors during 2017–21 — a period of deliberate cultural re-engagement visible in the data.", color: G.green },
                     { channel: "Peer & Social", example: "Highly probable but untraceable — the unrecorded social layer beneath every reading list.", color: G.purple },
                   ].map(({ channel, example, color }) => (
@@ -1040,45 +1024,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 12 · CUSTOM ANALYSIS CHAT */}
-              <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
-                <span style={{ background: `${G.gold}18`, color: G.gold, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Custom Analysis</span>
-                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 6px" }}>Ask Anything About Your Library</div>
-                <div style={{ fontSize: 11, color: G.muted, marginBottom: 16 }}>Query your {books.length}-book reading history with natural language. Try: "What % of my books are by women authors?" or "Which year had the most non-fiction?"</div>
-                {analysisChat.length > 0 && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14, maxHeight: 320, overflowY: "auto" }}>
-                    {analysisChat.map((m, i) => (
-                      <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
-                        <div style={{ maxWidth: "85%", background: m.role === "user" ? `${G.gold}18` : G.card2, border: `1px solid ${m.role === "user" ? G.goldDim : G.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: G.text, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
-                          {m.content}
-                        </div>
-                      </div>
-                    ))}
-                    {analysisChatLoading && (
-                      <div style={{ display: "flex", justifyContent: "flex-start" }}>
-                        <div style={{ background: G.card2, border: `1px solid ${G.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: G.muted }}>Analysing…</div>
-                      </div>
-                    )}
-                  </div>
-                )}
-                <div style={{ display: "flex", gap: 8 }}>
-                  <input
-                    className="input-dark"
-                    style={{ flex: 1 }}
-                    placeholder="Ask a question about your reading data…"
-                    value={analysisChatInput}
-                    onChange={e => setAnalysisChatInput(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendAnalysisChat()}
-                    disabled={analysisChatLoading}
-                  />
-                  <button className="btn-gold" onClick={sendAnalysisChat} disabled={analysisChatLoading || !analysisChatInput.trim()} style={{ whiteSpace: "nowrap" }}>
-                    {analysisChatLoading ? "…" : "Ask"}
-                  </button>
-                  {analysisChat.length > 0 && (
-                    <button className="btn-ghost" onClick={() => setAnalysisChat([])} style={{ whiteSpace: "nowrap" }}>Clear</button>
-                  )}
-                </div>
-              </div>
 
             </div>
           </div>
