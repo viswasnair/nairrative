@@ -379,12 +379,25 @@ export default function App() {
     setChatInput("");
     setChatLoading(true);
     try {
-      const bookList = books.map(b => `${b.title} by ${b.author} (${b.year}, ${(b.genre||[]).join("/")}${b.pages ? ", " + b.pages + "pp" : ""}${b.series ? ", series: " + b.series : ""}${b.notes ? ", notes: " + b.notes : ""})`).join("\n");
+      const summary = buildBookContext();
+      const fullList = books
+        .map(b => `[${b.year}] "${b.title}" by ${b.author} | ${(b.genre||[]).join("/")}${b.pages ? " | " + b.pages + "pp" : ""}${b.series ? " | series: " + b.series : ""}${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}${b.notes ? " | " + b.notes : ""}`)
+        .join("\n");
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST", headers: aiHeaders(),
         body: JSON.stringify({
-          model: "claude-sonnet-4-6", max_tokens: 1000,
-          system: `You are a witty, insightful personal reading assistant. Here is the user's complete reading history of ${books.length} books:\n\n${bookList}\n\nAnswer questions about their reading habits with specific details, surprising insights, and genuine personality. Be conversational and direct.`,
+          model: "claude-sonnet-4-6", max_tokens: 1200,
+          system: `You are an insightful personal reading assistant with full access to the user's reading database. Use the data below to answer questions accurately and specifically.
+
+IMPORTANT CONTEXT: Year 2010 is a collective placeholder for all books read between 1998 and 2010 — not a single-year anomaly. Do not treat it as unusual.
+
+--- DATABASE SUMMARY ---
+${summary}
+
+--- FULL BOOK LIST (${books.length} books) ---
+${fullList}
+
+Answer with specific references to books, authors, years, and patterns from the data. Be conversational, direct, and accurate. Never invent books or facts not present in the database.`,
           messages: updated.map(m => ({ role: m.role, content: m.content }))
         })
       });
@@ -394,28 +407,6 @@ export default function App() {
     finally { setChatLoading(false); }
   };
 
-  const sendAnalysisChat = async () => {
-    if (!analysisChatInput.trim() || analysisChatLoading) return;
-    const userMsg = { role: "user", content: analysisChatInput };
-    const updated = [...analysisChat, userMsg];
-    setAnalysisChat(updated);
-    setAnalysisChatInput("");
-    setAnalysisChatLoading(true);
-    try {
-      const bookList = books.map(b => `${b.title} by ${b.author} (${b.year}, ${(b.genre||[]).join("/")}${b.pages ? ", " + b.pages + "pp" : ""})`).join("\n");
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST", headers: aiHeaders(),
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6", max_tokens: 1200,
-          system: `You are a sharp, data-driven reading analyst. You have access to the user's complete reading list of ${books.length} books:\n\n${bookList}\n\nAnswer analytical questions about their reading patterns, habits, and data with specific numbers, percentages, and examples from the actual list. Be precise and insightful.`,
-          messages: updated.map(m => ({ role: m.role, content: m.content }))
-        })
-      });
-      const data = await res.json();
-      setAnalysisChat(prev => [...prev, { role: "assistant", content: data.content?.[0]?.text || data.error?.message || "Sorry, try again." }]);
-    } catch { setAnalysisChat(prev => [...prev, { role: "assistant", content: "Connection error. Please try again." }]); }
-    finally { setAnalysisChatLoading(false); }
-  };
 
   const getChartRange = (id) => {
     const timeCharts = new Set(["yc", "fn", "ge"]);
