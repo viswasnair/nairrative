@@ -1219,17 +1219,6 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
                     <div style={{ color: G.muted, fontSize: 10 }}>Indian authors</div>
                   </div>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
-                  {analysisInsights.topCountries.map(([country, count]) => (
-                    <div key={country} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 12, color: G.text, width: 90, textAlign: "right", flexShrink: 0 }}>{country}</span>
-                      <div style={{ width: 80, height: 4, background: G.border, borderRadius: 2, overflow: "hidden", flexShrink: 0 }}>
-                        <div style={{ width: `${Math.round(count / (analysisInsights.topCountries[0]?.[1] || 1) * 100)}%`, height: "100%", background: G.green, borderRadius: 2 }} />
-                      </div>
-                      <span style={{ fontSize: 11, color: G.muted }}>{count}</span>
-                    </div>
-                  ))}
-                </div>
                 {analysisAILoading ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div> : analysisAI?.geographic ? <div style={{ fontSize: 12, color: G.muted, lineHeight: 1.75, borderTop: `1px solid ${G.border}`, paddingTop: 10, marginTop: 4 }}>{analysisAI.geographic}</div> : null}
               </div>
 
@@ -1247,14 +1236,6 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
                     <div style={{ color: G.muted, fontSize: 10 }}>one-time reads</div>
                   </div>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 12 }}>
-                  {analysisInsights.loyal.slice(0, 5).map(([author, count]) => (
-                    <div key={author} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 12, color: G.text }}>{author}</span>
-                      <span style={{ fontSize: 11, color: G.gold, fontWeight: 600 }}>{count} books</span>
-                    </div>
-                  ))}
-                </div>
                 {analysisAILoading ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div> : analysisAI?.author ? <div style={{ fontSize: 12, color: G.muted, lineHeight: 1.75, borderTop: `1px solid ${G.border}`, paddingTop: 10, marginTop: 4 }}>{analysisAI.author}</div> : null}
               </div>
 
@@ -1269,17 +1250,6 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
               <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
                 <span style={{ background: `${G.blue}18`, color: G.blue, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Social & Contextual</span>
                 <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 14px" }}>Life Shapes the List</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
-                  {analysisInsights.notableYears.map(({ year, books: b, label }) => (
-                    <div key={year} style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                      <div style={{ minWidth: 52 }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: G.blue }}>{year}</div>
-                        <div style={{ fontSize: 10, color: G.muted }}>{b} books</div>
-                      </div>
-                      <div style={{ fontSize: 11, background: `${G.blue}12`, color: G.blue, padding: "2px 8px", borderRadius: 4, fontWeight: 600 }}>{label}</div>
-                    </div>
-                  ))}
-                </div>
                 {analysisAILoading ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div> : analysisAI?.contextual ? <div style={{ fontSize: 12, color: G.muted, lineHeight: 1.75, borderTop: `1px solid ${G.border}`, paddingTop: 10 }}>{analysisAI.contextual}</div> : null}
               </div>
 
@@ -1306,34 +1276,6 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
                   </div>
                 </div>
                 {analysisAILoading ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div> : analysisAI?.complexity ? <div style={{ fontSize: 12, color: G.muted, lineHeight: 1.75, borderTop: `1px solid ${G.border}`, paddingTop: 10, marginTop: 4 }}>{analysisAI.complexity}</div> : null}
-              </div>
-
-              {/* 8 · SERIES VS STANDALONE */}
-              <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
-                <span style={{ background: `${G.green}18`, color: G.green, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Series vs. Standalone</span>
-                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 12px" }}>Commitment Patterns</div>
-                <div style={{ display: "flex", gap: 20, marginBottom: 14 }}>
-                  <div>
-                    <div style={{ color: G.green, fontSize: 26, fontFamily: "'Playfair Display', serif", fontWeight: 700 }}>{analysisInsights.seriesPct}%</div>
-                    <div style={{ color: G.muted, fontSize: 10 }}>in series</div>
-                  </div>
-                  <div>
-                    <div style={{ color: G.gold, fontSize: 26, fontFamily: "'Playfair Display', serif", fontWeight: 700 }}>{analysisInsights.seriesCount}</div>
-                    <div style={{ color: G.muted, fontSize: 10 }}>series books read</div>
-                  </div>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 12 }}>
-                  {[...new Set(books.filter(b => b.series?.trim()).map(b => b.series))].slice(0, 6).map(s => {
-                    const count = books.filter(b => b.series === s).length;
-                    return (
-                      <div key={s} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 11, color: G.text }}>{s}</span>
-                        <span style={{ fontSize: 11, color: G.green, fontWeight: 600 }}>{count} books</span>
-                      </div>
-                    );
-                  })}
-                </div>
-                {analysisAILoading ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div> : analysisAI?.series ? <div style={{ fontSize: 12, color: G.muted, lineHeight: 1.75, borderTop: `1px solid ${G.border}`, paddingTop: 10 }}>{analysisAI.series}</div> : null}
               </div>
 
               {/* 9 · EMOTIONAL ARC */}
