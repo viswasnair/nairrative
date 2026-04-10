@@ -1485,7 +1485,6 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
             { id: "mood", icon: "◐", title: "Match My Mood", sub: "", auto: false, placeholder: "Describe the vibe…", inputLabel: "What are you in the mood for?" },
             { id: "genre-pick", icon: "▦", title: "By Genre", sub: "", auto: false, isDropdown: true, dropdownOptions: allGenreOptions, inputLabel: "Choose a genre" },
             { id: "topic", icon: "◫", title: "By Topic", sub: "", auto: false, placeholder: "AI, colonialism, ecology…", inputLabel: "Enter a topic or theme" },
-            { id: "occasion", icon: "◇", title: "For the Occasion", sub: "", auto: false, placeholder: "Beach read, book club, long flight…", inputLabel: "What's the occasion?" },
             { id: "pair", icon: "⊞", title: "Pair It", sub: "Web-searched companion reads", auto: false, placeholder: "A film, show, event, or experience…", inputLabel: "Pair a book with…" },
           ];
 
