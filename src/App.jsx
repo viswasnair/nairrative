@@ -128,6 +128,12 @@ const DarkTooltip = ({ active, payload, label }) => {
 
 // ── MAIN APP ──────────────────────────────────────────────────────────────
 export default function App() {
+  const [session, setSession] = useState(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [books, setBooks] = useState([]);
   const [booksLoading, setBooksLoading] = useState(true);
@@ -180,6 +186,22 @@ export default function App() {
   }, []);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const login = async () => {
+    setLoginLoading(true); setLoginError("");
+    const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password: loginPassword });
+    if (error) setLoginError(error.message);
+    else { setShowLoginModal(false); setLoginEmail(""); setLoginPassword(""); }
+    setLoginLoading(false);
+  };
+
+  const logout = async () => { await supabase.auth.signOut(); };
 
   useEffect(() => {
     supabase.from("genres").select("name, color, sort_order").order("sort_order").then(({ data }) => {
@@ -566,7 +588,7 @@ Answer with specific references to books, authors, years, and patterns from the 
         setBookMsg("✓ Book updated!");
       } else {
         // INSERT new book
-        const { data: book, error: bookErr } = await supabase.from("books").insert([{ user_id: "5c8d1748-16ec-45a3-b57e-a8bdb7a7db78", title: title.trim(), year_read_start: ys, year_read_end: ye, genre: genres, format, fiction, series: series || "", pages: pages ? parseInt(pages) : null, notes: notes || "", user_added: true }]).select().single();
+        const { data: book, error: bookErr } = await supabase.from("books").insert([{ user_id: session.user.id, title: title.trim(), year_read_start: ys, year_read_end: ye, genre: genres, format, fiction, series: series || "", pages: pages ? parseInt(pages) : null, notes: notes || "", user_added: true }]).select().single();
         if (bookErr) throw bookErr;
         const bookAuthors = [];
         for (let i = 0; i < authors.length; i++) {
@@ -760,7 +782,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
     const yr = parseInt(newBook.year);
     // 1. Insert book
     const { data: book, error: bookErr } = await supabase.from("books").insert([{
-      user_id: "5c8d1748-16ec-45a3-b57e-a8bdb7a7db78",
+      user_id: session.user.id,
       title: newBook.title.trim(),
       year_read_start: yr, year_read_end: yr,
       genre: [newBook.genre],
@@ -854,9 +876,14 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
 
       {/* HEADER */}
       <div style={{ padding: "28px 28px 0", background: G.bg }}>
-        {/* Centered logo */}
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
+        {/* Centered logo + lock */}
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "flex-start", marginBottom: 24, position: "relative" }}>
           <img src="./nairrative.png" alt="Nairrative" style={{ width: 398, height: 113, mixBlendMode: "multiply" }} />
+          <button onClick={() => session ? logout() : setShowLoginModal(true)}
+            title={session ? "Sign out" : "Sign in"}
+            style={{ position: "absolute", right: 0, top: 0, background: "none", border: "none", cursor: "pointer", fontSize: 16, color: session ? G.gold : G.dimmed, padding: 4, lineHeight: 1 }}>
+            {session ? "🔓" : "🔒"}
+          </button>
         </div>
 
         <div style={{ display: "flex", gap: 4, overflowX: "auto", justifyContent: "center" }}>
@@ -1343,7 +1370,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
               <div style={{ flex: 1 }} />
               <button className="btn-ghost" onClick={downloadCSV}>↓ CSV</button>
               <button className="btn-ghost" onClick={downloadJSON}>↓ JSON</button>
-              <button className="btn-gold" style={{ padding: "7px 16px", fontSize: 12 }} onClick={openAddModal}>+ Add Book</button>
+              <button className="btn-gold" style={{ padding: "7px 16px", fontSize: 12, opacity: session ? 1 : 0.35, cursor: session ? "pointer" : "not-allowed" }} onClick={() => session && openAddModal()}>+ Add Book</button>
             </div>
 
             {/* Table Header */}
@@ -1378,7 +1405,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
                   <div style={{ fontSize: 12, color: G.muted }}>{b.pages || "—"}</div>
                   <div style={{ fontSize: 12, color: G.muted }}>{b.year_read_start || "—"}</div>
                   <div style={{ fontSize: 12, color: G.muted }}>{b.year_read_end || "—"}</div>
-                  <button onClick={() => openEditModal(b)} style={{ background: "none", border: "none", color: G.muted, cursor: "pointer", fontSize: 13, padding: 0 }} title="Edit">✎</button>
+                  <button onClick={() => session && openEditModal(b)} style={{ background: "none", border: "none", color: session ? G.muted : G.dimmed, cursor: session ? "pointer" : "not-allowed", fontSize: 13, padding: 0 }} title={session ? "Edit" : "Sign in to edit"}>✎</button>
                 </div>
               ))}
               {filteredBooks.length === 0 && (
@@ -1745,6 +1772,24 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
           </div>
         )}
       </div>
+
+      {/* LOGIN MODAL */}
+      {showLoginModal && (
+        <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) { setShowLoginModal(false); setLoginError(""); } }}>
+          <div className="modal-box" style={{ maxWidth: 360 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+              <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, color: G.text }}>Sign In</div>
+              <button onClick={() => { setShowLoginModal(false); setLoginError(""); }} style={{ background: "none", border: "none", color: G.muted, fontSize: 20, cursor: "pointer" }}>×</button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <input className="input-dark" type="email" placeholder="Email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} onKeyDown={e => e.key === "Enter" && login()} autoFocus />
+              <input className="input-dark" type="password" placeholder="Password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} onKeyDown={e => e.key === "Enter" && login()} />
+              {loginError && <div style={{ color: G.red, fontSize: 12 }}>{loginError}</div>}
+              <button className="btn-gold" onClick={login} disabled={loginLoading}>{loginLoading ? "Signing in…" : "Sign In"}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* FOOTER */}
       <div style={{ padding: "16px 28px", marginTop: 24, textAlign: "center" }}>
