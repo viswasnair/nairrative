@@ -14,30 +14,6 @@ const G = {
   text: "#111827", muted: "#6b7280", dimmed: "#d1d5db", hover: "#e8eaef",
 };
 
-const GENRE_COLORS = {
-  "Fantasy": "#c9a84c", "Science Fiction": "#4a9eff", "Thriller": "#e06c75",
-  "Mystery": "#ff9f7f", "Literary Fiction": "#98d8c8", "Historical Fiction": "#c3a6ff",
-  "Non-Fiction": "#ffd166", "Graphic Novel": "#06d6a0", "Memoir": "#74b9ff",
-  "Biography": "#81ecec", "Philosophy": "#a29bfe", "Popular Science": "#55c9a0",
-  "Self-Help": "#fdcb6e", "Travel": "#e17055", "Horror": "#b2bec3",
-  "History": "#e67e22", "Politics": "#fd79a8", "Economics": "#fdcb6e",
-  "Psychology": "#6c5ce7", "Dystopian": "#d63031", "Romantasy": "#e84393",
-  "Legal Thriller": "#ff7675", "Medical Thriller": "#fdcb6e",
-  "Environment": "#00b894", "Systems": "#0984e3", "Spirituality": "#a29bfe",
-  "Mythology": "#e17055", "Sociology": "#636e72", "Essays": "#b2bec3",
-  "Art": "#fdcb6e", "Humor": "#ffeaa7", "Sports": "#55efc4",
-  "Film Criticism": "#636e72", "Business": "#00b894",
-};
-
-const GENRES = [
-  "Art", "Biography", "Business", "Dystopian", "Economics", "Environment",
-  "Essays", "Fantasy", "Film Criticism", "Graphic Novel", "Historical Fiction",
-  "History", "Horror", "Humor", "Legal Thriller", "Literary Fiction",
-  "Medical Thriller", "Memoir", "Mystery", "Mythology", "Non-Fiction",
-  "Philosophy", "Politics", "Popular Science", "Psychology", "Romantasy",
-  "Science Fiction", "Self-Help", "Sociology", "Spirituality", "Sports",
-  "Systems", "Thriller", "Travel",
-];
 
 const READING_CONTEXT = `This reader has consumed 345 books across 17 years (2010–2026). Key patterns:
 
@@ -154,6 +130,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("overview");
   const [books, setBooks] = useState([]);
   const [booksLoading, setBooksLoading] = useState(true);
+  const [genreList, setGenreList] = useState([]);
+  const [genreMap, setGenreMap] = useState({});
   const [search, setSearch] = useState("");
   const [libGenres, setLibGenres] = useState([]);
   const [libYears, setLibYears] = useState([]);
@@ -183,6 +161,9 @@ export default function App() {
   const [bookChatPending, setBookChatPending] = useState(null);
   const [bookSaving, setBookSaving] = useState(false);
   const [bookMsg, setBookMsg] = useState("");
+  const [newGenreInput, setNewGenreInput] = useState("");
+  const [newGenreOpen, setNewGenreOpen] = useState(false);
+  const [newGenreSaving, setNewGenreSaving] = useState(false);
   const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY || "";
   const [seriesRecap, setSeriesRecap] = useState(null);
   const [seriesLoading, setSeriesLoading] = useState(false);
@@ -198,6 +179,15 @@ export default function App() {
   }, []);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  useEffect(() => {
+    supabase.from("genres").select("name, color, sort_order").order("sort_order").then(({ data }) => {
+      if (data) {
+        setGenreList(data.map(g => g.name));
+        setGenreMap(Object.fromEntries(data.map(g => [g.name, g.color])));
+      }
+    });
+  }, []);
 
   useEffect(() => {
     supabase
@@ -231,7 +221,7 @@ export default function App() {
     "loved": ["Dune", "The Name of the Wind", "The White Tiger", "Gone Girl", "Foundation", "The Remains of the Day"],
     "authors-like": ["Brandon Sanderson", "Agatha Christie", "Yuval Noah Harari", "Arundhati Roy", "Michael Crichton", "Neil Gaiman"],
     "mood": ["dark and atmospheric", "light and funny", "epic and sweeping", "thought-provoking non-fiction", "cozy and comforting", "fast-paced thriller"],
-    "genre-pick": Object.keys(GENRE_COLORS),
+    "genre-pick": genreList,
     "topic": ["artificial intelligence", "Indian history", "climate and environment", "espionage", "philosophy of mind", "exploration and adventure"],
     "occasion": ["a long flight", "book club", "summer reading", "a lazy weekend", "gift for a friend who loves thrillers", "something to read before bed"],
     "pair": ["Oppenheimer (film)", "Shogun (TV series)", "a trip to Japan", "watching the World Cup", "Interstellar (film)", "reading about WW2"],
@@ -281,8 +271,6 @@ export default function App() {
 
 
   const analysisInsights = useMemo(() => {
-    const fGen = new Set(["Fantasy","Sci-Fi","Thriller","Mystery","Literary Fiction","Historical Fiction","Classic","Horror"]);
-
     // Temporal
     const years = Object.keys(stats.byYearTracked).map(Number).sort();
     const fullRange = Array.from({length: years[years.length-1] - years[0] + 1}, (_, i) => years[0] + i);
@@ -295,7 +283,7 @@ export default function App() {
     }
 
     // Genre & Form
-    const fictionCount = books.filter(b => b.fiction !== undefined ? b.fiction : (b.genre || []).some(g => fGen.has(g))).length;
+    const fictionCount = books.filter(b => b.fiction === true).length;
     const fictionPct = Math.round(fictionCount / books.length * 100);
     const graphicNovels = books.filter(b => (b.genre || []).includes("Graphic Novel")).length;
     const genreCount = Object.keys(stats.byGenre).length;
@@ -332,10 +320,10 @@ export default function App() {
 
     // Mood mapping by era — derived from genre groupings
     const MOOD_GENRES = {
-      "Dark & Tense":  ["Thriller", "Mystery", "Horror", "Crime", "Politics"],
-      "Imaginative":   ["Fantasy", "Sci-Fi", "Historical Fiction", "Graphic Novel"],
-      "Reflective":    ["Literary Fiction", "Classic", "Philosophy", "Memoir", "Poetry"],
-      "Informative":   ["Biography", "Popular Science", "History", "Non-Fiction", "Economics", "Self-Help", "Science"],
+      "Dark & Tense":  ["Thriller", "Legal Thriller", "Medical Thriller", "Mystery", "Horror", "Dystopian", "Politics"],
+      "Imaginative":   ["Fantasy", "Romantasy", "Science Fiction", "Historical Fiction", "Graphic Novel", "Mythology"],
+      "Reflective":    ["Literary Fiction", "Classic", "Philosophy", "Spirituality", "Memoir", "Essays", "Poetry"],
+      "Informative":   ["Biography", "Popular Science", "History", "Non-Fiction", "Economics", "Self-Help", "Environment", "Systems", "Sociology", "Psychology", "Business"],
     };
     const MOOD_COLORS = { "Dark & Tense": "#e06c75", "Imaginative": "#4a9eff", "Reflective": "#c3a6ff", "Informative": "#ffd166" };
     const bookMood = b => { const g = b.genre || []; for (const [m, tags] of Object.entries(MOOD_GENRES)) { if (g.some(t => tags.includes(t))) return m; } return null; };
@@ -401,7 +389,7 @@ export default function App() {
       return 0;
     }), [books, search, libGenres, libYears, libAuthors, libSort]);
 
-  const allGenres = GENRES;
+  const allGenres = genreList;
   const allYears = useMemo(() => Object.keys(stats.byYear).sort().reverse(), [stats]);
   const allAuthors = useMemo(() => [...new Set(books.flatMap(b => (b.authors || []).map(a => a.name)))].sort(), [books]);
   const allYearsList = useMemo(() => Object.keys(stats.byYearTracked).sort().map(Number), [stats]);
@@ -518,6 +506,34 @@ Answer with specific references to books, authors, years, and patterns from the 
     }));
     setBookChatPending(null);
     setBookChatInput("");
+  };
+
+  const addGenre = async () => {
+    const name = newGenreInput.trim();
+    if (!name) return;
+    if (genreList.includes(name)) { setNewGenreInput(""); setNewGenreOpen(false); return; }
+    setNewGenreSaving(true);
+    let color = "#a0a0a0";
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST", headers: aiHeaders(),
+        body: JSON.stringify({
+          model: "claude-haiku-4-5-20251001", max_tokens: 16,
+          messages: [{ role: "user", content: `Pick a single hex color code that visually represents the "${name}" book genre. Consider the mood and tone of the genre. Reply with only the hex code (e.g. #a29bfe), nothing else. Avoid colors already used for similar genres: ${Object.entries(genreMap).map(([g,c])=>g+':'+c).join(', ')}` }]
+        })
+      });
+      const data = await res.json();
+      const hex = data.content?.[0]?.text?.trim();
+      if (/^#[0-9a-fA-F]{6}$/.test(hex)) color = hex;
+    } catch { /* fallback to default */ }
+    const sortOrder = genreList.length + 1;
+    const { data, error } = await supabase.from("genres").insert([{ name, color, sort_order: sortOrder }]).select().single();
+    if (!error && data) {
+      setGenreList(prev => [...prev, name].sort());
+      setGenreMap(prev => ({ ...prev, [name]: color }));
+      setBookDraft(p => ({ ...p, genres: [...p.genres, name] }));
+    }
+    setNewGenreInput(""); setNewGenreOpen(false); setNewGenreSaving(false);
   };
 
   const saveBook = async () => {
@@ -858,7 +874,6 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
         {/* ── OVERVIEW ──────────────────────────────────────────────────── */}
         {activeTab === "overview" && (() => {
           const cb = id => { const r = getChartRange(id); return books.filter(b => b.year >= r.from && b.year <= r.to); };
-          const fGen = new Set(["Fantasy","Sci-Fi","Thriller","Mystery","Literary Fiction","Historical Fiction","Classic","Horror"]);
 
           const ycBooks = cb("yc");
           const ycData = Object.entries(ycBooks.reduce((a,b)=>{a[b.year]=(a[b.year]||0)+1;return a;},{})).sort((a,b)=>Number(a[0])-Number(b[0])).map(([year,count])=>({year,count}));
@@ -869,7 +884,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
 
           const fnBooks = cb("fn");
           const fnYrs = [...new Set(fnBooks.map(b=>b.year))].sort();
-          const fnData = fnYrs.map(year=>{const yb=fnBooks.filter(b=>b.year===year);return{year,Fiction:yb.filter(b=>(b.genre||[]).some(g=>fGen.has(g))).length,"Non-Fiction":yb.filter(b=>!(b.genre||[]).some(g=>fGen.has(g))).length};});
+          const fnData = fnYrs.map(year=>{const yb=fnBooks.filter(b=>b.year===year);return{year,Fiction:yb.filter(b=>b.fiction).length,"Non-Fiction":yb.filter(b=>b.fiction===false).length};});
 
           const geBooks = cb("ge");
           const geYrs = [...new Set(geBooks.map(b=>b.year))].sort();
@@ -952,7 +967,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
                       <YAxis type="category" dataKey="genre" axisLine={false} tickLine={false} width={110} interval={0} tick={truncTick(17)} />
                       <Tooltip content={<DarkTooltip />} />
                       <Bar dataKey="count" radius={[0, 4, 4, 0]}>
-                        {gcData.map((e, i) => <Cell key={i} fill={GENRE_COLORS[e.genre] || G.muted} />)}
+                        {gcData.map((e, i) => <Cell key={i} fill={genreMap[e.genre] || G.muted} />)}
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -1028,7 +1043,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
                         </div>
                       </div>
                     )} />
-                    {geTop5.map(g => <Area key={g} type="monotone" dataKey={g} stackId="1" stroke={GENRE_COLORS[g]} fill={GENRE_COLORS[g]} fillOpacity={0.5} />)}
+                    {geTop5.map(g => <Area key={g} type="monotone" dataKey={g} stackId="1" stroke={genreMap[g]} fill={genreMap[g]} fillOpacity={0.5} />)}
                   </AreaChart>
                 </ResponsiveContainer>
               )}
@@ -1095,7 +1110,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
                   {analysisInsights.genreEra.map(({ era, top }) => (
                     <div key={era} style={{ background: G.card2, border: `1px solid ${G.border}`, borderRadius: 6, padding: "6px 10px", fontSize: 11 }}>
                       <span style={{ color: G.muted }}>{era} </span>
-                      <span style={{ color: GENRE_COLORS[top] || G.text, fontWeight: 600 }}>{top}</span>
+                      <span style={{ color: genreMap[top] || G.text, fontWeight: 600 }}>{top}</span>
                     </div>
                   ))}
                 </div>
@@ -1306,7 +1321,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
                   </div>
                   <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 11, color: G.muted }}>
                     {(b.genre||[]).map((g, i) => (
-                      <span key={g}>{i > 0 && <span style={{ color: G.dimmed }}>, </span>}<span style={{ color: GENRE_COLORS[g]||G.muted }}>{g}</span></span>
+                      <span key={g}>{i > 0 && <span style={{ color: G.dimmed }}>, </span>}<span style={{ color: genreMap[g]||G.muted }}>{g}</span></span>
                     ))}
                   </div>
                   <div style={{ fontSize: 11, color: G.muted }}>{b.format || "—"}</div>
@@ -1379,7 +1394,15 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
                 {/* Genres */}
                 <div>
                   <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 5 }}>Genres</div>
-                  <MultiSelect options={GENRES} selected={bookDraft.genres} onChange={v => setBookDraft(p => ({ ...p, genres: v }))} placeholder="Select genres…" style={{ width: "100%" }} />
+                  <MultiSelect options={genreList} selected={bookDraft.genres} onChange={v => setBookDraft(p => ({ ...p, genres: v }))} placeholder="Select genres…" style={{ width: "100%" }} />
+                  {!newGenreOpen
+                    ? <button onClick={() => setNewGenreOpen(true)} style={{ background: "none", border: "none", color: G.muted, fontSize: 11, cursor: "pointer", padding: "6px 0 0", textDecoration: "underline" }}>+ Add new genre</button>
+                    : <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                        <input autoFocus className="input-dark" style={{ flex: 1, fontSize: 12 }} placeholder="New genre name…" value={newGenreInput} onChange={e => setNewGenreInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter") addGenre(); if (e.key === "Escape") { setNewGenreOpen(false); setNewGenreInput(""); }}} />
+                        <button className="btn-gold" style={{ padding: "6px 12px", fontSize: 12 }} onClick={addGenre} disabled={newGenreSaving}>{newGenreSaving ? "…" : "Add"}</button>
+                        <button onClick={() => { setNewGenreOpen(false); setNewGenreInput(""); }} style={{ background: "none", border: "none", color: G.muted, fontSize: 18, cursor: "pointer", padding: "0 4px" }}>×</button>
+                      </div>
+                  }
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
@@ -1442,7 +1465,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
         {/* ── RECOMMENDATIONS ────────────────────────────────────────────── */}
         {activeTab === "recs" && (() => {
           const lastBook = books[books.length - 1];
-          const allGenreOptions = Object.keys(GENRE_COLORS);
+          const allGenreOptions = genreList;
 
           const LENSES = [
             // Auto-load panels
