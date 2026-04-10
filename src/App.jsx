@@ -262,13 +262,22 @@ export default function App() {
 
   useEffect(() => {
     if (activeTab !== "recs" || !books.length) return;
-    // Clear and reload all panels when books change
     setIntentResults({});
-    AUTO_RECS.forEach(id => fetchIntentRecs(id));
-    Object.entries(INPUT_DEFAULTS).forEach(([id, options]) => {
-      const pick = options[Math.floor(Math.random() * options.length)];
-      setIntentInputs(p => ({ ...p, [id]: p[id] || pick }));
-      setTimeout(() => fetchIntentRecs(id, pick), 100);
+    const allIds = [
+      ...AUTO_RECS,
+      ...Object.keys(INPUT_DEFAULTS),
+    ];
+    allIds.forEach((id, i) => {
+      setTimeout(() => {
+        if (AUTO_RECS.includes(id)) {
+          fetchIntentRecs(id);
+        } else {
+          const options = INPUT_DEFAULTS[id];
+          const pick = options[Math.floor(Math.random() * options.length)];
+          setIntentInputs(p => ({ ...p, [id]: p[id] || pick }));
+          fetchIntentRecs(id, pick);
+        }
+      }, i * 2000);
     });
   }, [activeTab, booksFingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -730,7 +739,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
     setRefreshCounts(p => ({ ...p, [intentId]: rc }));
     const lastBook = books[books.length - 1];
     const lastAuthor = lastBook?.author || "Brandon Sanderson";
-    const readTitles = new Set(books.map(b => b.title.toLowerCase()));
+    const readTitles = new Set(books.slice(-80).map(b => b.title.toLowerCase()));
     const seriesList = [...new Set(books.filter(b => b.series?.trim()).map(b => b.series))];
     const randomSeries = seriesList[Math.floor(Math.random() * seriesList.length)] || "Wheel of Time";
     const today = new Date().toISOString().slice(0, 10);
@@ -756,8 +765,8 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
     try {
       const useWebSearch = intentId === "trending" || intentId === "pair";
       const body = {
-        model: "claude-sonnet-4-6", max_tokens: 400,
-        system: `You are a precise book recommendation engine. Today is ${today}. Reader history:\n${buildBookContext()}\n\nCRITICAL: The reader has already read ALL of these books — do NOT recommend any of them: ${[...readTitles].join(", ")}.\n\nOnly recommend books the reader has NOT read. Recommend books published up to ${today} — include recent 2024–2026 releases where relevant.\n\n${prompts[intentId] || input}\n\nReturn ONLY a JSON array — no markdown, no explanation. Exactly 1 item. Format: [{"title": "...", "author": "...", "year": 2024, "reason": "1-2 sentences why it fits this reader"}].`,
+        model: "claude-haiku-4-5-20251001", max_tokens: 400,
+        system: `You are a precise book recommendation engine. Today is ${today}. Reader history:\n${buildBookContext()}\n\nDo NOT recommend these recently read books: ${[...readTitles].join(", ")}.\n\nOnly recommend unread books published up to ${today}.\n\n${prompts[intentId] || input}\n\nReturn ONLY a JSON array — no markdown, no explanation. Exactly 1 item. Format: [{"title": "...", "author": "...", "year": 2024, "reason": "1-2 sentences why it fits this reader"}].`,
         messages: [{ role: "user", content: "JSON array only." }],
       };
       if (useWebSearch) body.tools = [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }];
