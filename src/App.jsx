@@ -1227,21 +1227,21 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
 
               {/* Format Breakdown */}
               {chartCard("Format Breakdown", "fm",
-                <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-                  <ResponsiveContainer width={180} height={180}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                  <ResponsiveContainer width="100%" height={200}>
                     <PieChart>
-                      <Pie data={fmData} dataKey="value" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3}>
+                      <Pie data={fmData} dataKey="value" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3}>
                         {fmData.map((e, i) => <Cell key={i} fill={e.color} />)}
                       </Pie>
                       <Tooltip content={<DarkTooltip />} />
                     </PieChart>
                   </ResponsiveContainer>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {fmData.map(e => (
-                      <div key={e.name} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <div style={{ width: 10, height: 10, borderRadius: 2, background: e.color, flexShrink: 0 }} />
-                        <span style={{ fontSize: 12, color: G.text }}>{e.name}</span>
-                        <span style={{ fontSize: 12, color: G.muted, marginLeft: "auto", paddingLeft: 16 }}>{e.value}</span>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px", justifyContent: "center", marginTop: 8 }}>
+                    {fmData.slice(0, 5).map(e => (
+                      <div key={e.name} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        <div style={{ width: 8, height: 8, borderRadius: 2, background: e.color, flexShrink: 0 }} />
+                        <span style={{ fontSize: 10, color: G.muted }}>{e.name}</span>
+                        <span style={{ fontSize: 10, color: G.dimmed }}>{e.value}</span>
                       </div>
                     ))}
                   </div>
