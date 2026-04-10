@@ -713,14 +713,17 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
     setAnalysisAILoading(true);
     try {
       const ctx = buildBookContext();
+      const fullList = books
+        .map(b => `[${b.year_read_end || b.year}] "${b.title}" by ${b.author} | ${(b.genre||[]).join("/")}${b.pages ? " | " + b.pages + "pp" : ""}${b.series ? " | series: " + b.series : ""}${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}${b.notes ? " | notes: " + b.notes : ""}`)
+        .join("\n");
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST", headers: aiHeaders(),
         body: JSON.stringify({
-          model: "claude-sonnet-4-6", max_tokens: 2000,
-          system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly these keys: temporal, genre, geographic, author, thematic, contextual, complexity, series, emotional, discovery. Each value is 2-3 sentences of specific, data-driven insight. Do not invent facts — base everything strictly on the data provided.
+          model: "claude-sonnet-4-6", max_tokens: 4000,
+          system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly these keys: temporal, genre, geographic, author, thematic, contextual, complexity, series, emotional, discovery. Each value should be a rich, specific paragraph drawing on individual titles, authors, and patterns visible in the full book list — not just aggregate counts. Name specific books and authors. Surface non-obvious observations. Do not invent facts — base everything strictly on the data provided.
 
 CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a collective placeholder representing ALL books read between 1998 and 2010 (roughly 12 years of reading before annual tracking began). It is absolutely NOT a single calendar year with high volume. NEVER describe 2010 as a peak year, anomaly, outlier, or unusually productive year. NEVER say the reader read 130 (or any large number of) books in 2010. If you reference that period, say "pre-2011 reading" or "books read before annual tracking began (1998–2010)".`,
-          messages: [{ role: "user", content: `${ctx}\n\nGenerate concise insights for each analysis dimension based strictly on this data.` }]
+          messages: [{ role: "user", content: `${ctx}\n\n--- FULL BOOK LIST (${books.length} books) ---\n${fullList}\n\nGenerate rich, specific insights for each analysis dimension based on the full book list above.` }]
         })
       });
       const data = await res.json();
