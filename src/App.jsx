@@ -143,7 +143,7 @@ export default function App() {
   const [libGenres, setLibGenres] = useState([]);
   const [libYears, setLibYears] = useState([]);
   const [libAuthors, setLibAuthors] = useState([]);
-  const [libSort, setLibSort] = useState("year");
+  const [libSort, setLibSort] = useState("title");
   const [chartRanges, setChartRanges] = useState({});
   const [messages, setMessages] = useState([
     { role: "assistant", content: "Hello! I know your complete reading history. Ask me anything: your patterns, what to read next, your top authors, surprising stats, or anything else!" }
