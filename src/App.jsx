@@ -934,22 +934,22 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
           return (
           <div>
             {/* Stat Cards */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 14, marginBottom: 24 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(9, 1fr)", gap: 10, marginBottom: 24 }}>
               {[
                 { label: "Books Read", value: stats.total, color: "#d97706" },
                 { label: "Authors Read", value: new Set(books.map(b => b.author)).size, color: "#db2777" },
-                { label: "Avg Books / Year", value: (() => { const activeYears = Object.keys(stats.byYearTracked).filter(y => Number(y) > 2010).length; return activeYears ? Math.round(books.filter(b => b.year > 2010).length / activeYears) : "—"; })(), sub: "excl. pre-2011 block", color: "#0e9488" },
+                { label: "Avg Books / Year", value: (() => { const activeYears = Object.keys(stats.byYearTracked).filter(y => Number(y) > 2010).length; return activeYears ? Math.round(books.filter(b => b.year > 2010).length / activeYears) : "—"; })(), color: "#0e9488" },
                 { label: "Avg Pages / Book", value: (() => { const withPages = books.filter(b => b.pages); return withPages.length ? Math.round(withPages.reduce((s,b) => s + b.pages, 0) / withPages.length).toLocaleString() : "—"; })(), color: "#f59e0b" },
-                { label: "Countries", value: Object.keys(stats.byCountry).length, sub: "author nationalities", color: "#06b6d4" },
+                { label: "Author Countries", value: Object.keys(stats.byCountry).length, color: "#06b6d4" },
                 { label: "Years Reading", value: stats.readingSpan, color: G.blue },
                 { label: "Peak Year", value: `${stats.sortedYears[0]?.[0]} (${stats.sortedYears[0]?.[1]})`, color: "#0284c7" },
                 { label: "#1 Author", value: stats.sortedAuthors[0]?.[0], sub: `${stats.sortedAuthors[0]?.[1]} books`, color: G.purple },
                 { label: "Top Genre", value: stats.sortedGenres[0]?.[0], sub: `${stats.sortedGenres[0]?.[1]} books`, color: "#ff9f7f" },
               ].map((s, i) => (
-                <div key={i} className="stat-card">
-                  <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 8 }}>{s.label}</div>
-                  <div style={{ color: s.color, fontSize: 22, fontFamily: "'Playfair Display', serif", fontWeight: 700, lineHeight: 1 }}>{s.value}</div>
-                  {s.sub && <div style={{ color: G.muted, fontSize: 11, marginTop: 4 }}>{s.sub}</div>}
+                <div key={i} className="stat-card" style={{ padding: "12px 14px" }}>
+                  <div style={{ color: G.muted, fontSize: 9, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 6 }}>{s.label}</div>
+                  <div style={{ color: s.color, fontSize: 18, fontFamily: "'Playfair Display', serif", fontWeight: 700, lineHeight: 1 }}>{s.value}</div>
+                  {s.sub && <div style={{ color: G.muted, fontSize: 10, marginTop: 3 }}>{s.sub}</div>}
                 </div>
               ))}
             </div>
