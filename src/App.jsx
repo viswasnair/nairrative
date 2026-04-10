@@ -155,6 +155,11 @@ export default function App() {
   const [analysisChatLoading, setAnalysisChatLoading] = useState(false);
   const [analysisAI, setAnalysisAI] = useState(null);
   const [analysisAILoading, setAnalysisAILoading] = useState(false);
+  const [panelPrompts, setPanelPrompts] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("nairrative_panel_prompts") || "{}"); } catch { return {}; }
+  });
+  const [editingPanel, setEditingPanel] = useState(null);
+  const [panelLoading, setPanelLoading] = useState({});
   const [intentInputs, setIntentInputs] = useState({});
   const [intentResults, setIntentResults] = useState({});
   const [intentLoading, setIntentLoading] = useState({});
@@ -884,6 +889,86 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
   ];
 
 
+  const updatePanelPrompt = (dimension, value) => {
+    setPanelPrompts(p => {
+      const updated = { ...p, [dimension]: value };
+      localStorage.setItem("nairrative_panel_prompts", JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const regeneratePanel = async (dimension) => {
+    if (panelLoading[dimension]) return;
+    setPanelLoading(p => ({ ...p, [dimension]: true }));
+    try {
+      const ctx = buildBookContext();
+      const fullList = books
+        .map(b => `[${b.year_read_end || b.year}] "${b.title}" by ${b.author} | ${(b.genre||[]).join("/")}${b.pages ? " | " + b.pages + "pp" : ""}${b.series ? " | series: " + b.series : ""}${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}${b.notes ? " | notes: " + b.notes : ""}`)
+        .join("\n");
+      const customInstruction = panelPrompts[dimension]?.trim()
+        ? `\n\nAdditional instruction: ${panelPrompts[dimension]}`
+        : "";
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST", headers: aiHeaders(),
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6", max_tokens: 600,
+          system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". Write a rich, specific paragraph naming individual books and authors — no generic observations. Do not invent facts.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.`,
+          messages: [{ role: "user", content: `${ctx}\n\n--- FULL BOOK LIST (${books.length} books) ---\n${fullList}\n\nGenerate insight for the "${dimension}" dimension only.` }]
+        })
+      });
+      const data = await res.json();
+      const text = data.content?.[0]?.text || "{}";
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const result = JSON.parse(jsonMatch[0]);
+        if (result[dimension]) {
+          const updated = { ...analysisAI, [dimension]: result[dimension] };
+          setAnalysisAI(updated);
+          localStorage.setItem("nairrative_analysis_ai", JSON.stringify(updated));
+        }
+      }
+    } catch(e) { console.error("Panel regenerate error:", e); }
+    setPanelLoading(p => ({ ...p, [dimension]: false }));
+    setEditingPanel(null);
+  };
+
+  const renderInsight = (dimension, borderTop = true) => {
+    const isEditing = editingPanel === dimension;
+    const isLoading = panelLoading[dimension];
+    const textStyle = { fontSize: 12, color: G.muted, lineHeight: 1.75, ...(borderTop ? { borderTop: `1px solid ${G.border}`, paddingTop: 10, marginTop: 4 } : {}) };
+    return (
+      <div>
+        {session && (
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: isEditing ? 6 : 0 }}>
+            {!isEditing && <button onClick={() => setEditingPanel(dimension)} style={{ background: "none", border: "none", cursor: "pointer", color: G.dimmed, fontSize: 10, padding: "2px 4px", opacity: 0.6 }}>✎ edit prompt</button>}
+          </div>
+        )}
+        {isEditing && (
+          <div style={{ marginBottom: 8 }}>
+            <textarea
+              value={panelPrompts[dimension] || ""}
+              onChange={e => updatePanelPrompt(dimension, e.target.value)}
+              placeholder="Custom instructions for this panel… e.g. 'Focus specifically on Indian authors'"
+              style={{ width: "100%", minHeight: 68, background: G.card2, border: `1px solid ${G.border}`, borderRadius: 6, color: G.text, fontSize: 11, padding: "8px 10px", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" }}
+            />
+            <div style={{ display: "flex", gap: 6, marginTop: 6, justifyContent: "flex-end" }}>
+              <button onClick={() => setEditingPanel(null)} style={{ background: "none", border: `1px solid ${G.border}`, borderRadius: 5, color: G.muted, fontSize: 11, padding: "4px 10px", cursor: "pointer" }}>Cancel</button>
+              <button onClick={() => regeneratePanel(dimension)} style={{ background: G.gold, border: "none", borderRadius: 5, color: "#000", fontSize: 11, fontWeight: 600, padding: "4px 12px", cursor: "pointer" }}>Regenerate</button>
+            </div>
+          </div>
+        )}
+        {isLoading
+          ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Regenerating…</div>
+          : analysisAILoading
+            ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div>
+            : analysisAI?.[dimension]
+              ? <div style={textStyle}>{analysisAI[dimension]}</div>
+              : null
+        }
+      </div>
+    );
+  };
+
   // ── RENDER ────────────────────────────────────────────────────────────────
   return (
     <div style={{ background: G.bg, color: G.text, minHeight: "100vh", fontFamily: "'DM Sans', sans-serif" }}>
@@ -1176,7 +1261,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
                     <div style={{ color: G.muted, fontSize: 10 }}>yr reading hiatus</div>
                   </div>
                 </div>
-                {analysisAILoading ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div> : analysisAI?.temporal ? <div style={{ fontSize: 12, color: G.muted, lineHeight: 1.75, borderTop: `1px solid ${G.border}`, paddingTop: 10, marginTop: 4 }}>{analysisAI.temporal}</div> : null}
+                {renderInsight("temporal")}
               </div>
 
               {/* 2 · GENRE & FORM */}
@@ -1205,7 +1290,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
                     </div>
                   ))}
                 </div>
-                {analysisAILoading ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div> : analysisAI?.genre ? <div style={{ fontSize: 12, color: G.muted, lineHeight: 1.75, borderTop: `1px solid ${G.border}`, paddingTop: 10, marginTop: 4 }}>{analysisAI.genre}</div> : null}
+                {renderInsight("genre")}
               </div>
 
               {/* 3 · GEOGRAPHIC & CULTURAL */}
@@ -1222,7 +1307,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
                     <div style={{ color: G.muted, fontSize: 10 }}>Indian authors</div>
                   </div>
                 </div>
-                {analysisAILoading ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div> : analysisAI?.geographic ? <div style={{ fontSize: 12, color: G.muted, lineHeight: 1.75, borderTop: `1px solid ${G.border}`, paddingTop: 10, marginTop: 4 }}>{analysisAI.geographic}</div> : null}
+                {renderInsight("geographic")}
               </div>
 
               {/* 4 · AUTHOR BEHAVIOR */}
@@ -1239,21 +1324,21 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
                     <div style={{ color: G.muted, fontSize: 10 }}>one-time reads</div>
                   </div>
                 </div>
-                {analysisAILoading ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div> : analysisAI?.author ? <div style={{ fontSize: 12, color: G.muted, lineHeight: 1.75, borderTop: `1px solid ${G.border}`, paddingTop: 10, marginTop: 4 }}>{analysisAI.author}</div> : null}
+                {renderInsight("author")}
               </div>
 
               {/* 5 · THEMATIC */}
               <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
                 <span style={{ background: `${G.gold}18`, color: G.gold, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Thematic</span>
                 <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 14px" }}>Recurring Intellectual Preoccupations</div>
-                {analysisAILoading ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div> : analysisAI?.thematic ? <div style={{ fontSize: 12, color: G.muted, lineHeight: 1.75 }}>{analysisAI.thematic}</div> : null}
+                {renderInsight("thematic", false)}
               </div>
 
               {/* 6 · SOCIAL & CONTEXTUAL */}
               <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
                 <span style={{ background: `${G.blue}18`, color: G.blue, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Social & Contextual</span>
                 <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 14px" }}>Life Shapes the List</div>
-                {analysisAILoading ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div> : analysisAI?.contextual ? <div style={{ fontSize: 12, color: G.muted, lineHeight: 1.75, borderTop: `1px solid ${G.border}`, paddingTop: 10 }}>{analysisAI.contextual}</div> : null}
+                {renderInsight("contextual")}
               </div>
 
               {/* 7 · COMPLEXITY & CHALLENGE */}
@@ -1278,7 +1363,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
                     ))}
                   </div>
                 </div>
-                {analysisAILoading ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div> : analysisAI?.complexity ? <div style={{ fontSize: 12, color: G.muted, lineHeight: 1.75, borderTop: `1px solid ${G.border}`, paddingTop: 10, marginTop: 4 }}>{analysisAI.complexity}</div> : null}
+                {renderInsight("complexity")}
               </div>
 
               {/* 9 · EMOTIONAL ARC */}
@@ -1300,7 +1385,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
                     </div>
                   ))}
                 </div>
-                {analysisAILoading ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div> : analysisAI?.emotional ? <div style={{ fontSize: 12, color: G.muted, lineHeight: 1.75, borderTop: `1px solid ${G.border}`, paddingTop: 10 }}>{analysisAI.emotional}</div> : null}
+                {renderInsight("emotional")}
               </div>
 
 
