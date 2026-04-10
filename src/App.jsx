@@ -15,14 +15,29 @@ const G = {
 };
 
 const GENRE_COLORS = {
-  "Fantasy": "#c9a84c", "Sci-Fi": "#4a9eff", "Thriller": "#e06c75",
+  "Fantasy": "#c9a84c", "Science Fiction": "#4a9eff", "Thriller": "#e06c75",
   "Mystery": "#ff9f7f", "Literary Fiction": "#98d8c8", "Historical Fiction": "#c3a6ff",
   "Non-Fiction": "#ffd166", "Graphic Novel": "#06d6a0", "Memoir": "#74b9ff",
-  "Biography": "#81ecec", "Classic": "#fab1a0", "Philosophy": "#a29bfe",
-  "Popular Science": "#55c9a0", "Self-Help": "#fdcb6e", "Travel": "#e17055",
-  "Horror": "#b2bec3", "History": "#e67e22", "Politics": "#fd79a8",
-  "Economics": "#fdcb6e", "Psychology": "#6c5ce7", "Business": "#00b894",
+  "Biography": "#81ecec", "Philosophy": "#a29bfe", "Popular Science": "#55c9a0",
+  "Self-Help": "#fdcb6e", "Travel": "#e17055", "Horror": "#b2bec3",
+  "History": "#e67e22", "Politics": "#fd79a8", "Economics": "#fdcb6e",
+  "Psychology": "#6c5ce7", "Dystopian": "#d63031", "Romantasy": "#e84393",
+  "Legal Thriller": "#ff7675", "Medical Thriller": "#fdcb6e",
+  "Environment": "#00b894", "Systems": "#0984e3", "Spirituality": "#a29bfe",
+  "Mythology": "#e17055", "Sociology": "#636e72", "Essays": "#b2bec3",
+  "Art": "#fdcb6e", "Humor": "#ffeaa7", "Sports": "#55efc4",
+  "Film Criticism": "#636e72", "Business": "#00b894",
 };
+
+const GENRES = [
+  "Art", "Biography", "Business", "Dystopian", "Economics", "Environment",
+  "Essays", "Fantasy", "Film Criticism", "Graphic Novel", "Historical Fiction",
+  "History", "Horror", "Humor", "Legal Thriller", "Literary Fiction",
+  "Medical Thriller", "Memoir", "Mystery", "Mythology", "Non-Fiction",
+  "Philosophy", "Politics", "Popular Science", "Psychology", "Romantasy",
+  "Science Fiction", "Self-Help", "Sociology", "Spirituality", "Sports",
+  "Systems", "Thriller", "Travel",
+];
 
 const READING_CONTEXT = `This reader has consumed 345 books across 17 years (2010–2026). Key patterns:
 
@@ -159,7 +174,7 @@ export default function App() {
   const [intentResults, setIntentResults] = useState({});
   const [intentLoading, setIntentLoading] = useState({});
   const [refreshCounts, setRefreshCounts] = useState({});
-  const EMPTY_DRAFT = { title: "", authors: [{ name: "", country: "" }], genres: [], yearStart: new Date().getFullYear(), yearEnd: new Date().getFullYear(), format: "Novel", fiction: true, series: "", pages: "", notes: "" };
+  const EMPTY_DRAFT = { title: "", authors: [{ name: "" }], genres: [], yearStart: new Date().getFullYear(), yearEnd: new Date().getFullYear(), format: "Novel", fiction: true, series: "", pages: "", notes: "" };
   const [showBookModal, setShowBookModal] = useState(false);
   const [editingBook, setEditingBook] = useState(null);
   const [bookDraft, setBookDraft] = useState(EMPTY_DRAFT);
@@ -386,7 +401,7 @@ export default function App() {
       return 0;
     }), [books, search, libGenres, libYears, libAuthors, libSort]);
 
-  const allGenres = useMemo(() => Object.keys(GENRE_COLORS), []);
+  const allGenres = GENRES;
   const allYears = useMemo(() => Object.keys(stats.byYear).sort().reverse(), [stats]);
   const allAuthors = useMemo(() => [...new Set(books.flatMap(b => (b.authors || []).map(a => a.name)))].sort(), [books]);
   const allYearsList = useMemo(() => Object.keys(stats.byYearTracked).sort().map(Number), [stats]);
@@ -454,7 +469,7 @@ Answer with specific references to books, authors, years, and patterns from the 
     setEditingBook(b);
     setBookDraft({
       title: b.title || "",
-      authors: b.authors?.length ? b.authors.map(a => ({ name: a.name || "", country: a.country || "" })) : [{ name: b.author || "", country: b.country || "" }],
+      authors: b.authors?.length ? b.authors.map(a => ({ name: a.name || "" })) : [{ name: b.author || "" }],
       genres: b.genre || [],
       yearStart: b.year_read_start || b.year || new Date().getFullYear(),
       yearEnd: b.year_read_end || b.year || new Date().getFullYear(),
@@ -520,8 +535,12 @@ Answer with specific references to books, authors, years, and patterns from the 
         await supabase.from("book_authors").delete().eq("book_id", editingBook.id);
         for (let i = 0; i < authors.length; i++) {
           const aName = authors[i].name.trim(); if (!aName) continue;
-          let { data: au } = await supabase.from("authors").select().eq("name", aName).maybeSingle();
-          if (!au) { const { data: newAu } = await supabase.from("authors").insert([{ name: aName, country: authors[i].country || "" }]).select().single(); au = newAu; }
+          const { data: au, error: auErr } = await supabase.from("authors").upsert([{ name: aName }], { onConflict: "name", ignoreDuplicates: false }).select().single();
+          if (auErr || !au) throw new Error(`Could not resolve author: ${aName}`);
+          if (!au.country) {
+            const country = await lookupAuthorCountry(aName);
+            if (country) await supabase.from("authors").update({ country }).eq("id", au.id);
+          }
           await supabase.from("book_authors").insert([{ book_id: editingBook.id, author_id: au.id, author_order: i + 1 }]);
         }
         const updatedAuthors = authors.filter(a => a.name.trim()).map((a, i) => ({ author_order: i + 1, authors: { id: 0, name: a.name, country: a.country } }));
@@ -535,8 +554,15 @@ Answer with specific references to books, authors, years, and patterns from the 
         const bookAuthors = [];
         for (let i = 0; i < authors.length; i++) {
           const aName = authors[i].name.trim(); if (!aName) continue;
-          let { data: au } = await supabase.from("authors").select().eq("name", aName).maybeSingle();
-          if (!au) { const { data: newAu } = await supabase.from("authors").insert([{ name: aName, country: authors[i].country || "" }]).select().single(); au = newAu; }
+          const { data: au, error: auErr } = await supabase.from("authors").upsert([{ name: aName }], { onConflict: "name", ignoreDuplicates: false }).select().single();
+          if (auErr || !au) throw new Error(`Could not resolve author: ${aName}`);
+          if (!au.country) {
+            const country = await lookupAuthorCountry(aName);
+            if (country) {
+              await supabase.from("authors").update({ country }).eq("id", au.id);
+              au.country = country;
+            }
+          }
           await supabase.from("book_authors").insert([{ book_id: book.id, author_id: au.id, author_order: i + 1 }]);
           bookAuthors.push({ author_order: i + 1, authors: au });
         }
@@ -544,8 +570,22 @@ Answer with specific references to books, authors, years, and patterns from the 
         setBookMsg("✓ Book added!");
       }
       setTimeout(() => { setShowBookModal(false); setBookMsg(""); }, 1200);
-    } catch (e) { setBookMsg("Error saving. Check your connection."); }
+    } catch (e) { console.error("saveBook error:", e); setBookMsg(`Error: ${e?.message || JSON.stringify(e)}`); }
     setBookSaving(false);
+  };
+
+  const lookupAuthorCountry = async (authorName) => {
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST", headers: aiHeaders(),
+        body: JSON.stringify({
+          model: "claude-haiku-4-5-20251001", max_tokens: 20,
+          messages: [{ role: "user", content: `What country is the author "${authorName}" from? Reply with only the ISO 3166-1 short country name (e.g. "United Kingdom" not "UK", "United States" not "USA", "Czechia" not "Czech Republic"). If unknown, reply "Unknown".` }]
+        })
+      });
+      const data = await res.json();
+      return data.content?.[0]?.text?.trim() || null;
+    } catch { return null; }
   };
 
   const generateSeriesRecap = async (seriesName) => {
@@ -1316,17 +1356,17 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
                   {bookDraft.authors.map((a, i) => (
                     <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
                       <input className="input-dark" style={{ flex: 2, fontSize: 12 }} placeholder="Author name" value={a.name} onChange={e => setBookDraft(p => { const au=[...p.authors]; au[i]={...au[i],name:e.target.value}; return {...p,authors:au}; })} />
-                      <input className="input-dark" style={{ flex: 1, fontSize: 12 }} placeholder="Country" value={a.country} onChange={e => setBookDraft(p => { const au=[...p.authors]; au[i]={...au[i],country:e.target.value}; return {...p,authors:au}; })} />
+
                       {bookDraft.authors.length > 1 && <button onClick={() => setBookDraft(p => ({ ...p, authors: p.authors.filter((_,j)=>j!==i) }))} style={{ background:"none",border:"none",color:G.muted,cursor:"pointer",fontSize:16,padding:"0 4px" }}>×</button>}
                     </div>
                   ))}
-                  <button className="btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }} onClick={() => setBookDraft(p => ({ ...p, authors: [...p.authors, { name: "", country: "" }] }))}>+ Add author</button>
+                  <button className="btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }} onClick={() => setBookDraft(p => ({ ...p, authors: [...p.authors, { name: "" }] }))}>+ Add author</button>
                 </div>
 
                 {/* Genres */}
                 <div>
                   <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 5 }}>Genres</div>
-                  <MultiSelect options={Object.keys(GENRE_COLORS)} selected={bookDraft.genres} onChange={v => setBookDraft(p => ({ ...p, genres: v }))} placeholder="Select genres…" style={{ width: "100%" }} />
+                  <MultiSelect options={GENRES} selected={bookDraft.genres} onChange={v => setBookDraft(p => ({ ...p, genres: v }))} placeholder="Select genres…" style={{ width: "100%" }} />
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
