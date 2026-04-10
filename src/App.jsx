@@ -159,6 +159,7 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem("nairrative_panel_prompts") || "{}"); } catch { return {}; }
   });
   const [editingPanel, setEditingPanel] = useState(null);
+  const [viewingPanel, setViewingPanel] = useState(null);
   const [panelLoading, setPanelLoading] = useState({});
   const [intentInputs, setIntentInputs] = useState({});
   const [intentResults, setIntentResults] = useState({});
@@ -944,9 +945,11 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
   };
 
   const renderEditIcon = (dimension) => {
-    if (!session) return null;
+    if (session) return (
+      <button onClick={() => { setEditingPanel(editingPanel === dimension ? null : dimension); setViewingPanel(null); }} title="Edit prompt" style={{ background: "none", border: "none", cursor: "pointer", color: G.muted, fontSize: 13, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>✎</button>
+    );
     return (
-      <button onClick={() => setEditingPanel(editingPanel === dimension ? null : dimension)} title="Edit prompt" style={{ background: "none", border: "none", cursor: "pointer", color: G.muted, fontSize: 13, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>✎</button>
+      <button onClick={() => setViewingPanel(viewingPanel === dimension ? null : dimension)} title="View prompt" style={{ background: "none", border: "none", cursor: "pointer", color: G.muted, fontSize: 13, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>⊙</button>
     );
   };
 
@@ -956,6 +959,12 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
     const textStyle = { fontSize: 12, color: G.muted, lineHeight: 1.75, ...(borderTop ? { borderTop: `1px solid ${G.border}`, paddingTop: 10, marginTop: 4 } : {}) };
     return (
       <div>
+        {!session && viewingPanel === dimension && (
+          <div style={{ marginBottom: 8, background: G.card2, border: `1px solid ${G.border}`, borderRadius: 6, padding: "10px 12px" }}>
+            <div style={{ fontSize: 9, color: G.dimmed, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 6 }}>Prompt</div>
+            <div style={{ fontSize: 11, color: G.muted, lineHeight: 1.7 }}>{panelPrompts[dimension]?.trim() || DEFAULT_PANEL_PROMPTS[dimension]}</div>
+          </div>
+        )}
         {isEditing && (
           <div style={{ marginBottom: 8 }}>
             <textarea
