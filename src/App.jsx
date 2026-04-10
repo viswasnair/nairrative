@@ -2,7 +2,8 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { supabase } from "./lib/supabase";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
-  AreaChart, Area, CartesianGrid, Legend, LabelList
+  AreaChart, Area, CartesianGrid, Legend, LabelList,
+  PieChart, Pie, LineChart, Line
 } from "recharts";
 
 // ── THEME ──────────────────────────────────────────────────────────────────
@@ -898,6 +899,15 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
           const coBooks = cb("co");
           const coData = Object.entries(coBooks.filter(b=>b.country).reduce((a,b)=>{a[b.country]=(a[b.country]||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([country,count])=>({country,count}));
 
+          const alBooks = cb("al");
+          const alYrs = [...new Set(alBooks.filter(b=>b.pages&&b.year>2010).map(b=>b.year))].sort();
+          const alData = alYrs.map(year => { const yb = alBooks.filter(b=>b.year===year&&b.pages); return yb.length ? { year, avg: Math.round(yb.reduce((s,b)=>s+b.pages,0)/yb.length) } : null; }).filter(Boolean);
+
+          const fmBooks = cb("fm");
+          const fmCounts = fmBooks.reduce((a,b)=>{ const f=b.format||"Unknown"; a[f]=(a[f]||0)+1; return a; },{});
+          const FORMAT_COLORS = { "Novel": "#2d6a4f", "Graphic Novel": "#06d6a0", "Non-Fiction": "#4a9eff", "Novella": "#c9a84c", "Short Stories": "#e06c75", "Unknown": "#b2bec3" };
+          const fmData = Object.entries(fmCounts).sort((a,b)=>b[1]-a[1]).map(([name,value])=>({name,value,color:FORMAT_COLORS[name]||G.muted}));
+
           const truncTick = (maxChars) => ({ x, y, payload, index }) => {
             if (index % 2 !== 0) return null;
             const full = String(payload.value);
@@ -910,7 +920,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
             );
           };
 
-          const timeChartIds = new Set(["yc", "fn", "ge"]);
+          const timeChartIds = new Set(["yc", "fn", "ge", "al"]);
           const chartCard = (title, id, children) => (
             <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "18px 20px 12px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14, gap: 8, flexWrap: "wrap" }}>
@@ -928,7 +938,9 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
               {[
                 { label: "Books Read", value: stats.total, color: "#d97706" },
                 { label: "Authors Read", value: new Set(books.map(b => b.author)).size, color: "#db2777" },
-                { label: "Pages Read", value: books.reduce((s, b) => s + (b.pages || 0), 0).toLocaleString(), color: "#0e9488" },
+                { label: "Avg Books / Year", value: (() => { const activeYears = Object.keys(stats.byYearTracked).filter(y => Number(y) > 2010).length; return activeYears ? Math.round(books.filter(b => b.year > 2010).length / activeYears) : "—"; })(), sub: "excl. pre-2011 block", color: "#0e9488" },
+                { label: "Avg Pages / Book", value: (() => { const withPages = books.filter(b => b.pages); return withPages.length ? Math.round(withPages.reduce((s,b) => s + b.pages, 0) / withPages.length).toLocaleString() : "—"; })(), color: "#f59e0b" },
+                { label: "Countries", value: Object.keys(stats.byCountry).length, sub: "author nationalities", color: "#06b6d4" },
                 { label: "Years Reading", value: stats.readingSpan, color: G.blue },
                 { label: "Peak Year", value: `${stats.sortedYears[0]?.[0]} (${stats.sortedYears[0]?.[1]})`, color: "#0284c7" },
                 { label: "#1 Author", value: stats.sortedAuthors[0]?.[0], sub: `${stats.sortedAuthors[0]?.[1]} books`, color: G.purple },
@@ -1047,6 +1059,42 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
                     {geTop5.map(g => <Area key={g} type="monotone" dataKey={g} stackId="1" stroke={genreMap[g]} fill={genreMap[g]} fillOpacity={0.5} />)}
                   </AreaChart>
                 </ResponsiveContainer>
+              )}
+
+              {/* Avg Book Length Over Time */}
+              {chartCard("Avg Book Length Over Time", "al",
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={alData}>
+                    <CartesianGrid stroke={G.border} strokeDasharray="3 3" />
+                    <XAxis dataKey="year" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} unit=" pp" />
+                    <Tooltip content={<DarkTooltip />} formatter={v => [`${v} pages`, "Avg length"]} />
+                    <Line type="monotone" dataKey="avg" stroke={G.gold} strokeWidth={2} dot={{ fill: G.gold, r: 3 }} activeDot={{ r: 5 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+
+              {/* Format Breakdown */}
+              {chartCard("Format Breakdown", "fm",
+                <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+                  <ResponsiveContainer width={180} height={180}>
+                    <PieChart>
+                      <Pie data={fmData} dataKey="value" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3}>
+                        {fmData.map((e, i) => <Cell key={i} fill={e.color} />)}
+                      </Pie>
+                      <Tooltip content={<DarkTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {fmData.map(e => (
+                      <div key={e.name} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ width: 10, height: 10, borderRadius: 2, background: e.color, flexShrink: 0 }} />
+                        <span style={{ fontSize: 12, color: G.text }}>{e.name}</span>
+                        <span style={{ fontSize: 12, color: G.muted, marginLeft: "auto", paddingLeft: 16 }}>{e.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           </div>
