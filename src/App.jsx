@@ -574,6 +574,19 @@ Answer with specific references to books, authors, years, and patterns from the 
     setBookSaving(false);
   };
 
+  const deleteBook = async () => {
+    if (!editingBook) return;
+    setBookSaving(true);
+    try {
+      await supabase.from("book_authors").delete().eq("book_id", editingBook.id);
+      const { error } = await supabase.from("books").delete().eq("id", editingBook.id);
+      if (error) throw error;
+      setBooks(prev => prev.filter(b => b.id !== editingBook.id));
+      setShowBookModal(false);
+    } catch (e) { console.error("deleteBook error:", e); setBookMsg(`Error: ${e?.message || JSON.stringify(e)}`); }
+    setBookSaving(false);
+  };
+
   const lookupAuthorCountry = async (authorName) => {
     try {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -1409,9 +1422,18 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
                   <div style={{ padding: "10px 14px", borderRadius: 8, background: bookMsg.startsWith("✓") ? `${G.green}18` : `${G.red}18`, color: bookMsg.startsWith("✓") ? G.green : G.red, fontSize: 12 }}>{bookMsg}</div>
                 )}
 
-                <button className="btn-gold" style={{ marginTop: 4 }} onClick={saveBook} disabled={bookSaving}>
-                  {bookSaving ? "Saving…" : editingBook ? "Save Changes" : "Add to Library"}
-                </button>
+                <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                  <button className="btn-gold" style={{ flex: 1 }} onClick={saveBook} disabled={bookSaving}>
+                    {bookSaving ? "Saving…" : editingBook ? "Save Changes" : "Add to Library"}
+                  </button>
+                  {editingBook && (
+                    <button onClick={() => { if (window.confirm(`Delete "${editingBook.title}"? This cannot be undone.`)) deleteBook(); }}
+                      disabled={bookSaving}
+                      style={{ padding: "10px 16px", borderRadius: 8, border: `1px solid ${G.red}40`, background: "none", color: G.red, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}>
+                      Delete
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
