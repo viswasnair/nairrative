@@ -889,6 +889,18 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
   ];
 
 
+  const DEFAULT_PANEL_PROMPTS = {
+    temporal: "Analyse reading pace and volume over time. Note peak years, quiet periods, and how reading habits have evolved across different life phases.",
+    genre: "Examine how genre preferences have shifted across eras. Identify dominant genres, notable transitions, and any surprising or underexplored genre picks.",
+    geographic: "Explore the geographic diversity of authors. Comment on which regions dominate, which are underrepresented, and what that reveals about reading breadth.",
+    author: "Assess loyalty vs sampling — which authors the reader returns to repeatedly, which were one-time reads, and what patterns emerge in how new authors are discovered.",
+    thematic: "Surface recurring intellectual preoccupations, themes, and ideas that appear across different books and genres throughout the library.",
+    contextual: "Connect reading choices to life context — how the list might reflect different phases, moods, or periods in the reader's life.",
+    complexity: "Evaluate the balance between challenging literary reads and accessible commercial fiction. Name specific demanding reads and comfort picks.",
+    emotional: "Map the emotional texture of the library — dark vs hopeful, tense vs reflective — and how this varies across different eras of reading.",
+    discovery: "Identify patterns in how new authors and genres were discovered, and how the reader's literary horizons have expanded over time.",
+  };
+
   const updatePanelPrompt = (dimension, value) => {
     setPanelPrompts(p => {
       const updated = { ...p, [dimension]: value };
@@ -905,9 +917,8 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
       const fullList = books
         .map(b => `[${b.year_read_end || b.year}] "${b.title}" by ${b.author} | ${(b.genre||[]).join("/")}${b.pages ? " | " + b.pages + "pp" : ""}${b.series ? " | series: " + b.series : ""}${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}${b.notes ? " | notes: " + b.notes : ""}`)
         .join("\n");
-      const customInstruction = panelPrompts[dimension]?.trim()
-        ? `\n\nAdditional instruction: ${panelPrompts[dimension]}`
-        : "";
+      const effectivePrompt = panelPrompts[dimension]?.trim() || DEFAULT_PANEL_PROMPTS[dimension] || "";
+      const customInstruction = effectivePrompt ? `\n\nFocus: ${effectivePrompt}` : "";
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST", headers: aiHeaders(),
         body: JSON.stringify({
@@ -948,9 +959,9 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
         {isEditing && (
           <div style={{ marginBottom: 8 }}>
             <textarea
-              value={panelPrompts[dimension] || ""}
+              value={panelPrompts[dimension] ?? DEFAULT_PANEL_PROMPTS[dimension] ?? ""}
               onChange={e => updatePanelPrompt(dimension, e.target.value)}
-              placeholder="Custom instructions for this panel… e.g. 'Focus specifically on Indian authors'"
+              placeholder="Describe what this panel should focus on…"
               style={{ width: "100%", minHeight: 68, background: G.card2, border: `1px solid ${G.border}`, borderRadius: 6, color: G.text, fontSize: 11, padding: "8px 10px", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" }}
             />
             <div style={{ display: "flex", gap: 6, marginTop: 6, justifyContent: "flex-end" }}>
