@@ -1008,13 +1008,15 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
           </button>
         </div>
 
-        <div style={{ display: "flex", gap: 4, overflowX: "auto", justifyContent: "center" }}>
-          {TABS.map(t => (
-            <button key={t.id} className={`tab-btn ${activeTab === t.id ? "active" : ""}`}
-              onClick={() => setActiveTab(t.id)}>
-              <span style={{ marginRight: 6 }}>{t.icon}</span>{t.label}
-            </button>
-          ))}
+        <div style={{ overflowX: "auto" }}>
+          <div style={{ display: "flex", gap: 4, width: "fit-content", margin: "0 auto" }}>
+            {TABS.map(t => (
+              <button key={t.id} className={`tab-btn ${activeTab === t.id ? "active" : ""}`}
+                onClick={() => setActiveTab(t.id)}>
+                <span style={{ marginRight: 6 }}>{t.icon}</span>{t.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
