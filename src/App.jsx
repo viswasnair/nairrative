@@ -520,7 +520,7 @@ Answer with specific references to books, authors, years, and patterns from the 
         method: "POST", headers: aiHeaders(),
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001", max_tokens: 400,
-          system: `You are a book database assistant. Given a natural language description of a book, extract and return ONLY valid JSON (no markdown) with these fields: title (string), authors (array of {name, country}), genres (array, pick from: Fantasy, Sci-Fi, Thriller, Mystery, Literary Fiction, Historical Fiction, Non-Fiction, Graphic Novel, Memoir, Biography, Classic, Philosophy, Popular Science, Self-Help, Travel, Horror, History, Politics, Economics, Psychology, Business), fiction (boolean), format (one of: Novel, Novella, Short Stories, Graphic Novel, Non-Fiction), series (string or ""), pages (number or null), year (original publication year as number).`,
+          system: `You are a book database assistant. Given a natural language description of a book, extract and return ONLY valid JSON (no markdown) with these fields: title (string), authors (array of {name, country}), genres (array, pick from: Fantasy, Sci-Fi, Thriller, Mystery, Literary Fiction, Historical Fiction, Non-Fiction, Graphic Novel, Memoir, Biography, Classic, Philosophy, Popular Science, Self-Help, Travel, Horror, History, Politics, Economics, Psychology, Business), fiction (boolean), format (one of: Novel, Novella, Short Stories, Graphic Novel, Non-Fiction, Play), series (string or ""), pages (number or null), year (original publication year as number).`,
           messages: [{ role: "user", content: bookChatInput }]
         })
       });
@@ -1056,7 +1056,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
 
           const fmBooks = cb("fm");
           const fmCounts = fmBooks.reduce((a,b)=>{ const f=b.format||"Unknown"; a[f]=(a[f]||0)+1; return a; },{});
-          const FORMAT_COLORS = { "Novel": "#2d6a4f", "Graphic Novel": "#06d6a0", "Non-Fiction": "#4a9eff", "Novella": "#c9a84c", "Short Stories": "#e06c75", "Unknown": "#b2bec3" };
+          const FORMAT_COLORS = { "Novel": "#2d6a4f", "Graphic Novel": "#06d6a0", "Non-Fiction": "#4a9eff", "Novella": "#c9a84c", "Short Stories": "#e06c75", "Play": "#c3a6ff", "Unknown": "#b2bec3" };
           const fmData = Object.entries(fmCounts).sort((a,b)=>b[1]-a[1]).map(([name,value])=>({name,value,color:FORMAT_COLORS[name]||G.muted}));
 
           const truncTick = (maxChars) => ({ x, y, payload, index }) => {
@@ -1566,7 +1566,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
                   <div>
                     <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 5 }}>Format</div>
                     <select className="input-dark" value={bookDraft.format} onChange={e => setBookDraft(p => ({ ...p, format: e.target.value }))}>
-                      {["Novel", "Novella", "Short Stories", "Graphic Novel", "Non-Fiction"].map(f => <option key={f}>{f}</option>)}
+                      {["Novel", "Novella", "Short Stories", "Graphic Novel", "Non-Fiction", "Play"].map(f => <option key={f}>{f}</option>)}
                     </select>
                   </div>
                   <div>
