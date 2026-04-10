@@ -927,6 +927,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 14, marginBottom: 24 }}>
               {[
                 { label: "Books Read", value: stats.total, color: "#d97706" },
+                { label: "Pages Read", value: books.reduce((s, b) => s + (b.pages || 0), 0).toLocaleString(), color: "#0e9488" },
                 { label: "Years Reading", value: stats.readingSpan, color: G.blue },
                 { label: "Peak Year", value: `${stats.sortedYears[0]?.[0]} (${stats.sortedYears[0]?.[1]})`, color: "#0284c7" },
                 { label: "#1 Author", value: stats.sortedAuthors[0]?.[0], sub: `${stats.sortedAuthors[0]?.[1]} books`, color: G.purple },
