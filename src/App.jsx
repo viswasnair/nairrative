@@ -932,17 +932,19 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
     setEditingPanel(null);
   };
 
+  const renderEditIcon = (dimension) => {
+    if (!session) return null;
+    return (
+      <button onClick={() => setEditingPanel(editingPanel === dimension ? null : dimension)} title="Edit prompt" style={{ background: "none", border: "none", cursor: "pointer", color: G.muted, fontSize: 13, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>✎</button>
+    );
+  };
+
   const renderInsight = (dimension, borderTop = true) => {
     const isEditing = editingPanel === dimension;
     const isLoading = panelLoading[dimension];
     const textStyle = { fontSize: 12, color: G.muted, lineHeight: 1.75, ...(borderTop ? { borderTop: `1px solid ${G.border}`, paddingTop: 10, marginTop: 4 } : {}) };
     return (
       <div>
-        {session && (
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: isEditing ? 6 : 0 }}>
-            {!isEditing && <button onClick={() => setEditingPanel(dimension)} style={{ background: "none", border: "none", cursor: "pointer", color: G.dimmed, fontSize: 10, padding: "2px 4px", opacity: 0.6 }}>✎ edit prompt</button>}
-          </div>
-        )}
         {isEditing && (
           <div style={{ marginBottom: 8 }}>
             <textarea
@@ -1245,7 +1247,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
 
               {/* 1 · TEMPORAL */}
               <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
-                <span style={{ background: `${G.gold}18`, color: G.gold, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Temporal</span>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ background: `${G.gold}18`, color: G.gold, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Temporal</span>{renderEditIcon("temporal")}</div>
                 <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 12px" }}>Volume & Pace</div>
                 <div style={{ display: "flex", gap: 20, marginBottom: 14 }}>
                   <div>
@@ -1266,7 +1268,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
 
               {/* 2 · GENRE & FORM */}
               <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
-                <span style={{ background: `${G.blue}18`, color: G.blue, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Genre & Form</span>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ background: `${G.blue}18`, color: G.blue, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Genre & Form</span>{renderEditIcon("genre")}</div>
                 <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 12px" }}>Migration Over Time</div>
                 <div style={{ display: "flex", gap: 20, marginBottom: 14 }}>
                   <div>
@@ -1295,7 +1297,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
 
               {/* 3 · GEOGRAPHIC & CULTURAL */}
               <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
-                <span style={{ background: `${G.green}18`, color: G.green, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Geographic & Cultural</span>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ background: `${G.green}18`, color: G.green, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Geographic & Cultural</span>{renderEditIcon("geographic")}</div>
                 <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 12px" }}>Where Your Stories Come From</div>
                 <div style={{ display: "flex", gap: 20, marginBottom: 14 }}>
                   <div>
@@ -1312,7 +1314,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
 
               {/* 4 · AUTHOR BEHAVIOR */}
               <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
-                <span style={{ background: `${G.purple}18`, color: G.purple, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Author Behavior</span>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ background: `${G.purple}18`, color: G.purple, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Author Behavior</span>{renderEditIcon("author")}</div>
                 <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 12px" }}>Loyalty vs. Sampling</div>
                 <div style={{ display: "flex", gap: 20, marginBottom: 14 }}>
                   <div>
@@ -1329,21 +1331,21 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
 
               {/* 5 · THEMATIC */}
               <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
-                <span style={{ background: `${G.gold}18`, color: G.gold, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Thematic</span>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ background: `${G.gold}18`, color: G.gold, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Thematic</span>{renderEditIcon("thematic")}</div>
                 <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 14px" }}>Recurring Intellectual Preoccupations</div>
                 {renderInsight("thematic", false)}
               </div>
 
               {/* 6 · SOCIAL & CONTEXTUAL */}
               <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
-                <span style={{ background: `${G.blue}18`, color: G.blue, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Social & Contextual</span>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ background: `${G.blue}18`, color: G.blue, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Social & Contextual</span>{renderEditIcon("contextual")}</div>
                 <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 14px" }}>Life Shapes the List</div>
                 {renderInsight("contextual")}
               </div>
 
               {/* 7 · COMPLEXITY & CHALLENGE */}
               <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
-                <span style={{ background: `${G.red}18`, color: G.red, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Complexity & Challenge</span>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ background: `${G.red}18`, color: G.red, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Complexity & Challenge</span>{renderEditIcon("complexity")}</div>
                 <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 12px" }}>Stretching vs. Comfort</div>
                 <div style={{ display: "flex", gap: 20, marginBottom: 14 }}>
                   <div>
@@ -1368,7 +1370,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
 
               {/* 9 · EMOTIONAL ARC */}
               <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
-                <span style={{ background: `${G.purple}18`, color: G.purple, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Emotional Arc</span>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ background: `${G.purple}18`, color: G.purple, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Emotional Arc</span>{renderEditIcon("emotional")}</div>
                 <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 14px" }}>Mood Mapping by Era</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 14 }}>
                   {analysisInsights.fictionByEra.map(({ era, dominant, counts, total }) => (
