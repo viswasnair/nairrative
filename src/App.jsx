@@ -1087,13 +1087,13 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
               {[
                 { label: "Books Read", value: stats.total, color: "#d97706" },
                 { label: "Authors Read", value: new Set(books.map(b => b.author)).size, color: "#db2777" },
-                { label: "Avg Books / Year", value: (() => { const activeYears = Object.keys(stats.byYearTracked).filter(y => Number(y) > 2010).length; return activeYears ? Math.round(books.filter(b => b.year > 2010).length / activeYears) : "—"; })(), color: "#0e9488" },
-                { label: "Avg Pages / Book", value: (() => { const withPages = books.filter(b => b.pages); return withPages.length ? Math.round(withPages.reduce((s,b) => s + b.pages, 0) / withPages.length).toLocaleString() : "—"; })(), color: "#f59e0b" },
-                { label: "Author Countries", value: Object.keys(stats.byCountry).length, color: "#06b6d4" },
+                { label: "Books / Year", value: (() => { const activeYears = Object.keys(stats.byYearTracked).filter(y => Number(y) > 2010).length; return activeYears ? Math.round(books.filter(b => b.year > 2010).length / activeYears) : "—"; })(), color: "#0e9488" },
+                { label: "Pages / Book", value: (() => { const withPages = books.filter(b => b.pages); return withPages.length ? Math.round(withPages.reduce((s,b) => s + b.pages, 0) / withPages.length).toLocaleString() : "—"; })(), color: "#f59e0b" },
+                { label: "Countries", value: Object.keys(stats.byCountry).length, color: "#06b6d4" },
                 { label: "Years Reading", value: stats.readingSpan, color: G.blue },
                 { label: "Peak Year", value: `${stats.sortedYears[0]?.[0]} (${stats.sortedYears[0]?.[1]})`, color: "#0284c7" },
-                { label: "#1 Author", value: stats.sortedAuthors[0]?.[0], sub: `${stats.sortedAuthors[0]?.[1]} books`, color: G.purple },
-                { label: "Top Genre", value: stats.sortedGenres[0]?.[0], sub: `${stats.sortedGenres[0]?.[1]} books`, color: "#ff9f7f" },
+                { label: "#1 Author", value: stats.sortedAuthors[0]?.[0], color: G.purple },
+                { label: "Top Genre", value: stats.sortedGenres[0]?.[0], color: "#ff9f7f" },
               ].map((s, i) => (
                 <div key={i} className="stat-card" style={{ padding: "12px 14px" }}>
                   <div style={{ color: G.muted, fontSize: 9, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 6 }}>{s.label}</div>
