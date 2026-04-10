@@ -174,7 +174,7 @@ export default function App() {
   const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY || "";
   const [seriesRecap, setSeriesRecap] = useState(null);
   const [seriesLoading, setSeriesLoading] = useState(false);
-  const [selectedSeries, setSelectedSeries] = useState("");
+  const [selectedSeries, setSelectedSeries] = useState("Wheel of Time");
   const chatEndRef = useRef(null);
 
   useEffect(() => {
