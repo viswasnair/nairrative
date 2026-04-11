@@ -135,6 +135,7 @@ export default function App() {
   const [loginError, setLoginError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [books, setBooks] = useState([]);
   const [booksLoading, setBooksLoading] = useState(true);
   const [genreList, setGenreList] = useState([]);
@@ -948,6 +949,23 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
     .fade-in { animation: fadeIn 0.3s ease; }
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
     .pulse { animation: pulse 1.5s infinite; }
+    @media (max-width: 640px) {
+      .tab-nav { display: none !important; }
+      .burger-btn { display: flex !important; align-items: center; }
+      .mobile-menu { display: flex !important; flex-direction: column; background: ${G.card}; border-bottom: 1px solid ${G.border}; padding: 8px 16px 12px; gap: 4px; }
+      .page-header { padding: 16px 16px 0 !important; }
+      .page-content { padding: 16px !important; }
+      .header-logo { width: 200px !important; height: auto !important; }
+      .kpi-grid { grid-template-columns: repeat(3, 1fr) !important; }
+      .chart-grid { grid-template-columns: 1fr !important; }
+      .rec-grid { grid-template-columns: 1fr !important; }
+      .analysis-grid { grid-template-columns: 1fr !important; }
+      .lib-table-wrap { overflow-x: auto; }
+    }
+    @media (min-width: 641px) {
+      .burger-btn { display: none !important; }
+      .mobile-menu { display: none !important; }
+    }
   `;
 
   // ── TABS CONFIG ────────────────────────────────────────────────────────────
@@ -1079,21 +1097,32 @@ const DEFAULT_PANEL_PROMPTS = {
       <style>{css}</style>
 
       {/* HEADER */}
-      <div style={{ padding: "28px 28px 0", background: G.bg }}>
-        {/* Centered logo + lock */}
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "flex-start", marginBottom: 24, position: "relative" }}>
-          <img src="/nairrative.png" alt="Nairrative" style={{ width: 398, height: 113, mixBlendMode: "multiply" }} />
-          <button onClick={() => session ? logout() : setShowLoginModal(true)}
-            title={session ? "Sign out" : "Sign in"}
-            style={{ position: "absolute", right: 0, top: 0, background: "none", border: "none", cursor: "pointer", padding: 4, lineHeight: 1, color: session ? G.gold : G.dimmed }}>
-            {session
-              ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
-              : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            }
-          </button>
+      <div className="page-header" style={{ padding: "28px 28px 0", background: G.bg }}>
+        {/* Logo row */}
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: 16, position: "relative" }}>
+          <img src="/nairrative.png" alt="Nairrative" className="header-logo" style={{ width: 398, height: 113, mixBlendMode: "multiply" }} />
+          <div style={{ position: "absolute", right: 0, top: 0, display: "flex", alignItems: "center", gap: 8 }}>
+            {/* Burger — mobile only */}
+            <button className="burger-btn" onClick={() => setMobileMenuOpen(o => !o)}
+              style={{ display: "none", background: "none", border: "none", cursor: "pointer", color: G.muted, padding: 4, flexDirection: "column", gap: 4 }}>
+              <span style={{ display: "block", width: 18, height: 2, background: "currentColor", borderRadius: 2 }} />
+              <span style={{ display: "block", width: 18, height: 2, background: "currentColor", borderRadius: 2 }} />
+              <span style={{ display: "block", width: 18, height: 2, background: "currentColor", borderRadius: 2 }} />
+            </button>
+            {/* Lock */}
+            <button onClick={() => session ? logout() : setShowLoginModal(true)}
+              title={session ? "Sign out" : "Sign in"}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 4, lineHeight: 1, color: session ? G.gold : G.dimmed }}>
+              {session
+                ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+                : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              }
+            </button>
+          </div>
         </div>
 
-        <div style={{ overflowX: "auto" }}>
+        {/* Desktop tab bar */}
+        <div className="tab-nav" style={{ overflowX: "auto" }}>
           <div style={{ display: "flex", gap: 4, width: "fit-content", margin: "0 auto" }}>
             {TABS.map(t => (
               <button key={t.id} className={`tab-btn ${activeTab === t.id ? "active" : ""}`}
@@ -1103,10 +1132,21 @@ const DEFAULT_PANEL_PROMPTS = {
             ))}
           </div>
         </div>
+
+        {/* Mobile menu */}
+        <div className="mobile-menu" style={{ display: mobileMenuOpen ? "flex" : "none" }}>
+          {TABS.map(t => (
+            <button key={t.id} className={`tab-btn ${activeTab === t.id ? "active" : ""}`}
+              style={{ width: "100%", textAlign: "left" }}
+              onClick={() => { setActiveTab(t.id); setMobileMenuOpen(false); }}>
+              <span style={{ marginRight: 8 }}>{t.icon}</span>{t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* CONTENT */}
-      <div style={{ padding: "24px 28px" }} className="fade-in">
+      <div className="fade-in page-content" style={{ padding: "24px 28px" }}>
 
         {/* ── OVERVIEW ──────────────────────────────────────────────────── */}
         {activeTab === "overview" && (() => {
@@ -1170,7 +1210,7 @@ const DEFAULT_PANEL_PROMPTS = {
           return (
           <div>
             {/* Stat Cards */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(9, 1fr)", gap: 10, marginBottom: 24 }}>
+            <div className="kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(9, 1fr)", gap: 10, marginBottom: 24 }}>
               {[
                 { label: "Books Read", value: stats.total, color: "#d97706" },
                 { label: "Authors Read", value: new Set(books.map(b => b.author)).size, color: "#db2777" },
@@ -1190,7 +1230,7 @@ const DEFAULT_PANEL_PROMPTS = {
               ))}
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div className="chart-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               {/* Books Per Year */}
               {chartCard("Reading Activity by Year", "yc",
                 <ResponsiveContainer width="100%" height={200}>
@@ -1498,7 +1538,7 @@ const DEFAULT_PANEL_PROMPTS = {
             </div>
 
             {/* Rows */}
-            <div style={{ background: G.card, border: `1px solid ${G.border}`, borderTop: "none", borderRadius: "0 0 8px 8px", maxHeight: 520, overflowY: "auto" }}>
+            <div className="lib-table-wrap" style={{ background: G.card, border: `1px solid ${G.border}`, borderTop: "none", borderRadius: "0 0 8px 8px", maxHeight: 520, overflowY: "auto" }}>
               {filteredBooks.map(b => (
                 <div key={b.id} className="lib-row">
                   <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -1706,7 +1746,7 @@ const DEFAULT_PANEL_PROMPTS = {
                 <div style={{ color: G.muted, fontSize: 13 }}>{LENSES.length} lenses for discovery — one curated pick per lens, refreshes on every new book added.</div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+              <div className="rec-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
                 {LENSES.map(lens => {
                   const results = intentResults[lens.id];
                   const loading = !!intentLoading[lens.id];
