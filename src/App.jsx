@@ -1077,8 +1077,11 @@ const DEFAULT_PANEL_PROMPTS = {
           <img src="/nairrative.png" alt="Nairrative" style={{ width: 398, height: 113, mixBlendMode: "multiply" }} />
           <button onClick={() => session ? logout() : setShowLoginModal(true)}
             title={session ? "Sign out" : "Sign in"}
-            style={{ position: "absolute", right: 0, top: 0, background: "none", border: "none", cursor: "pointer", fontSize: 16, color: session ? G.gold : G.dimmed, padding: 4, lineHeight: 1 }}>
-            {session ? "🔓" : "🔒"}
+            style={{ position: "absolute", right: 0, top: 0, background: "none", border: "none", cursor: "pointer", padding: 4, lineHeight: 1, color: session ? G.gold : G.dimmed }}>
+            {session
+              ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+              : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            }
           </button>
         </div>
 
