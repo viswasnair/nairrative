@@ -931,7 +931,8 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
     .rec-card { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 12px; padding: 18px; transition: all 0.2s; }
     .rec-card:hover { border-color: ${G.goldDim}; transform: translateY(-1px); }
     .chat-input-wrap { display: flex; gap: 10px; }
-    .lib-row { display: grid; grid-template-columns: 2fr 150px 110px 70px 80px 50px 56px 56px 32px; gap: 10px; padding: 9px 14px; border-bottom: 1px solid ${G.border}; align-items: center; transition: background 0.15s; }
+    .lib-row { display: grid; grid-template-columns: 2fr 150px 110px 90px 90px 50px 56px 56px 32px; gap: 10px; padding: 9px 14px; border-bottom: 1px solid ${G.border}; align-items: center; transition: background 0.15s; }
+    .cell-clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .lib-row:hover { background: ${G.card2}; }
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; }
     .modal-box { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 16px; width: 100%; max-width: 540px; max-height: 88vh; overflow-y: auto; padding: 28px; position: relative; }
@@ -1497,7 +1498,7 @@ const DEFAULT_PANEL_PROMPTS = {
                   <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     <a href={`https://en.wikipedia.org/wiki/Special:Search?search=${encodeURIComponent(b.title + " " + b.author)}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 500, color: G.text, textDecoration: "none" }} onMouseOver={e=>e.target.style.color=G.gold} onMouseOut={e=>e.target.style.color=G.text}>{b.title}</a>
                   </div>
-                  <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12, color: G.muted }}>
+                  <div title={b.author} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12, color: G.muted }}>
                     {(b.authors?.length ? b.authors : [{ name: b.author }]).map((a, i) => (
                       <span key={i}>
                         {i > 0 && <span style={{ color: G.dimmed }}>, </span>}
@@ -1505,13 +1506,13 @@ const DEFAULT_PANEL_PROMPTS = {
                       </span>
                     ))}
                   </div>
-                  <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 11, color: G.muted }}>
+                  <div title={(b.genre||[]).join(", ")} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 11, color: G.muted }}>
                     {(b.genre||[]).map((g, i) => (
                       <span key={g}>{i > 0 && <span style={{ color: G.dimmed }}>, </span>}<span style={{ color: genreMap[g]||G.muted }}>{g}</span></span>
                     ))}
                   </div>
-                  <div style={{ fontSize: 11, color: G.muted }}>{b.format || "—"}</div>
-                  <div style={{ fontSize: 11, color: b.fiction ? G.blue : G.copper }}>{b.fiction !== undefined ? (b.fiction ? "Fiction" : "Non-Fiction") : "—"}</div>
+                  <div className="cell-clip" title={b.format || "—"} style={{ fontSize: 11, color: G.muted }}>{b.format || "—"}</div>
+                  <div className="cell-clip" title={b.fiction !== undefined ? (b.fiction ? "Fiction" : "Non-Fiction") : "—"} style={{ fontSize: 11, color: b.fiction ? G.blue : G.copper }}>{b.fiction !== undefined ? (b.fiction ? "Fiction" : "Non-Fiction") : "—"}</div>
                   <div style={{ fontSize: 12, color: G.muted }}>{b.pages || "—"}</div>
                   <div style={{ fontSize: 12, color: G.muted }}>{b.year_read_start || "—"}</div>
                   <div style={{ fontSize: 12, color: G.muted }}>{b.year_read_end || "—"}</div>
