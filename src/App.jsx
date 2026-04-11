@@ -960,7 +960,9 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
       .chart-grid { grid-template-columns: 1fr !important; }
       .rec-grid { grid-template-columns: 1fr !important; }
       .analysis-grid { grid-template-columns: 1fr !important; }
-      .lib-table-wrap { overflow-x: auto; }
+      .lib-scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .lib-inner { min-width: 860px; }
+      .lib-row { grid-template-columns: 160px 140px 100px 80px 80px 48px 50px 50px 32px; }
     }
   `;
 
@@ -1528,6 +1530,10 @@ const DEFAULT_PANEL_PROMPTS = {
               <button className="btn-gold" style={{ padding: "7px 16px", fontSize: 12, opacity: session ? 1 : 0.35, cursor: session ? "pointer" : "not-allowed" }} onClick={() => session && openAddModal()}>+ Add Book</button>
             </div>
 
+            {/* Scrollable table wrapper (header + rows scroll together on mobile) */}
+            <div className="lib-scroll-wrap" style={{ borderRadius: 8, border: `1px solid ${G.border}` }}>
+            <div className="lib-inner">
+
             {/* Table Header */}
             <div className="lib-row" style={{ background: G.card2, borderRadius: "8px 8px 0 0", borderBottom: `1px solid ${G.border}` }}>
               {["Title", "Author", "Genre", "Format", "Type", "Pages", "Start", "End", ""].map(h => (
@@ -1536,7 +1542,7 @@ const DEFAULT_PANEL_PROMPTS = {
             </div>
 
             {/* Rows */}
-            <div className="lib-table-wrap" style={{ background: G.card, border: `1px solid ${G.border}`, borderTop: "none", borderRadius: "0 0 8px 8px", maxHeight: 520, overflowY: "auto" }}>
+            <div className="lib-table-wrap" style={{ background: G.card, borderTop: "none", borderRadius: "0 0 8px 8px", maxHeight: 520, overflowY: "auto" }}>
               {filteredBooks.map(b => (
                 <div key={b.id} className="lib-row">
                   <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -1567,6 +1573,8 @@ const DEFAULT_PANEL_PROMPTS = {
                 <div style={{ padding: 40, textAlign: "center", color: G.muted }}>No books match your filters.</div>
               )}
             </div>
+            </div>{/* end lib-inner */}
+            </div>{/* end lib-scroll-wrap */}
           </div>
         )}
 
