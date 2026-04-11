@@ -307,19 +307,20 @@ export default function App() {
     const cachedFp = localStorage.getItem("nairrative_recs_fp");
     const cachedResult = localStorage.getItem("nairrative_recs");
     if (cachedFp === booksFingerprint && cachedResult) {
-      try { setIntentResults(JSON.parse(cachedResult)); return; } catch {}
+      try { setIntentResults({ ...SEED_RECS, ...JSON.parse(cachedResult) }); return; } catch {}
     }
     supabase.from("recs_cache").select("data").eq("id", 1).single()
       .then(({ data }) => {
         if (data?.data) {
-          setIntentResults(data.data);
-          localStorage.setItem("nairrative_recs", JSON.stringify(data.data));
+          const merged = { ...SEED_RECS, ...data.data };
+          setIntentResults(merged);
+          localStorage.setItem("nairrative_recs", JSON.stringify(merged));
           localStorage.setItem("nairrative_recs_fp", booksFingerprint);
-        } else if (Object.keys(SEED_RECS).length) {
+        } else {
           setIntentResults(SEED_RECS);
         }
       })
-      .catch(() => { if (Object.keys(SEED_RECS).length) setIntentResults(SEED_RECS); });
+      .catch(() => setIntentResults(SEED_RECS));
   }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Regenerate auto recs when books change (skip initial load)
