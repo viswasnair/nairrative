@@ -158,6 +158,15 @@ export default function App() {
   const [panelPrompts, setPanelPrompts] = useState(() => {
     try { return JSON.parse(localStorage.getItem("nairrative_panel_prompts") || "{}"); } catch { return {}; }
   });
+  useEffect(() => {
+    supabase.from("panel_prompts").select("data").eq("id", 1).single()
+      .then(({ data }) => {
+        if (data?.data) {
+          setPanelPrompts(data.data);
+          localStorage.setItem("nairrative_panel_prompts", JSON.stringify(data.data));
+        }
+      }).catch(() => {});
+  }, []);
   const [editingPanel, setEditingPanel] = useState(null);
   const [viewingPanel, setViewingPanel] = useState(null);
   const [panelLoading, setPanelLoading] = useState({});
@@ -962,6 +971,7 @@ const DEFAULT_PANEL_PROMPTS = {
     setPanelPrompts(p => {
       const updated = { ...p, [dimension]: value };
       localStorage.setItem("nairrative_panel_prompts", JSON.stringify(updated));
+      supabase.from("panel_prompts").upsert({ id: 1, data: updated, updated_at: new Date().toISOString() }).catch(() => {});
       return updated;
     });
   };
