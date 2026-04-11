@@ -8,21 +8,7 @@ import {
 import G from "./constants/theme";
 import { READING_CONTEXT, TABS, AUTO_RECS, DEFAULT_PANEL_PROMPTS, INPUT_DEFAULTS } from "./constants/config";
 import { SEED_ANALYSIS, SEED_RECS } from "./constants/seeds";
-
-// ── NORMALIZE BOOK (joins authors from Supabase nested select) ────────────
-function normalizeBook(b) {
-  const sortedAuthors = (b.book_authors || [])
-    .sort((x, y) => x.author_order - y.author_order)
-    .map(ba => ba.authors);
-  return {
-    ...b,
-    authors: sortedAuthors,
-    author: sortedAuthors.map(a => a.name).join(" & "),
-    country: sortedAuthors[0]?.country || "",
-    year: b.year_read_end,
-    genre: Array.isArray(b.genre) ? b.genre : (b.genre ? [b.genre] : []),
-  };
-}
+import { normalizeBook, buildBookContext, downloadCSV, downloadJSON } from "./lib/bookUtils";
 
 // ── MULTI SELECT ─────────────────────────────────────────────────────────
 function MultiSelect({ options, selected, onChange, placeholder, style }) {
@@ -465,7 +451,7 @@ export default function App() {
     setChatInput("");
     setChatLoading(true);
     try {
-      const summary = buildBookContext();
+      const summary = buildBookContext(books);
       const fullList = books
         .map(b => `[${b.year}] "${b.title}" by ${b.author} | ${(b.genre||[]).join("/")}${b.pages ? " | " + b.pages + "pp" : ""}${b.series ? " | series: " + b.series : ""}${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}${b.notes ? " | " + b.notes : ""}`)
         .join("\n");
@@ -691,32 +677,6 @@ Answer with specific references to books, authors, years, and patterns from the 
     finally { setSeriesLoading(false); }
   };
 
-  const buildBookContext = () => {
-    const byYear = {}, byGenre = {}, byAuthor = {}, byCountry = {};
-    books.forEach(b => {
-      const yr = b.year_read_end || b.year;
-      byYear[yr] = (byYear[yr] || 0) + 1;
-      (b.genre || []).forEach(g => { byGenre[g] = (byGenre[g] || 0) + 1; });
-      byAuthor[b.author] = (byAuthor[b.author] || 0) + 1;
-      if (b.country) byCountry[b.country] = (byCountry[b.country] || 0) + 1;
-    });
-    const topAuthors = Object.entries(byAuthor).sort((a,b)=>b[1]-a[1]).slice(0,25).map(([a,c])=>`${a}(${c})`).join(", ");
-    const genres = Object.entries(byGenre).sort((a,b)=>b[1]-a[1]).map(([g,c])=>`${g}(${c})`).join(", ");
-    const years = Object.entries(byYear).sort((a,b)=>parseInt(a[0])-parseInt(b[0])).map(([y,c])=>`${y}:${c}`).join(", ");
-    const countries = Object.entries(byCountry).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([c,n])=>`${c}(${n})`).join(", ");
-    const seriesList = [...new Set(books.filter(b=>b.series?.trim()).map(b=>b.series))].join(", ");
-    const minYear = Math.min(...books.map(b=>b.year_read_start||b.year).filter(Boolean));
-    const maxYear = Math.max(...books.map(b=>b.year_read_end||b.year).filter(Boolean));
-    const fictionCount = books.filter(b=>b.fiction).length;
-    return `READING DATABASE: ${books.length} books, ${minYear}–${maxYear}.
-NOTE: Year 2010 is a collective entry representing all books read from 1998–2010. Not a single-year anomaly.
-BOOKS BY YEAR: ${years}
-TOP AUTHORS (name, count): ${topAuthors}
-GENRES (name, count): ${genres}
-COUNTRIES: ${countries}
-SERIES READ: ${seriesList}
-FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-FICTION: ${books.length-fictionCount}`;
-  };
 
   const saveAnalysisToSupabase = async (data) => {
     try {
@@ -736,7 +696,7 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
 
     setAnalysisAILoading(true);
     const dimensions = ["temporal", "genre", "geographic", "author", "thematic", "contextual", "complexity", "emotional", "discovery"];
-    const ctx = buildBookContext();
+    const ctx = buildBookContext(books);
     const fullList = books
       .map(b => `[${b.year_read_end || b.year}] "${b.title}" by ${b.author} | ${(b.genre||[]).join("/")}${b.pages ? " | " + b.pages + "pp" : ""}${b.series ? " | series: " + b.series : ""}${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}${b.notes ? " | notes: " + b.notes : ""}`)
       .join("\n");
@@ -808,7 +768,7 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
       const useWebSearch = intentId === "trending" || intentId === "pair";
       const body = {
         model: "claude-haiku-4-5-20251001", max_tokens: 400,
-        system: `You are a precise book recommendation engine. Today is ${today}. Reader history:\n${buildBookContext()}\n\nDo NOT recommend any of these already-read titles: ${readTitlesString}.\n\nOnly recommend unread books published up to ${today}.\n\n${prompts[intentId] || input}\n\nReturn ONLY a JSON array — no markdown, no explanation. Exactly 1 item. Format: [{"title": "...", "author": "...", "year": 2024, "reason": "1-2 sentences why it fits this reader"}].`,
+        system: `You are a precise book recommendation engine. Today is ${today}. Reader history:\n${buildBookContext(books)}\n\nDo NOT recommend any of these already-read titles: ${readTitlesString}.\n\nOnly recommend unread books published up to ${today}.\n\n${prompts[intentId] || input}\n\nReturn ONLY a JSON array — no markdown, no explanation. Exactly 1 item. Format: [{"title": "...", "author": "...", "year": 2024, "reason": "1-2 sentences why it fits this reader"}].`,
         messages: [{ role: "user", content: "JSON array only." }],
       };
       if (useWebSearch) body.tools = [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }];
@@ -869,18 +829,6 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
     setTimeout(() => setAddMsg(""), 4000);
   };
 
-  const downloadCSV = () => {
-    const rows = [["ID","Title","Author","Year Read Start","Year Read End","Genre","Country","Format","Pages","Series","Notes"], ...books.map(b => [b.id, `"${b.title}"`, `"${b.author}"`, b.year_read_start, b.year_read_end, `"${(b.genre||[]).join("/")}"`, b.country || "", b.format || "", b.pages || "", `"${b.series||""}"`, `"${b.notes||""}"`])];
-    const blob = new Blob([rows.map(r => r.join(",")).join("\n")], { type: "text/csv" });
-    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: "my_reading_list.csv" });
-    a.click();
-  };
-
-  const downloadJSON = () => {
-    const blob = new Blob([JSON.stringify(books, null, 2)], { type: "application/json" });
-    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: "my_reading_list.json" });
-    a.click();
-  };
 
   // ── STYLES ────────────────────────────────────────────────────────────────
   const css = `
@@ -948,7 +896,7 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
     if (panelLoading[dimension]) return;
     setPanelLoading(p => ({ ...p, [dimension]: true }));
     try {
-      const ctx = buildBookContext();
+      const ctx = buildBookContext(books);
       const fullList = books
         .map(b => `[${b.year_read_end || b.year}] "${b.title}" by ${b.author} | ${(b.genre||[]).join("/")}${b.pages ? " | " + b.pages + "pp" : ""}${b.series ? " | series: " + b.series : ""}${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}${b.notes ? " | notes: " + b.notes : ""}`)
         .join("\n");
@@ -1466,8 +1414,8 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
               </select>
               <span style={{ color: G.muted, fontSize: 12, whiteSpace: "nowrap" }}>{filteredBooks.length} books</span>
               <div style={{ flex: 1 }} />
-              <button className="btn-ghost" onClick={downloadCSV}>↓ CSV</button>
-              <button className="btn-ghost" onClick={downloadJSON}>↓ JSON</button>
+              <button className="btn-ghost" onClick={() => downloadCSV(books)}>↓ CSV</button>
+              <button className="btn-ghost" onClick={() => downloadJSON(books)}>↓ JSON</button>
               <button className="btn-gold" style={{ padding: "7px 16px", fontSize: 12, opacity: session ? 1 : 0.35, cursor: session ? "pointer" : "not-allowed" }} onClick={() => session && openAddModal()}>+ Add Book</button>
             </div>
 
