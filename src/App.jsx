@@ -182,6 +182,7 @@ export default function App() {
   const [seriesLoading, setSeriesLoading] = useState(false);
   const [selectedSeries, setSelectedSeries] = useState("Wheel of Time");
   const chatEndRef = useRef(null);
+  const prevRecsFingerprint = useRef(null);
 
   useEffect(() => {
     const link = document.createElement("link");
@@ -283,26 +284,36 @@ export default function App() {
       .catch(() => setAnalysisAI(SEED_ANALYSIS));
   }, [activeTab, booksFingerprint]);
 
+  // Load recs from cache on tab switch (no API call)
   useEffect(() => {
     if (activeTab !== "recs" || !books.length) return;
-    setIntentResults({});
-    const allIds = [
-      ...AUTO_RECS,
-      ...Object.keys(INPUT_DEFAULTS),
-    ];
-    allIds.forEach((id, i) => {
-      setTimeout(() => {
-        if (AUTO_RECS.includes(id)) {
-          fetchIntentRecs(id);
-        } else {
-          const options = INPUT_DEFAULTS[id];
-          const pick = options[Math.floor(Math.random() * options.length)];
-          setIntentInputs(p => ({ ...p, [id]: p[id] || pick }));
-          fetchIntentRecs(id, pick);
+    const cachedFp = localStorage.getItem("nairrative_recs_fp");
+    const cachedResult = localStorage.getItem("nairrative_recs");
+    if (cachedFp === booksFingerprint && cachedResult) {
+      try { setIntentResults(JSON.parse(cachedResult)); return; } catch {}
+    }
+    supabase.from("recs_cache").select("data").eq("id", 1).single()
+      .then(({ data }) => {
+        if (data?.data) {
+          setIntentResults(data.data);
+          localStorage.setItem("nairrative_recs", JSON.stringify(data.data));
+          localStorage.setItem("nairrative_recs_fp", booksFingerprint);
         }
-      }, i * 2000);
-    });
-  }, [activeTab, booksFingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
+      })
+      .catch(() => {});
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Regenerate auto recs when books change (skip initial load)
+  useEffect(() => {
+    if (!booksFingerprint) return;
+    if (prevRecsFingerprint.current === null) { prevRecsFingerprint.current = booksFingerprint; return; }
+    if (prevRecsFingerprint.current === booksFingerprint) return;
+    prevRecsFingerprint.current = booksFingerprint;
+    setIntentResults({});
+    localStorage.removeItem("nairrative_recs");
+    localStorage.removeItem("nairrative_recs_fp");
+    AUTO_RECS.forEach((id, i) => setTimeout(() => fetchIntentRecs(id), i * 2000));
+  }, [booksFingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── COMPUTED DATA ────────────────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -773,6 +784,12 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
     setAnalysisAILoading(false);
   };
 
+  const saveRecsToSupabase = async (data) => {
+    try {
+      await supabase.from("recs_cache").upsert({ id: 1, fingerprint: booksFingerprint, data, updated_at: new Date().toISOString() });
+    } catch(e) { console.error("Failed to save recs to Supabase:", e); }
+  };
+
   const fetchIntentRecs = async (intentId, input = "") => {
     if (intentLoading[intentId]) return;
     setIntentLoading(p => ({ ...p, [intentId]: true }));
@@ -819,7 +836,13 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
       const txt = (data.content || []).filter(c => c.type === "text").map(c => c.text).join("");
       const m = txt.match(/\[[\s\S]*?\]/);
       const parsed = m ? JSON.parse(m[0]) : JSON.parse(txt.replace(/```json|```/g, "").trim());
-      setIntentResults(p => ({ ...p, [intentId]: Array.isArray(parsed) ? parsed.slice(0, 1) : [] }));
+      setIntentResults(prev => {
+        const updated = { ...prev, [intentId]: Array.isArray(parsed) ? parsed.slice(0, 1) : [] };
+        localStorage.setItem("nairrative_recs", JSON.stringify(updated));
+        localStorage.setItem("nairrative_recs_fp", booksFingerprint);
+        saveRecsToSupabase(updated);
+        return updated;
+      });
     } catch (e) {
       setIntentResults(p => ({ ...p, [intentId]: [{ title: "Could not load", author: "", reason: e?.message || "Check your API key and try again." }] }));
     }
