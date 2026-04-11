@@ -1347,7 +1347,7 @@ const DEFAULT_PANEL_PROMPTS = {
               const span = maxYear - minYear + 1;
               return (
                 <div style={{ marginBottom: 24, textAlign: "center" }}>
-                  <div style={{ color: G.muted, fontSize: 13 }}>Ten lenses into {stats.total} books across {span} years ({minYear}–present).</div>
+                  <div style={{ color: G.muted, fontSize: 13 }}>{Object.keys(DEFAULT_PANEL_PROMPTS).length} lenses into {stats.total} books across {span} years ({minYear}–present).</div>
                 </div>
               );
             })()}
@@ -1704,7 +1704,7 @@ const DEFAULT_PANEL_PROMPTS = {
           return (
             <div>
               <div style={{ marginBottom: 20, textAlign: "center" }}>
-                <div style={{ color: G.muted, fontSize: 13 }}>16 lenses for discovery — one curated pick per lens, refreshes on every new book added.</div>
+                <div style={{ color: G.muted, fontSize: 13 }}>{LENSES.length} lenses for discovery — one curated pick per lens, refreshes on every new book added.</div>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
