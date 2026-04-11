@@ -1388,7 +1388,7 @@ const DEFAULT_PANEL_PROMPTS = {
                 </div>
               );
             })()}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 14 }}>
+            <div className="analysis-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 14 }}>
 
               {/* 1 · TEMPORAL */}
               <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
