@@ -474,7 +474,7 @@ export default function App() {
   const allYearsListFull = useMemo(() => Object.keys(stats.byYear).sort().map(Number), [stats]);
 
   const readTitlesString = useMemo(() =>
-    books.map(b => b.title.toLowerCase().replace(/^(the|a|an) /i, "")).join("; "),
+    books.slice(-200).map(b => b.title.toLowerCase().replace(/^(the|a|an) /i, "")).join("; "),
   [books]);
 
   // ── HANDLERS ──────────────────────────────────────────────────────────────
@@ -843,7 +843,7 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
         body: JSON.stringify(body)
       });
       const data = await res.json();
-      if (data.error) throw new Error(data.error.message);
+      if (data.error) throw new Error(data.error.message || data.error.type || JSON.stringify(data.error));
       const txt = (data.content || []).filter(c => c.type === "text").map(c => c.text).join("");
       const m = txt.match(/\[[\s\S]*?\]/);
       const parsed = m ? JSON.parse(m[0]) : JSON.parse(txt.replace(/```json|```/g, "").trim());
@@ -855,7 +855,8 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
         return updated;
       });
     } catch (e) {
-      setIntentResults(p => ({ ...p, [intentId]: [{ title: "Could not load", author: "", reason: e?.message || "Check your API key and try again." }] }));
+      console.error("fetchIntentRecs error:", e);
+      setIntentResults(p => ({ ...p, [intentId]: [{ title: "Could not load", author: "", reason: e?.message || "Unknown error — check console for details." }] }));
     }
     setIntentLoading(p => { const n = { ...p }; delete n[intentId]; return n; });
   };
