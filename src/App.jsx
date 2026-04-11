@@ -177,7 +177,7 @@ export default function App() {
   const [newGenreInput, setNewGenreInput] = useState("");
   const [newGenreOpen, setNewGenreOpen] = useState(false);
   const [newGenreSaving, setNewGenreSaving] = useState(false);
-  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY || "";
+  const apiKey = true; // key lives server-side via Netlify function
   const [seriesRecap, setSeriesRecap] = useState(null);
   const [seriesLoading, setSeriesLoading] = useState(false);
   const [selectedSeries, setSelectedSeries] = useState("Wheel of Time");
@@ -441,10 +441,8 @@ export default function App() {
   // ── HANDLERS ──────────────────────────────────────────────────────────────
   const aiHeaders = () => ({
     "Content-Type": "application/json",
-    "x-api-key": apiKey,
-    "anthropic-version": "2023-06-01",
-    "anthropic-dangerous-direct-browser-access": "true",
   });
+  const CLAUDE_URL = "/.netlify/functions/claude";
 
   const sendChat = async () => {
     if (!chatInput.trim() || chatLoading) return;
@@ -458,7 +456,7 @@ export default function App() {
       const fullList = books
         .map(b => `[${b.year}] "${b.title}" by ${b.author} | ${(b.genre||[]).join("/")}${b.pages ? " | " + b.pages + "pp" : ""}${b.series ? " | series: " + b.series : ""}${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}${b.notes ? " | " + b.notes : ""}`)
         .join("\n");
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch(CLAUDE_URL, {
         method: "POST", headers: aiHeaders(),
         body: JSON.stringify({
           model: "claude-sonnet-4-6", max_tokens: 1200,
@@ -516,7 +514,7 @@ Answer with specific references to books, authors, years, and patterns from the 
     if (!bookChatInput.trim() || bookChatLoading) return;
     setBookChatLoading(true);
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch(CLAUDE_URL, {
         method: "POST", headers: aiHeaders(),
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001", max_tokens: 400,
@@ -557,7 +555,7 @@ Answer with specific references to books, authors, years, and patterns from the 
     setNewGenreSaving(true);
     let color = "#a0a0a0";
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch(CLAUDE_URL, {
         method: "POST", headers: aiHeaders(),
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001", max_tokens: 16,
@@ -647,7 +645,7 @@ Answer with specific references to books, authors, years, and patterns from the 
 
   const lookupAuthorCountry = async (authorName) => {
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch(CLAUDE_URL, {
         method: "POST", headers: aiHeaders(),
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001", max_tokens: 20,
@@ -665,7 +663,7 @@ Answer with specific references to books, authors, years, and patterns from the 
     setSeriesRecap(null);
     const seriesBooks = books.filter(b => b.series === seriesName).sort((a, b) => (a.id - b.id));
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch(CLAUDE_URL, {
         method: "POST", headers: aiHeaders(),
         body: JSON.stringify({
           model: "claude-sonnet-4-6", max_tokens: 1500,
@@ -722,7 +720,7 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
       const fullList = books
         .map(b => `[${b.year_read_end || b.year}] "${b.title}" by ${b.author} | ${(b.genre||[]).join("/")}${b.pages ? " | " + b.pages + "pp" : ""}${b.series ? " | series: " + b.series : ""}${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}${b.notes ? " | notes: " + b.notes : ""}`)
         .join("\n");
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch(CLAUDE_URL, {
         method: "POST", headers: aiHeaders(),
         body: JSON.stringify({
           model: "claude-sonnet-4-6", max_tokens: 4000,
@@ -782,7 +780,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
         messages: [{ role: "user", content: "JSON array only." }],
       };
       if (useWebSearch) body.tools = [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }];
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch(CLAUDE_URL, {
         method: "POST", headers: aiHeaders(),
         body: JSON.stringify(body)
       });
@@ -920,7 +918,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
         .join("\n");
       const effectivePrompt = panelPrompts[dimension]?.trim() || DEFAULT_PANEL_PROMPTS[dimension] || "";
       const customInstruction = effectivePrompt ? `\n\nFocus: ${effectivePrompt}` : "";
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch(CLAUDE_URL, {
         method: "POST", headers: aiHeaders(),
         body: JSON.stringify({
           model: "claude-sonnet-4-6", max_tokens: 600,
