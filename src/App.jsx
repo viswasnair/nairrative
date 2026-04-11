@@ -261,9 +261,14 @@ export default function App() {
     books.map(b => `${b.id}|${b.title}|${b.year}|${(b.genre||[]).join('')}`).join(','),
   [books]);
 
+  // Load cached analysis on tab visit only — no auto-regenerate
   useEffect(() => {
     if (activeTab !== "analysis" || !books.length) return;
-    fetchAnalysisAI();
+    const cachedFp = localStorage.getItem("nairrative_analysis_fp");
+    const cachedResult = localStorage.getItem("nairrative_analysis_ai");
+    if (cachedFp === booksFingerprint && cachedResult) {
+      try { setAnalysisAI(JSON.parse(cachedResult)); } catch {}
+    }
   }, [activeTab, booksFingerprint]);
 
   useEffect(() => {
@@ -624,6 +629,7 @@ Answer with specific references to books, authors, years, and patterns from the 
         }
         setBooks(prev => [...prev, normalizeBook({ ...book, book_authors: bookAuthors })]);
         setBookMsg("✓ Book added!");
+        setTimeout(() => fetchAnalysisAI(), 2000); // regenerate in background after state settles
       }
       setTimeout(() => { setShowBookModal(false); setBookMsg(""); }, 1200);
     } catch (e) { console.error("saveBook error:", e); setBookMsg(`Error: ${e?.message || JSON.stringify(e)}`); }
@@ -728,8 +734,8 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
         const res = await fetch(CLAUDE_URL, {
           method: "POST", headers: aiHeaders(),
           body: JSON.stringify({
-            model: "claude-haiku-4-5-20251001", max_tokens: 400,
-            system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". Write a specific paragraph naming individual books and authors from the data. Do not invent facts.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.`,
+            model: "claude-sonnet-4-6", max_tokens: 600,
+            system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". Write a rich, specific paragraph naming individual books and authors — no generic observations. Do not invent facts.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.`,
             messages: [{ role: "user", content: `${ctx}\n\n--- FULL BOOK LIST (${books.length} books) ---\n${fullList}\n\nGenerate insight for the "${dimension}" dimension only.` }]
           })
         });
@@ -926,8 +932,8 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
       const res = await fetch(CLAUDE_URL, {
         method: "POST", headers: aiHeaders(),
         body: JSON.stringify({
-          model: "claude-sonnet-4-6", max_tokens: 600,
-          system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". Write a rich, specific paragraph naming individual books and authors — no generic observations. Do not invent facts.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.`,
+          model: "claude-opus-4-6", max_tokens: 800,
+          system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". Write a deeply insightful, specific paragraph naming individual books and authors — surface non-obvious patterns and connections. Do not invent facts.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.`,
           messages: [{ role: "user", content: `${ctx}\n\n--- FULL BOOK LIST (${books.length} books) ---\n${fullList}\n\nGenerate insight for the "${dimension}" dimension only.` }]
         })
       });
@@ -949,7 +955,10 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
 
   const renderEditIcon = (dimension) => {
     if (session) return (
-      <button onClick={() => { setEditingPanel(editingPanel === dimension ? null : dimension); setViewingPanel(null); }} title="Edit prompt" style={{ background: "none", border: "none", cursor: "pointer", color: G.muted, fontSize: 13, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>✎</button>
+      <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+        <button onClick={() => regeneratePanel(dimension)} title="Refresh with Opus" style={{ background: "none", border: "none", cursor: "pointer", color: G.muted, fontSize: 13, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>↻</button>
+        <button onClick={() => { setEditingPanel(editingPanel === dimension ? null : dimension); setViewingPanel(null); }} title="Edit prompt" style={{ background: "none", border: "none", cursor: "pointer", color: G.muted, fontSize: 13, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>✎</button>
+      </div>
     );
     return (
       <button onClick={() => setViewingPanel(viewingPanel === dimension ? null : dimension)} title="View prompt" style={{ background: "none", border: "none", cursor: "pointer", color: G.muted, fontSize: 13, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>⊙</button>
