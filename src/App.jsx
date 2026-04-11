@@ -137,7 +137,7 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem("nairrative_panel_prompts") || "{}"); } catch { return {}; }
   });
   useEffect(() => {
-    supabase.from("panel_prompts").select("data").eq("id", 1).single()
+    supabase.from("panel_prompts").select("data").eq("id", 1).maybeSingle()
       .then(({ data }) => {
         if (data?.data) {
           setPanelPrompts(data.data);
@@ -253,7 +253,7 @@ export default function App() {
       try { setAnalysisAI(JSON.parse(cachedResult)); return; } catch {}
     }
     // Try Supabase for cross-device persistence
-    supabase.from("analysis_cache").select("data").eq("id", 1).single()
+    supabase.from("analysis_cache").select("data").eq("id", 1).maybeSingle()
       .then(({ data }) => {
         if (data?.data) {
           setAnalysisAI(data.data);
@@ -274,7 +274,7 @@ export default function App() {
     if (cachedFp === booksFingerprint && cachedResult) {
       try { setIntentResults({ ...SEED_RECS, ...JSON.parse(cachedResult) }); return; } catch {}
     }
-    supabase.from("recs_cache").select("data").eq("id", 1).single()
+    supabase.from("recs_cache").select("data").eq("id", 1).maybeSingle()
       .then(({ data }) => {
         if (data?.data) {
           const merged = { ...SEED_RECS, ...data.data };
@@ -1898,12 +1898,12 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
               <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, color: G.text }}>Sign In</div>
               <button onClick={() => { setShowLoginModal(false); setLoginError(""); }} style={{ background: "none", border: "none", color: G.muted, fontSize: 20, cursor: "pointer" }}>×</button>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <input className="input-dark" type="email" placeholder="Email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} onKeyDown={e => e.key === "Enter" && login()} autoFocus />
-              <input className="input-dark" type="password" placeholder="Password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} onKeyDown={e => e.key === "Enter" && login()} />
+            <form style={{ display: "flex", flexDirection: "column", gap: 12 }} onSubmit={e => { e.preventDefault(); login(); }}>
+              <input className="input-dark" type="email" placeholder="Email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} autoFocus autoComplete="email" />
+              <input className="input-dark" type="password" placeholder="Password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} autoComplete="current-password" />
               {loginError && <div style={{ color: G.red, fontSize: 12 }}>{loginError}</div>}
-              <button className="btn-gold" onClick={login} disabled={loginLoading}>{loginLoading ? "Signing in…" : "Sign In"}</button>
-            </div>
+              <button type="submit" className="btn-gold" disabled={loginLoading}>{loginLoading ? "Signing in…" : "Sign In"}</button>
+            </form>
           </div>
         </div>
       )}
