@@ -33,4 +33,4 @@ export default async (req) => {
   }
 };
 
-export const config = { path: "/.netlify/functions/claude" };
+export const config = { path: "/.netlify/functions/claude", timeout: 60 };
