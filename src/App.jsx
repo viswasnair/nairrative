@@ -261,7 +261,7 @@ export default function App() {
     books.map(b => `${b.id}|${b.title}|${b.year}|${(b.genre||[]).join('')}`).join(','),
   [books]);
 
-  // Load analysis: cache → seed fallback. No auto-regenerate.
+  // Load analysis: localStorage → Supabase → seed fallback. No auto-regenerate.
   useEffect(() => {
     if (activeTab !== "analysis" || !books.length) return;
     const cachedFp = localStorage.getItem("nairrative_analysis_fp");
@@ -269,8 +269,18 @@ export default function App() {
     if (cachedFp === booksFingerprint && cachedResult) {
       try { setAnalysisAI(JSON.parse(cachedResult)); return; } catch {}
     }
-    // Fall back to hardcoded Opus-generated seed
-    setAnalysisAI(SEED_ANALYSIS);
+    // Try Supabase for cross-device persistence
+    supabase.from("analysis_cache").select("data").eq("id", 1).single()
+      .then(({ data }) => {
+        if (data?.data) {
+          setAnalysisAI(data.data);
+          localStorage.setItem("nairrative_analysis_ai", JSON.stringify(data.data));
+          localStorage.setItem("nairrative_analysis_fp", booksFingerprint);
+        } else {
+          setAnalysisAI(SEED_ANALYSIS);
+        }
+      })
+      .catch(() => setAnalysisAI(SEED_ANALYSIS));
   }, [activeTab, booksFingerprint]);
 
   useEffect(() => {
@@ -712,6 +722,12 @@ SERIES READ: ${seriesList}
 FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-FICTION: ${books.length-fictionCount}`;
   };
 
+  const saveAnalysisToSupabase = async (data) => {
+    try {
+      await supabase.from("analysis_cache").upsert({ id: 1, fingerprint: booksFingerprint, data, updated_at: new Date().toISOString() });
+    } catch(e) { console.error("Failed to save analysis to Supabase:", e); }
+  };
+
   const fetchAnalysisAI = async () => {
     if (analysisAILoading || !books.length || !apiKey) return;
 
@@ -753,6 +769,7 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
     }
     localStorage.setItem("nairrative_analysis_ai", JSON.stringify(result));
     localStorage.setItem("nairrative_analysis_fp", booksFingerprint);
+    saveAnalysisToSupabase(result);
     setAnalysisAILoading(false);
   };
 
@@ -948,6 +965,7 @@ const DEFAULT_PANEL_PROMPTS = {
           const updated = { ...analysisAI, [dimension]: result[dimension] };
           setAnalysisAI(updated);
           localStorage.setItem("nairrative_analysis_ai", JSON.stringify(updated));
+          saveAnalysisToSupabase(updated);
         }
       }
     } catch(e) { console.error("Panel regenerate error:", e); }
