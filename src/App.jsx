@@ -971,9 +971,12 @@ const DEFAULT_PANEL_PROMPTS = {
     setPanelPrompts(p => {
       const updated = { ...p, [dimension]: value };
       localStorage.setItem("nairrative_panel_prompts", JSON.stringify(updated));
-      supabase.from("panel_prompts").upsert({ id: 1, data: updated, updated_at: new Date().toISOString() }).catch(() => {});
       return updated;
     });
+  };
+
+  const savePanelPromptsToSupabase = (prompts) => {
+    supabase.from("panel_prompts").upsert({ id: 1, data: prompts, updated_at: new Date().toISOString() }).catch(() => {});
   };
 
   const regeneratePanel = async (dimension) => {
@@ -1008,6 +1011,7 @@ const DEFAULT_PANEL_PROMPTS = {
       }
     } catch(e) { console.error("Panel regenerate error:", e); }
     setPanelLoading(p => ({ ...p, [dimension]: false }));
+    savePanelPromptsToSupabase(panelPrompts);
     setEditingPanel(null);
   };
 
@@ -1044,7 +1048,7 @@ const DEFAULT_PANEL_PROMPTS = {
               style={{ width: "100%", minHeight: 68, background: G.card2, border: `1px solid ${G.border}`, borderRadius: 6, color: G.text, fontSize: 11, padding: "8px 10px", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" }}
             />
             <div style={{ display: "flex", gap: 6, marginTop: 6, justifyContent: "flex-end" }}>
-              <button onClick={() => setEditingPanel(null)} style={{ background: "none", border: `1px solid ${G.border}`, borderRadius: 5, color: G.muted, fontSize: 11, padding: "4px 10px", cursor: "pointer" }}>Cancel</button>
+              <button onClick={() => { savePanelPromptsToSupabase(panelPrompts); setEditingPanel(null); }} style={{ background: "none", border: `1px solid ${G.border}`, borderRadius: 5, color: G.muted, fontSize: 11, padding: "4px 10px", cursor: "pointer" }}>Save</button>
               <button onClick={() => regeneratePanel(dimension)} style={{ background: G.gold, border: "none", borderRadius: 5, color: "#000", fontSize: 11, fontWeight: 600, padding: "4px 12px", cursor: "pointer" }}>Regenerate</button>
             </div>
           </div>
