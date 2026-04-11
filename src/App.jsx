@@ -715,31 +715,36 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
     }
 
     setAnalysisAILoading(true);
-    try {
-      const ctx = buildBookContext();
-      const fullList = books
-        .map(b => `[${b.year_read_end || b.year}] "${b.title}" by ${b.author} | ${(b.genre||[]).join("/")}${b.pages ? " | " + b.pages + "pp" : ""}${b.series ? " | series: " + b.series : ""}${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}${b.notes ? " | notes: " + b.notes : ""}`)
-        .join("\n");
-      const res = await fetch(CLAUDE_URL, {
-        method: "POST", headers: aiHeaders(),
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6", max_tokens: 4000,
-          system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly these keys: temporal, genre, geographic, author, thematic, contextual, complexity, series, emotional, discovery. Each value should be a rich, specific paragraph drawing on individual titles, authors, and patterns visible in the full book list — not just aggregate counts. Name specific books and authors. Surface non-obvious observations. Do not invent facts — base everything strictly on the data provided.
-
-CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a collective placeholder representing ALL books read between 1998 and 2010 (roughly 12 years of reading before annual tracking began). It is absolutely NOT a single calendar year with high volume. NEVER describe 2010 as a peak year, anomaly, outlier, or unusually productive year. NEVER say the reader read 130 (or any large number of) books in 2010. If you reference that period, say "pre-2011 reading" or "books read before annual tracking began (1998–2010)".`,
-          messages: [{ role: "user", content: `${ctx}\n\n--- FULL BOOK LIST (${books.length} books) ---\n${fullList}\n\nGenerate rich, specific insights for each analysis dimension based on the full book list above.` }]
-        })
-      });
-      const data = await res.json();
-      const text = data.content?.[0]?.text || "{}";
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const result = JSON.parse(jsonMatch[0]);
-        setAnalysisAI(result);
-        localStorage.setItem("nairrative_analysis_ai", JSON.stringify(result));
-        localStorage.setItem("nairrative_analysis_fp", booksFingerprint);
-      }
-    } catch(e) { console.error("Analysis AI error:", e); }
+    const dimensions = ["temporal", "genre", "geographic", "author", "thematic", "contextual", "complexity", "emotional", "discovery"];
+    const ctx = buildBookContext();
+    const fullList = books
+      .map(b => `[${b.year_read_end || b.year}] "${b.title}" by ${b.author} | ${(b.genre||[]).join("/")}${b.pages ? " | " + b.pages + "pp" : ""}${b.series ? " | series: " + b.series : ""}${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}${b.notes ? " | notes: " + b.notes : ""}`)
+      .join("\n");
+    const result = {};
+    for (const dimension of dimensions) {
+      try {
+        const effectivePrompt = panelPrompts[dimension]?.trim() || DEFAULT_PANEL_PROMPTS[dimension] || "";
+        const customInstruction = effectivePrompt ? `\n\nFocus: ${effectivePrompt}` : "";
+        const res = await fetch(CLAUDE_URL, {
+          method: "POST", headers: aiHeaders(),
+          body: JSON.stringify({
+            model: "claude-sonnet-4-6", max_tokens: 600,
+            system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". Write a rich, specific paragraph naming individual books and authors — no generic observations. Do not invent facts.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.`,
+            messages: [{ role: "user", content: `${ctx}\n\n--- FULL BOOK LIST (${books.length} books) ---\n${fullList}\n\nGenerate insight for the "${dimension}" dimension only.` }]
+          })
+        });
+        const data = await res.json();
+        const text = data.content?.[0]?.text || "{}";
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (parsed[dimension]) result[dimension] = parsed[dimension];
+        }
+        setAnalysisAI(prev => ({ ...prev, [dimension]: result[dimension] }));
+      } catch(e) { console.error(`Analysis AI error (${dimension}):`, e); }
+    }
+    localStorage.setItem("nairrative_analysis_ai", JSON.stringify(result));
+    localStorage.setItem("nairrative_analysis_fp", booksFingerprint);
     setAnalysisAILoading(false);
   };
 
