@@ -1,4 +1,6 @@
-export default async (req) => {
+export const config = { runtime: "edge" };
+
+export default async function handler(req) {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
@@ -31,6 +33,4 @@ export default async (req) => {
       headers: { "Content-Type": "application/json" },
     });
   }
-};
-
-export const config = { path: "/.netlify/functions/claude", timeout: 60 };
+}

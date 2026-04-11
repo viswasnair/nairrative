@@ -481,7 +481,7 @@ export default function App() {
   const aiHeaders = () => ({
     "Content-Type": "application/json",
   });
-  const CLAUDE_URL = "/.netlify/functions/claude";
+  const CLAUDE_URL = "/api/claude";
 
   const sendChat = async () => {
     if (!chatInput.trim() || chatLoading) return;
