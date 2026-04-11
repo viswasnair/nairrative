@@ -728,8 +728,8 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
         const res = await fetch(CLAUDE_URL, {
           method: "POST", headers: aiHeaders(),
           body: JSON.stringify({
-            model: "claude-sonnet-4-6", max_tokens: 600,
-            system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". Write a rich, specific paragraph naming individual books and authors — no generic observations. Do not invent facts.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.`,
+            model: "claude-haiku-4-5-20251001", max_tokens: 400,
+            system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". Write a specific paragraph naming individual books and authors from the data. Do not invent facts.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.`,
             messages: [{ role: "user", content: `${ctx}\n\n--- FULL BOOK LIST (${books.length} books) ---\n${fullList}\n\nGenerate insight for the "${dimension}" dimension only.` }]
           })
         });
