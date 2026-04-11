@@ -746,7 +746,7 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
 
   const saveAnalysisToSupabase = async (data) => {
     try {
-      await supabase.from("analysis_cache").upsert({ id: 1, fingerprint: booksFingerprint, data, updated_at: new Date().toISOString() });
+      await supabase.from("analysis_cache").upsert({ id: 1, fingerprint: booksFingerprint, data });
     } catch(e) { console.error("Failed to save analysis to Supabase:", e); }
   };
 
@@ -797,7 +797,7 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
 
   const saveRecsToSupabase = async (data) => {
     try {
-      await supabase.from("recs_cache").upsert({ id: 1, fingerprint: booksFingerprint, data, updated_at: new Date().toISOString() });
+      await supabase.from("recs_cache").upsert({ id: 1, fingerprint: booksFingerprint, data });
     } catch(e) { console.error("Failed to save recs to Supabase:", e); }
   };
 
@@ -976,7 +976,7 @@ const DEFAULT_PANEL_PROMPTS = {
   };
 
   const savePanelPromptsToSupabase = (prompts) => {
-    supabase.from("panel_prompts").upsert({ id: 1, data: prompts, updated_at: new Date().toISOString() }).catch(() => {});
+    supabase.from("panel_prompts").upsert({ id: 1, data: prompts }).catch(() => {});
   };
 
   const regeneratePanel = async (dimension) => {
