@@ -998,7 +998,7 @@ CRITICAL RULE — YOU MUST FOLLOW THIS: The year 2010 in the database is a colle
       <div style={{ padding: "28px 28px 0", background: G.bg }}>
         {/* Centered logo + lock */}
         <div style={{ display: "flex", justifyContent: "center", alignItems: "flex-start", marginBottom: 24, position: "relative" }}>
-          <img src="./nairrative.png" alt="Nairrative" style={{ width: 398, height: 113, mixBlendMode: "multiply" }} />
+          <img src="/nairrative.png" alt="Nairrative" style={{ width: 398, height: 113, mixBlendMode: "multiply" }} />
           <button onClick={() => session ? logout() : setShowLoginModal(true)}
             title={session ? "Sign out" : "Sign in"}
             style={{ position: "absolute", right: 0, top: 0, background: "none", border: "none", cursor: "pointer", fontSize: 16, color: session ? G.gold : G.dimmed, padding: 4, lineHeight: 1 }}>
