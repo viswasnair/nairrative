@@ -1814,7 +1814,14 @@ const DEFAULT_PANEL_PROMPTS = {
         })()}
 
         {/* ── CHAT ──────────────────────────────────────────────────────── */}
-        {activeTab === "chat" && (
+        {activeTab === "chat" && !session && (
+          <div style={{ textAlign: "center", padding: "60px 20px", color: G.muted }}>
+            <div style={{ fontSize: 32, marginBottom: 16 }}>◈</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: G.text, marginBottom: 8 }}>Sign in to use AI Chat</div>
+            <div style={{ fontSize: 13 }}>This feature is only available to the library owner.</div>
+          </div>
+        )}
+        {activeTab === "chat" && session && (
           <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 200px)" }}>
             <div style={{ color: G.muted, fontSize: 12, marginBottom: 16, textAlign: "center" }}>Ask anything — patterns, recommendations, deep dives, what you've forgotten you read…</div>
 
