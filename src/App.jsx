@@ -1721,25 +1721,31 @@ const DEFAULT_PANEL_PROMPTS = {
 
                       {/* Input for non-auto panels */}
                       {!lens.auto && (
-                        <div style={{ marginBottom: 8 }}>
-                          {lens.isDropdown ? (
-                            <select className="input-dark" style={{ fontSize: 12, padding: "7px 10px" }}
-                              value={input}
-                              onChange={e => setIntentInputs(p => ({ ...p, [lens.id]: e.target.value }))}>
-                              <option value="">— pick a genre —</option>
-                              {lens.dropdownOptions.map(o => <option key={o} value={o}>{o}</option>)}
-                            </select>
-                          ) : (
-                            <input className="input-dark" style={{ fontSize: 12 }} placeholder={lens.placeholder}
-                              value={input}
-                              onChange={e => setIntentInputs(p => ({ ...p, [lens.id]: e.target.value }))}
-                              onKeyDown={e => { if (e.key === "Enter" && input.trim()) fetchIntentRecs(lens.id, input); }} />
-                          )}
-                          <button className="btn-gold" style={{ marginTop: 6, width: "100%", fontSize: 11, padding: "7px 0" }}
-                            disabled={loading || !canFetch}
-                            onClick={() => fetchIntentRecs(lens.id, input)}>
-                            {loading ? "…" : "Get Picks"}
-                          </button>
+                        <div style={{ marginTop: 8, marginBottom: 4 }}>
+                          <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                            {lens.isDropdown ? (
+                              <select className="input-dark" style={{ fontSize: 12, padding: "7px 10px", paddingRight: 32, flex: 1 }}
+                                value={input}
+                                onChange={e => { const v = e.target.value; setIntentInputs(p => ({ ...p, [lens.id]: v })); if (v) fetchIntentRecs(lens.id, v); }}>
+                                <option value="">— pick a genre —</option>
+                                {lens.dropdownOptions.map(o => <option key={o} value={o}>{o}</option>)}
+                              </select>
+                            ) : (
+                              <input className="input-dark" style={{ fontSize: 12, paddingRight: 32, flex: 1 }} placeholder={lens.placeholder}
+                                value={input}
+                                onChange={e => setIntentInputs(p => ({ ...p, [lens.id]: e.target.value }))}
+                                onKeyDown={e => { if (e.key === "Enter" && input.trim()) fetchIntentRecs(lens.id, input); }} />
+                            )}
+                            {!lens.isDropdown && (
+                              <button
+                                onClick={() => canFetch && !loading && fetchIntentRecs(lens.id, input)}
+                                disabled={loading || !canFetch}
+                                title="Get pick"
+                                style={{ position: "absolute", right: 8, background: "none", border: "none", cursor: canFetch && !loading ? "pointer" : "not-allowed", color: canFetch && !loading ? G.gold : G.dimmed, fontSize: 14, lineHeight: 1, padding: 0 }}>
+                                {loading ? "…" : "→"}
+                              </button>
+                            )}
+                          </div>
                         </div>
                       )}
 
