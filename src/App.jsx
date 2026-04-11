@@ -949,10 +949,10 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
     .fade-in { animation: fadeIn 0.3s ease; }
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
     .pulse { animation: pulse 1.5s infinite; }
+    .burger-btn { display: none; background: none; border: none; cursor: pointer; flex-direction: column; gap: 5px; padding: 4px; }
     @media (max-width: 640px) {
       .tab-nav { display: none !important; }
-      .burger-btn { display: flex !important; align-items: center; }
-      .mobile-menu { display: flex !important; flex-direction: column; background: ${G.card}; border-bottom: 1px solid ${G.border}; padding: 8px 16px 12px; gap: 4px; }
+      .burger-btn { display: flex !important; }
       .page-header { padding: 16px 16px 0 !important; }
       .page-content { padding: 16px !important; }
       .header-logo { width: 200px !important; height: auto !important; }
@@ -961,10 +961,6 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
       .rec-grid { grid-template-columns: 1fr !important; }
       .analysis-grid { grid-template-columns: 1fr !important; }
       .lib-table-wrap { overflow-x: auto; }
-    }
-    @media (min-width: 641px) {
-      .burger-btn { display: none !important; }
-      .mobile-menu { display: none !important; }
     }
   `;
 
@@ -1104,7 +1100,7 @@ const DEFAULT_PANEL_PROMPTS = {
           <div style={{ position: "absolute", right: 0, top: 0, display: "flex", alignItems: "center", gap: 8 }}>
             {/* Burger — mobile only */}
             <button className="burger-btn" onClick={() => setMobileMenuOpen(o => !o)}
-              style={{ display: "none", background: "none", border: "none", cursor: "pointer", color: G.muted, padding: 4, flexDirection: "column", gap: 4 }}>
+              title="Menu" style={{ color: G.muted }}>
               <span style={{ display: "block", width: 18, height: 2, background: "currentColor", borderRadius: 2 }} />
               <span style={{ display: "block", width: 18, height: 2, background: "currentColor", borderRadius: 2 }} />
               <span style={{ display: "block", width: 18, height: 2, background: "currentColor", borderRadius: 2 }} />
@@ -1134,15 +1130,17 @@ const DEFAULT_PANEL_PROMPTS = {
         </div>
 
         {/* Mobile menu */}
-        <div className="mobile-menu" style={{ display: mobileMenuOpen ? "flex" : "none" }}>
-          {TABS.map(t => (
-            <button key={t.id} className={`tab-btn ${activeTab === t.id ? "active" : ""}`}
-              style={{ width: "100%", textAlign: "left" }}
-              onClick={() => { setActiveTab(t.id); setMobileMenuOpen(false); }}>
-              <span style={{ marginRight: 8 }}>{t.icon}</span>{t.label}
-            </button>
-          ))}
-        </div>
+        {mobileMenuOpen && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, background: G.card, borderBottom: `1px solid ${G.border}`, padding: "8px 16px 12px", marginTop: 8 }}>
+            {TABS.map(t => (
+              <button key={t.id} className={`tab-btn ${activeTab === t.id ? "active" : ""}`}
+                style={{ width: "100%", textAlign: "left" }}
+                onClick={() => { setActiveTab(t.id); setMobileMenuOpen(false); }}>
+                <span style={{ marginRight: 8 }}>{t.icon}</span>{t.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* CONTENT */}
