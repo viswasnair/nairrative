@@ -973,7 +973,6 @@ const DEFAULT_PANEL_PROMPTS = {
     contextual: "Connect reading choices to life phases and context. Keep it concise — 3-4 sentences, focus on the narrative arc not individual books.",
     complexity: "Evaluate the balance between challenging and accessible reading over time. Keep it concise — 3-4 sentences, mention at most one or two specific examples.",
     emotional: "Map the emotional arc of the library across eras. Keep it concise — 3-4 sentences, describe the shift in register without listing many titles.",
-    discovery: "Identify the most significant pattern in how the reader's literary horizons expanded. Keep it concise — 3-4 sentences.",
   };
 
   const updatePanelPrompt = (dimension, value) => {
