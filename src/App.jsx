@@ -955,7 +955,7 @@ FICTION: ${fictionCount} (${Math.round(fictionCount/books.length*100)}%) | NON-F
       .burger-btn { display: flex !important; }
       .page-header { padding: 16px 16px 0 !important; }
       .page-content { padding: 16px !important; }
-      .header-logo { width: 200px !important; height: auto !important; }
+      .header-logo { width: 250px !important; height: auto !important; }
       .kpi-grid { grid-template-columns: repeat(3, 1fr) !important; }
       .chart-grid { grid-template-columns: 1fr !important; }
       .rec-grid { grid-template-columns: 1fr !important; }
