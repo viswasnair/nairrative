@@ -523,11 +523,12 @@ Answer with specific references to books, authors, years, and patterns from the 
           messages: [{ role: "user", content: bookChatValue }]
         })
       });
+      if (!res.ok) throw new Error("api_unavailable");
       const data = await res.json();
       const txt = data.content?.[0]?.text || "";
       const parsed = JSON.parse(txt.replace(/```json|```/g, "").trim());
       setBookChatPending(parsed);
-    } catch { setBookMsg("Could not parse. Try: 'Dune by Frank Herbert, sci-fi novel'."); }
+    } catch (e) { setBookMsg(e?.message === "api_unavailable" ? "AI fill only works on the deployed site, not locally." : "Could not parse. Try: 'Dune by Frank Herbert, sci-fi novel'."); }
     setBookChatLoading(false);
   };
 
