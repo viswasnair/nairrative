@@ -284,7 +284,13 @@ export default function App() {
     setIntentResults({});
     localStorage.removeItem("nairrative_recs");
     localStorage.removeItem("nairrative_recs_fp");
-    // Cache cleared — seeds show immediately. User can manually refresh individual panels.
+    // Regenerate one panel at a time, 8s apart, seeds show while waiting
+    (async () => {
+      for (const id of AUTO_RECS) {
+        await fetchIntentRecs(id);
+        await new Promise(r => setTimeout(r, 8000));
+      }
+    })();
   }, [booksFingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── COMPUTED DATA ────────────────────────────────────────────────────────
@@ -626,7 +632,7 @@ Answer with specific references to books, authors, years, and patterns from the 
         }
         setBooks(prev => [...prev, normalizeBook({ ...book, book_authors: bookAuthors })]);
         setBookMsg("✓ Book added!");
-        // Cache cleared on fingerprint change — user can manually regenerate analysis panels.
+        setTimeout(() => fetchAnalysisAI(), 2000); // regenerate analysis in background after state settles
       }
       setTimeout(() => { setShowBookModal(false); setBookMsg(""); }, 1200);
     } catch (e) { console.error("saveBook error:", e); setBookMsg(`Error: ${e?.message || JSON.stringify(e)}`); }
@@ -725,6 +731,8 @@ Answer with specific references to books, authors, years, and patterns from the 
         }
         setAnalysisAI(prev => ({ ...prev, [dimension]: result[dimension] }));
       } catch(e) { console.error(`Analysis AI error (${dimension}):`, e); }
+      // Pause between panels to stay within 50k TPM rate limit
+      await new Promise(r => setTimeout(r, 8000));
     }
     localStorage.setItem("nairrative_analysis_ai", JSON.stringify(result));
     localStorage.setItem("nairrative_analysis_fp", booksFingerprint);
