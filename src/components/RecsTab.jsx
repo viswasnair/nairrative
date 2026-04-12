@@ -92,9 +92,10 @@ export default function RecsTab({
                         {lens.dropdownOptions.map(o => <option key={o} value={o}>{o}</option>)}
                       </select>
                     ) : (
-                      <input className="input-dark" style={{ fontSize: 12, paddingRight: 32, flex: 1 }}
-                        placeholder={lens.placeholder}
+                      <input className="input-dark" style={{ fontSize: 12, paddingRight: 32, flex: 1, opacity: session ? 1 : 0.5, cursor: session ? "text" : "not-allowed" }}
+                        placeholder={session ? lens.placeholder : "Sign in to use this"}
                         value={input}
+                        disabled={!session}
                         onChange={e => setIntentInputs(p => ({ ...p, [lens.id]: e.target.value }))}
                         onKeyDown={e => { if (e.key === "Enter" && input.trim() && session) fetchIntentRecs(lens.id, input); }} />
                     )}
