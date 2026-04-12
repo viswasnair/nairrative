@@ -6,14 +6,16 @@ import {
   PieChart, Pie, LineChart, Line
 } from "recharts";
 import G from "./constants/theme";
-import { READING_CONTEXT, TABS, AUTO_RECS, DEFAULT_PANEL_PROMPTS, INPUT_DEFAULTS } from "./constants/config";
-import { SEED_ANALYSIS, SEED_RECS } from "./constants/seeds";
+import { READING_CONTEXT, TABS, AUTO_RECS, INPUT_DEFAULTS } from "./constants/config";
+import { SEED_RECS } from "./constants/seeds";
 import { buildBookContext, downloadCSV, downloadJSON } from "./lib/bookUtils";
 import MultiSelect from "./components/MultiSelect";
 import RangeFilter from "./components/RangeFilter";
 import DarkTooltip from "./components/DarkTooltip";
 import { useBooks } from "./hooks/useBooks";
+import { useAnalysis } from "./hooks/useAnalysis";
 import BookModal from "./components/BookModal";
+import AnalysisTab from "./components/AnalysisTab";
 
 // ── MAIN APP ──────────────────────────────────────────────────────────────
 export default function App() {
@@ -50,6 +52,20 @@ export default function App() {
     deleteBook,
     lastAddedAt,
   } = useBooks({ session });
+
+  const {
+    analysisAI,
+    analysisAILoading,
+    panelPrompts,
+    editingPanel, setEditingPanel,
+    viewingPanel, setViewingPanel,
+    panelLoading,
+    fetchAnalysisAI,
+    updatePanelPrompt,
+    savePanelPromptsToSupabase,
+    regeneratePanel,
+  } = useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt });
+
   const [search, setSearch] = useState("");
   const [libGenres, setLibGenres] = useState([]);
   const [libYears, setLibYears] = useState([]);
@@ -64,23 +80,6 @@ export default function App() {
   const [analysisChat, setAnalysisChat] = useState([]);
   const [analysisChatInput, setAnalysisChatInput] = useState("");
   const [analysisChatLoading, setAnalysisChatLoading] = useState(false);
-  const [analysisAI, setAnalysisAI] = useState(null);
-  const [analysisAILoading, setAnalysisAILoading] = useState(false);
-  const [panelPrompts, setPanelPrompts] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("nairrative_panel_prompts") || "{}"); } catch { return {}; }
-  });
-  useEffect(() => {
-    supabase.from("panel_prompts").select("data").eq("id", 1).maybeSingle()
-      .then(({ data }) => {
-        if (data?.data) {
-          setPanelPrompts(data.data);
-          localStorage.setItem("nairrative_panel_prompts", JSON.stringify(data.data));
-        }
-      }).catch(() => {});
-  }, []);
-  const [editingPanel, setEditingPanel] = useState(null);
-  const [viewingPanel, setViewingPanel] = useState(null);
-  const [panelLoading, setPanelLoading] = useState({});
   const [intentInputs, setIntentInputs] = useState({
     "loved": "God's Debris",
     "authors-like": "Elif Shafak",
@@ -126,27 +125,6 @@ export default function App() {
   const logout = async () => { await supabase.auth.signOut(); };
 
 
-  // Load analysis: localStorage → Supabase → seed fallback. No auto-regenerate.
-  useEffect(() => {
-    if (activeTab !== "analysis" || !books.length) return;
-    const cachedFp = localStorage.getItem("nairrative_analysis_fp");
-    const cachedResult = localStorage.getItem("nairrative_analysis_ai");
-    if (cachedFp === booksFingerprint && cachedResult) {
-      try { setAnalysisAI(JSON.parse(cachedResult)); return; } catch {}
-    }
-    // Try Supabase for cross-device persistence
-    supabase.from("analysis_cache").select("data").eq("id", 1).maybeSingle()
-      .then(({ data }) => {
-        if (data?.data) {
-          setAnalysisAI(data.data);
-          localStorage.setItem("nairrative_analysis_ai", JSON.stringify(data.data));
-          localStorage.setItem("nairrative_analysis_fp", booksFingerprint);
-        } else {
-          setAnalysisAI(SEED_ANALYSIS);
-        }
-      })
-      .catch(() => setAnalysisAI(SEED_ANALYSIS));
-  }, [activeTab, booksFingerprint]);
 
   // Load recs from cache on tab switch (no API call)
   useEffect(() => {
@@ -422,65 +400,6 @@ Answer with specific references to books, authors, years, and patterns from the 
   };
 
 
-  const saveAnalysisToSupabase = async (data) => {
-    try {
-      await supabase.from("analysis_cache").upsert({ id: 1, fingerprint: booksFingerprint, data });
-    } catch(e) { console.error("Failed to save analysis to Supabase:", e); }
-  };
-
-  const fetchAnalysisAI = async () => {
-    if (analysisAILoading || !books.length || !apiKey) return;
-
-    // Serve from cache if books haven't changed
-    const cachedFp = localStorage.getItem("nairrative_analysis_fp");
-    const cachedResult = localStorage.getItem("nairrative_analysis_ai");
-    if (cachedFp === booksFingerprint && cachedResult) {
-      try { setAnalysisAI(JSON.parse(cachedResult)); return; } catch {}
-    }
-
-    setAnalysisAILoading(true);
-    const dimensions = ["temporal", "genre", "geographic", "author", "thematic", "contextual", "complexity", "emotional", "discovery"];
-    const ctx = buildBookContext(books);
-    const fullList = books
-      .map(b => `[${b.year_read_end || b.year}] "${b.title}" by ${b.author} | ${(b.genre||[]).join("/")}${b.pages ? " | " + b.pages + "pp" : ""}${b.series ? " | series: " + b.series : ""}${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}${b.notes ? " | notes: " + b.notes : ""}`)
-      .join("\n");
-    const result = {};
-    for (const dimension of dimensions) {
-      try {
-        const effectivePrompt = panelPrompts[dimension]?.trim() || DEFAULT_PANEL_PROMPTS[dimension] || "";
-        const customInstruction = effectivePrompt ? `\n\nFocus: ${effectivePrompt}` : "";
-        const res = await fetch(CLAUDE_URL, {
-          method: "POST", headers: aiHeaders(),
-          body: JSON.stringify({
-            model: "claude-sonnet-4-6", max_tokens: 350,
-            system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". Write 3-4 concise sentences focused on patterns and arc — not catalogues of titles or authors. Mention at most 1-2 specific examples to ground the observation. Do not invent facts.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.`,
-            messages: [{ role: "user", content: `${ctx}\n\n--- FULL BOOK LIST (${books.length} books) ---\n${fullList}\n\nGenerate insight for the "${dimension}" dimension only.` }]
-          })
-        });
-        const data = await res.json();
-        const text = data.content?.[0]?.text || "{}";
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          if (parsed[dimension]) result[dimension] = parsed[dimension];
-        }
-        setAnalysisAI(prev => ({ ...prev, [dimension]: result[dimension] }));
-      } catch(e) { console.error(`Analysis AI error (${dimension}):`, e); }
-      // Pause between panels to stay within 50k TPM rate limit
-      await new Promise(r => setTimeout(r, 8000));
-    }
-    localStorage.setItem("nairrative_analysis_ai", JSON.stringify(result));
-    localStorage.setItem("nairrative_analysis_fp", booksFingerprint);
-    saveAnalysisToSupabase(result);
-    setAnalysisAILoading(false);
-  };
-
-  // Trigger analysis refresh 2s after a new book is added
-  useEffect(() => {
-    if (!lastAddedAt) return;
-    const t = setTimeout(() => fetchAnalysisAI(), 2000);
-    return () => clearTimeout(t);
-  }, [lastAddedAt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveRecsToSupabase = async (data) => {
     try {
@@ -599,103 +518,6 @@ Answer with specific references to books, authors, years, and patterns from the 
     }
   `;
 
-  const updatePanelPrompt = (dimension, value) => {
-    setPanelPrompts(p => {
-      const updated = { ...p, [dimension]: value };
-      localStorage.setItem("nairrative_panel_prompts", JSON.stringify(updated));
-      return updated;
-    });
-  };
-
-  const savePanelPromptsToSupabase = async (prompts) => {
-    try { await supabase.from("panel_prompts").upsert({ id: 1, data: prompts }); } catch { /* silent */ }
-  };
-
-  const regeneratePanel = async (dimension) => {
-    if (panelLoading[dimension]) return;
-    setPanelLoading(p => ({ ...p, [dimension]: true }));
-    try {
-      const ctx = buildBookContext(books);
-      const fullList = books
-        .map(b => `[${b.year_read_end || b.year}] "${b.title}" by ${b.author} | ${(b.genre||[]).join("/")}${b.pages ? " | " + b.pages + "pp" : ""}${b.series ? " | series: " + b.series : ""}${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}${b.notes ? " | notes: " + b.notes : ""}`)
-        .join("\n");
-      const effectivePrompt = panelPrompts[dimension]?.trim() || DEFAULT_PANEL_PROMPTS[dimension] || "";
-      const customInstruction = effectivePrompt ? `\n\nFocus: ${effectivePrompt}` : "";
-      const res = await fetch(CLAUDE_URL, {
-        method: "POST", headers: aiHeaders(),
-        body: JSON.stringify({
-          model: "claude-opus-4-6", max_tokens: 400,
-          system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". Write 3-4 concise sentences — surface a non-obvious pattern or insight. Mention at most 1-2 specific authors or titles as illustrative examples; do not catalogue books. Do not invent facts.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.`,
-          messages: [{ role: "user", content: `${ctx}\n\n--- FULL BOOK LIST (${books.length} books) ---\n${fullList}\n\nGenerate insight for the "${dimension}" dimension only.` }]
-        })
-      });
-      const data = await res.json();
-      const text = data.content?.[0]?.text || "{}";
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const result = JSON.parse(jsonMatch[0]);
-        if (result[dimension]) {
-          const updated = { ...analysisAI, [dimension]: result[dimension] };
-          setAnalysisAI(updated);
-          localStorage.setItem("nairrative_analysis_ai", JSON.stringify(updated));
-          saveAnalysisToSupabase(updated);
-        }
-      }
-    } catch(e) { console.error("Panel regenerate error:", e); }
-    setPanelLoading(p => ({ ...p, [dimension]: false }));
-    savePanelPromptsToSupabase(panelPrompts);
-    setEditingPanel(null);
-  };
-
-  const renderEditIcon = (dimension) => {
-    if (session) return (
-      <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-        <button onClick={() => regeneratePanel(dimension)} title="Refresh with Opus" style={{ background: "none", border: "none", cursor: "pointer", color: G.muted, fontSize: 13, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>↻</button>
-        <button onClick={() => { setEditingPanel(editingPanel === dimension ? null : dimension); setViewingPanel(null); }} title="Edit prompt" style={{ background: "none", border: "none", cursor: "pointer", color: G.muted, fontSize: 13, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>✎</button>
-      </div>
-    );
-    return (
-      <button onClick={() => setViewingPanel(viewingPanel === dimension ? null : dimension)} title="View prompt" style={{ background: "none", border: "none", cursor: "pointer", color: G.muted, fontSize: 13, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>⊙</button>
-    );
-  };
-
-  const renderInsight = (dimension, borderTop = true) => {
-    const isEditing = editingPanel === dimension;
-    const isLoading = panelLoading[dimension];
-    const textStyle = { fontSize: 12, color: G.muted, lineHeight: 1.75, ...(borderTop ? { borderTop: `1px solid ${G.border}`, paddingTop: 10, marginTop: 4 } : {}) };
-    return (
-      <div>
-        {!session && viewingPanel === dimension && (
-          <div style={{ marginBottom: 8, background: G.card2, border: `1px solid ${G.border}`, borderRadius: 6, padding: "10px 12px" }}>
-            <div style={{ fontSize: 9, color: G.dimmed, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 6 }}>Prompt</div>
-            <div style={{ fontSize: 11, color: G.muted, lineHeight: 1.7 }}>{panelPrompts[dimension]?.trim() || DEFAULT_PANEL_PROMPTS[dimension]}</div>
-          </div>
-        )}
-        {isEditing && (
-          <div style={{ marginBottom: 8 }}>
-            <textarea
-              value={panelPrompts[dimension] ?? DEFAULT_PANEL_PROMPTS[dimension] ?? ""}
-              onChange={e => updatePanelPrompt(dimension, e.target.value)}
-              placeholder="Describe what this panel should focus on…"
-              style={{ width: "100%", minHeight: 68, background: G.card2, border: `1px solid ${G.border}`, borderRadius: 6, color: G.text, fontSize: 11, padding: "8px 10px", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" }}
-            />
-            <div style={{ display: "flex", gap: 6, marginTop: 6, justifyContent: "flex-end" }}>
-              <button onClick={() => { savePanelPromptsToSupabase(panelPrompts); setEditingPanel(null); }} style={{ background: "none", border: `1px solid ${G.border}`, borderRadius: 5, color: G.muted, fontSize: 11, padding: "4px 10px", cursor: "pointer" }}>Save</button>
-              <button onClick={() => regeneratePanel(dimension)} style={{ background: G.gold, border: "none", borderRadius: 5, color: "#000", fontSize: 11, fontWeight: 600, padding: "4px 12px", cursor: "pointer" }}>Regenerate</button>
-            </div>
-          </div>
-        )}
-        {isLoading
-          ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Regenerating…</div>
-          : analysisAILoading
-            ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div>
-            : analysisAI?.[dimension]
-              ? <div style={textStyle}>{analysisAI[dimension]}</div>
-              : null
-        }
-      </div>
-    );
-  };
 
   // ── RENDER ────────────────────────────────────────────────────────────────
   return (
@@ -987,134 +809,24 @@ Answer with specific references to books, authors, years, and patterns from the 
 
         {/* ── ANALYSIS ─────────────────────────────────────────────────── */}
         {activeTab === "analysis" && (
-          <div>
-            {(() => {
-              const minYear = Math.min(...books.map(b => b.year_read_start));
-              const maxYear = Math.max(...books.map(b => b.year_read_end));
-              const span = maxYear - minYear + 1;
-              return (
-                <div style={{ marginBottom: 24, textAlign: "center" }}>
-                  <div style={{ color: G.muted, fontSize: 13 }}>{Object.keys(DEFAULT_PANEL_PROMPTS).length} lenses into {stats.total} books across {span} years ({minYear}–present).</div>
-                </div>
-              );
-            })()}
-            <div className="analysis-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 14 }}>
-
-              {/* 1 · TEMPORAL */}
-              <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ background: `${G.gold}18`, color: G.gold, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Temporal</span>{renderEditIcon("temporal")}</div>
-                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 12px" }}>Volume & Pace</div>
-                <div style={{ display: "flex", gap: 20, marginBottom: 14 }}>
-                  <div>
-                    <div style={{ color: G.gold, fontSize: 26, fontFamily: "'Playfair Display', serif", fontWeight: 700 }}>{analysisInsights.peakYear?.[1]}</div>
-                    <div style={{ color: G.muted, fontSize: 10 }}>books in {analysisInsights.peakYear?.[0]}</div>
-                  </div>
-                  <div>
-                    <div style={{ color: G.blue, fontSize: 26, fontFamily: "'Playfair Display', serif", fontWeight: 700 }}>{analysisInsights.avgPerActive}</div>
-                    <div style={{ color: G.muted, fontSize: 10 }}>avg / active year</div>
-                  </div>
-                  <div>
-                    <div style={{ color: G.red, fontSize: 26, fontFamily: "'Playfair Display', serif", fontWeight: 700 }}>{analysisInsights.maxGap}</div>
-                    <div style={{ color: G.muted, fontSize: 10 }}>yr reading hiatus</div>
-                  </div>
-                </div>
-                {renderInsight("temporal")}
-              </div>
-
-              {/* 2 · GENRE & FORM */}
-              <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ background: `${G.blue}18`, color: G.blue, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Genre & Form</span>{renderEditIcon("genre")}</div>
-                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 12px" }}>Migration Over Time</div>
-                <div style={{ display: "flex", gap: 20, marginBottom: 14 }}>
-                  <div>
-                    <div style={{ color: G.gold, fontSize: 26, fontFamily: "'Playfair Display', serif", fontWeight: 700 }}>{analysisInsights.fictionPct}%</div>
-                    <div style={{ color: G.muted, fontSize: 10 }}>fiction overall</div>
-                  </div>
-                  <div>
-                    <div style={{ color: G.green, fontSize: 26, fontFamily: "'Playfair Display', serif", fontWeight: 700 }}>{analysisInsights.genreCount}</div>
-                    <div style={{ color: G.muted, fontSize: 10 }}>genres explored</div>
-                  </div>
-                  <div>
-                    <div style={{ color: G.purple, fontSize: 26, fontFamily: "'Playfair Display', serif", fontWeight: 700 }}>{analysisInsights.graphicNovels}</div>
-                    <div style={{ color: G.muted, fontSize: 10 }}>graphic novels</div>
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
-                  {analysisInsights.genreEra.map(({ era, top }) => (
-                    <div key={era} style={{ background: G.card2, border: `1px solid ${G.border}`, borderRadius: 6, padding: "6px 10px", fontSize: 11 }}>
-                      <span style={{ color: G.muted }}>{era} </span>
-                      <span style={{ color: genreMap[top] || G.text, fontWeight: 600 }}>{top}</span>
-                    </div>
-                  ))}
-                </div>
-                {renderInsight("genre")}
-              </div>
-
-              {/* 5 · THEMATIC */}
-              <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ background: `${G.gold}18`, color: G.gold, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Thematic</span>{renderEditIcon("thematic")}</div>
-                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 14px" }}>Recurring Intellectual Preoccupations</div>
-                {renderInsight("thematic", false)}
-              </div>
-
-              {/* 6 · SOCIAL & CONTEXTUAL */}
-              <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ background: `${G.blue}18`, color: G.blue, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Social & Contextual</span>{renderEditIcon("contextual")}</div>
-                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 14px" }}>Life Shapes the List</div>
-                {renderInsight("contextual")}
-              </div>
-
-              {/* 7 · COMPLEXITY & CHALLENGE */}
-              <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ background: `${G.red}18`, color: G.red, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Complexity & Challenge</span>{renderEditIcon("complexity")}</div>
-                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 12px" }}>Stretching vs. Comfort</div>
-                <div style={{ display: "flex", gap: 20, marginBottom: 14 }}>
-                  <div>
-                    <div style={{ color: G.red, fontSize: 26, fontFamily: "'Playfair Display', serif", fontWeight: 700 }}>{analysisInsights.challengePct}%</div>
-                    <div style={{ color: G.muted, fontSize: 10 }}>literary / challenging</div>
-                  </div>
-                  <div>
-                    <div style={{ color: G.gold, fontSize: 26, fontFamily: "'Playfair Display', serif", fontWeight: 700 }}>{100 - analysisInsights.challengePct}%</div>
-                    <div style={{ color: G.muted, fontSize: 10 }}>commercial / accessible</div>
-                  </div>
-                </div>
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 6 }}>Notable stretches</div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {analysisInsights.challengingAuthorsFromData.map(a => (
-                      <span key={a} style={{ background: `${G.red}15`, color: G.red, fontSize: 10, padding: "3px 8px", borderRadius: 4 }}>{a}</span>
-                    ))}
-                  </div>
-                </div>
-                {renderInsight("complexity")}
-              </div>
-
-              {/* 9 · EMOTIONAL ARC */}
-              <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ background: `${G.purple}18`, color: G.purple, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Emotional Arc</span>{renderEditIcon("emotional")}</div>
-                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 14px" }}>Mood Mapping by Era</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 14 }}>
-                  {analysisInsights.fictionByEra.map(({ era, dominant, counts, total }) => (
-                    <div key={era}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                        <span style={{ fontSize: 11, color: G.text, fontWeight: 600 }}>{era}</span>
-                        <span style={{ fontSize: 11, fontWeight: 600, color: { "Dark & Tense": "#e06c75", "Imaginative": "#4a9eff", "Reflective": "#c3a6ff", "Informative": "#ffd166" }[dominant] }}>{dominant}</span>
-                      </div>
-                      <div style={{ display: "flex", height: 6, borderRadius: 3, overflow: "hidden", gap: 1 }}>
-                        {Object.entries(counts).sort((a,b) => b[1]-a[1]).map(([mood, c]) => (
-                          <div key={mood} title={`${mood}: ${c}`} style={{ width: `${Math.round(c/total*100)}%`, background: { "Dark & Tense": "#e06c75", "Imaginative": "#4a9eff", "Reflective": "#c3a6ff", "Informative": "#ffd166" }[mood], borderRadius: 2 }} />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {renderInsight("emotional")}
-              </div>
-
-
-
-            </div>
-          </div>
+          <AnalysisTab
+            books={books}
+            stats={stats}
+            analysisInsights={analysisInsights}
+            genreMap={genreMap}
+            session={session}
+            analysisAI={analysisAI}
+            analysisAILoading={analysisAILoading}
+            panelPrompts={panelPrompts}
+            editingPanel={editingPanel}
+            setEditingPanel={setEditingPanel}
+            viewingPanel={viewingPanel}
+            setViewingPanel={setViewingPanel}
+            panelLoading={panelLoading}
+            updatePanelPrompt={updatePanelPrompt}
+            savePanelPromptsToSupabase={savePanelPromptsToSupabase}
+            regeneratePanel={regeneratePanel}
+          />
         )}
 
         {/* ── LIBRARY ────────────────────────────────────────────────────── */}
