@@ -302,7 +302,7 @@ ${summary}
 --- FULL BOOK LIST (${books.length} books) ---
 ${fullList}
 
-Answer with specific references to books, authors, years, and patterns from the data. Be conversational, direct, and accurate. Never invent books or facts not present in the database.`,
+Answer primarily from the data, with specific references to books, authors, years, and patterns. For general knowledge questions about books or authors not requiring personal library data, you may use your broader knowledge — but never invent books the user has read.`,
           messages: updated.map(m => ({ role: m.role, content: m.content }))
         })
       });
