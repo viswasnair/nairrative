@@ -675,8 +675,8 @@ Answer with specific references to books, authors, years, and patterns from the 
       const res = await fetch(CLAUDE_URL, {
         method: "POST", headers: aiHeaders(),
         body: JSON.stringify({
-          model: "claude-sonnet-4-6", max_tokens: 1500,
-          system: `You are a knowledgeable literary companion helping a reader catch up on a book series before continuing. Write vivid, engaging recaps — not dry plot summaries, but the kind of catch-up a friend would give you over coffee. Include key characters, major plot turns, how each book ends, and the most important things to remember going into the next book. Keep each book recap to 3–5 sentences.`,
+          model: "claude-haiku-4-5-20251001", max_tokens: 800,
+          system: `You are a literary companion helping a reader catch up on a book series. Write engaging recaps — key characters, major plot turns, how each book ends. Keep each book recap to 2–3 sentences. Be concise.`,
           messages: [{ role: "user", content: `Please recap the "${seriesName}" series. The reader has read these books (in order): ${seriesBooks.map((b, i) => `${i+1}. ${b.title} (${b.year_read_end})`).join(", ")}. Give a short recap of each book and a "What to remember" section with the 3–5 most important things going into the next installment.` }]
         })
       });
