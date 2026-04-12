@@ -6,16 +6,17 @@ import {
   PieChart, Pie, LineChart, Line
 } from "recharts";
 import G from "./constants/theme";
-import { READING_CONTEXT, TABS, AUTO_RECS, INPUT_DEFAULTS } from "./constants/config";
-import { SEED_RECS } from "./constants/seeds";
+import { READING_CONTEXT, TABS, INPUT_DEFAULTS } from "./constants/config";
 import { buildBookContext, downloadCSV, downloadJSON } from "./lib/bookUtils";
 import MultiSelect from "./components/MultiSelect";
 import RangeFilter from "./components/RangeFilter";
 import DarkTooltip from "./components/DarkTooltip";
 import { useBooks } from "./hooks/useBooks";
 import { useAnalysis } from "./hooks/useAnalysis";
+import { useRecs } from "./hooks/useRecs";
 import BookModal from "./components/BookModal";
 import AnalysisTab from "./components/AnalysisTab";
+import RecsTab from "./components/RecsTab";
 
 // ── MAIN APP ──────────────────────────────────────────────────────────────
 export default function App() {
@@ -66,6 +67,13 @@ export default function App() {
     regeneratePanel,
   } = useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt });
 
+  const {
+    intentInputs, setIntentInputs,
+    intentResults, setIntentResults,
+    intentLoading,
+    fetchIntentRecs,
+  } = useRecs({ books, booksFingerprint, activeTab, readTitlesString });
+
   const [search, setSearch] = useState("");
   const [libGenres, setLibGenres] = useState([]);
   const [libYears, setLibYears] = useState([]);
@@ -80,23 +88,11 @@ export default function App() {
   const [analysisChat, setAnalysisChat] = useState([]);
   const [analysisChatInput, setAnalysisChatInput] = useState("");
   const [analysisChatLoading, setAnalysisChatLoading] = useState(false);
-  const [intentInputs, setIntentInputs] = useState({
-    "loved": "God's Debris",
-    "authors-like": "Elif Shafak",
-    "mood": "fear of fascism",
-    "genre-pick": "Science Fiction",
-    "topic": "AI",
-    "pair": "Dhurandar",
-  });
-  const [intentResults, setIntentResults] = useState({});
-  const [intentLoading, setIntentLoading] = useState({});
-  const [refreshCounts, setRefreshCounts] = useState({});
   const apiKey = true; // key lives server-side via Netlify function
   const [seriesRecap, setSeriesRecap] = useState(null);
   const [seriesLoading, setSeriesLoading] = useState(false);
   const [selectedSeries, setSelectedSeries] = useState("Wheel of Time");
   const chatEndRef = useRef(null);
-  const prevRecsFingerprint = useRef(null);
 
   useEffect(() => {
     const link = document.createElement("link");
@@ -126,45 +122,6 @@ export default function App() {
 
 
 
-  // Load recs from cache on tab switch (no API call)
-  useEffect(() => {
-    if (activeTab !== "recs" || !books.length) return;
-    const cachedFp = localStorage.getItem("nairrative_recs_fp");
-    const cachedResult = localStorage.getItem("nairrative_recs");
-    if (cachedFp === booksFingerprint && cachedResult) {
-      try { setIntentResults({ ...SEED_RECS, ...JSON.parse(cachedResult) }); return; } catch {}
-    }
-    supabase.from("recs_cache").select("data").eq("id", 1).maybeSingle()
-      .then(({ data }) => {
-        if (data?.data) {
-          const merged = { ...SEED_RECS, ...data.data };
-          setIntentResults(merged);
-          localStorage.setItem("nairrative_recs", JSON.stringify(merged));
-          localStorage.setItem("nairrative_recs_fp", booksFingerprint);
-        } else {
-          setIntentResults(SEED_RECS);
-        }
-      })
-      .catch(() => setIntentResults(SEED_RECS));
-  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Regenerate auto recs when books change (skip initial load)
-  useEffect(() => {
-    if (!booksFingerprint) return;
-    if (prevRecsFingerprint.current === null) { prevRecsFingerprint.current = booksFingerprint; return; }
-    if (prevRecsFingerprint.current === booksFingerprint) return;
-    prevRecsFingerprint.current = booksFingerprint;
-    setIntentResults({});
-    localStorage.removeItem("nairrative_recs");
-    localStorage.removeItem("nairrative_recs_fp");
-    // Regenerate one panel at a time, 8s apart, seeds show while waiting
-    (async () => {
-      for (const id of AUTO_RECS) {
-        await fetchIntentRecs(id);
-        await new Promise(r => setTimeout(r, 8000));
-      }
-    })();
-  }, [booksFingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── COMPUTED DATA ────────────────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -401,71 +358,6 @@ Answer with specific references to books, authors, years, and patterns from the 
 
 
 
-  const saveRecsToSupabase = async (data) => {
-    try {
-      await supabase.from("recs_cache").upsert({ id: 1, fingerprint: booksFingerprint, data });
-    } catch(e) { console.error("Failed to save recs to Supabase:", e); }
-  };
-
-  const fetchIntentRecs = async (intentId, input = "") => {
-    if (intentLoading[intentId]) return;
-    setIntentLoading(p => ({ ...p, [intentId]: true }));
-    const rc = (refreshCounts[intentId] || 0) + 1;
-    setRefreshCounts(p => ({ ...p, [intentId]: rc }));
-    const lastBook = books[books.length - 1];
-    const lastAuthor = lastBook?.author || "Brandon Sanderson";
-    const seriesList = [...new Set(books.filter(b => b.series?.trim()).map(b => b.series))];
-    const randomSeries = seriesList[Math.floor(Math.random() * seriesList.length)] || "Wheel of Time";
-    const today = new Date().toISOString().slice(0, 10);
-    const variationNote = rc > 1 ? ` This is refresh #${rc} — you MUST pick a completely different book from any prior recommendation for this lens.` : "";
-    const prompts = {
-      "more-like": `The user's most recent read is "${lastBook?.title}" by ${lastAuthor}. Recommend 1 unread book with the same feel, themes, or writing style that this reader would love.${variationNote}`,
-      "more-by-last": `The user's most recent author is ${lastAuthor}. Recommend 1 other book by ${lastAuthor} that the reader hasn't read yet. If all are read, recommend 1 book by an author with very similar style.${variationNote}`,
-      "similar-author": `Based on the reader loving ${lastAuthor}, recommend 1 book by an author with a very similar writing style, themes, or storytelling approach.${variationNote}`,
-      "trending": `Today is ${today}. Recommend 1 book that is critically acclaimed, culturally buzzy, or award-shortlisted in 2024–2026 that fits this reader's taste profile. Use web search to verify it is actually available and well-reviewed.${variationNote}`,
-      "challenge": `This reader favors accessible genre fiction. Recommend 1 genuinely challenging, rewarding read — dense classic, experimental fiction, or demanding long-form non-fiction.${variationNote}`,
-      "quick": `Recommend 1 book under 300 pages that is deeply rewarding given this reader's taste (thrillers, literary fiction, fantasy).${variationNote}`,
-      "gaps": `This reader's library skews Western/Indian/anglophone. Recommend 1 book from an underrepresented literary tradition — Japanese, African, Latin American, Nordic, Arabic, or Southeast Asian voices.${variationNote}`,
-      "surprise": `Give 1 wildly unexpected book recommendation that this reader would never pick for themselves but would secretly love. Bold, surprising, off-pattern pick.${variationNote}`,
-      "finish": `This reader has read books from the series "${randomSeries}". Recommend 1 book that is either the next unread entry in this series or a very similar series with satisfying completions.${variationNote}`,
-      "loved": `The user loved: "${input}". Recommend 1 book with similar appeal — themes, pacing, emotional tone, or narrative style.${variationNote}`,
-      "authors-like": `The user loves authors like ${input}. Recommend 1 book by a different author with very similar style, subject matter, or storytelling sensibility.${variationNote}`,
-      "mood": `The user is in the mood for: "${input}". Recommend 1 book that perfectly matches this emotional register or atmosphere.${variationNote}`,
-      "genre-pick": `Recommend 1 excellent book in the genre: "${input}". Today is ${today} — consider recent releases as well as classics.${variationNote}`,
-      "topic": `Recommend 1 book about: "${input}". Cross genre if needed — fiction, non-fiction, memoir. Today is ${today}.${variationNote}`,
-      "occasion": `Recommend 1 book perfect for: "${input}". Match tone, length, and engagement level to the occasion.${variationNote}`,
-      "pair": `The user wants to pair a book with: "${input}" (a film, show, event, or experience). Recommend 1 ideal companion read.${variationNote}`,
-    };
-    try {
-      const useWebSearch = intentId === "trending" || intentId === "pair";
-      const body = {
-        model: "claude-haiku-4-5-20251001", max_tokens: 400,
-        system: `You are a precise book recommendation engine. Today is ${today}. Reader history:\n${buildBookContext(books)}\n\nDo NOT recommend any of these already-read titles: ${readTitlesString}.\n\nOnly recommend unread books published up to ${today}.\n\n${prompts[intentId] || input}\n\nReturn ONLY a JSON array — no markdown, no explanation. Exactly 1 item. Format: [{"title": "...", "author": "...", "year": 2024, "reason": "1-2 sentences why it fits this reader"}].`,
-        messages: [{ role: "user", content: "JSON array only." }],
-      };
-      if (useWebSearch) body.tools = [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }];
-      const res = await fetch(CLAUDE_URL, {
-        method: "POST", headers: aiHeaders(),
-        body: JSON.stringify(body)
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error.message || data.error.type || JSON.stringify(data.error));
-      const txt = (data.content || []).filter(c => c.type === "text").map(c => c.text).join("");
-      const m = txt.match(/\[[\s\S]*?\]/);
-      const parsed = m ? JSON.parse(m[0]) : JSON.parse(txt.replace(/```json|```/g, "").trim());
-      setIntentResults(prev => {
-        const updated = { ...prev, [intentId]: Array.isArray(parsed) ? parsed.slice(0, 1) : [] };
-        localStorage.setItem("nairrative_recs", JSON.stringify(updated));
-        localStorage.setItem("nairrative_recs_fp", booksFingerprint);
-        saveRecsToSupabase(updated);
-        return updated;
-      });
-    } catch (e) {
-      console.error("fetchIntentRecs error:", e);
-      setIntentResults(p => ({ ...p, [intentId]: [{ title: "Could not load", author: "", reason: e?.message || "Unknown error — check console for details." }] }));
-    }
-    setIntentLoading(p => { const n = { ...p }; delete n[intentId]; return n; });
-  };
 
 
   // ── STYLES ────────────────────────────────────────────────────────────────
@@ -926,121 +818,19 @@ Answer with specific references to books, authors, years, and patterns from the 
         )}
 
         {/* ── RECOMMENDATIONS ────────────────────────────────────────────── */}
-        {activeTab === "recs" && (() => {
-          const lastBook = books[books.length - 1];
-          const allGenreOptions = genreList;
-
-          const LENSES = [
-            // Auto-load panels
-            { id: "more-like", icon: "◈", title: "More Like Last Book", sub: `Based on "${lastBook?.title}"`, auto: true },
-            { id: "more-by-last", icon: "◉", title: "More By Last Author", sub: `Everything by ${lastBook?.author}`, auto: true },
-            { id: "similar-author", icon: "◎", title: "Books By Similar Author", sub: `Authors like ${lastBook?.author}`, auto: true },
-            { id: "trending", icon: "⊛", title: "What's Trending", sub: "Culturally buzzy · award-listed · 2024–26", auto: true },
-            { id: "challenge", icon: "△", title: "Challenge Me", sub: "Dense, difficult, demanding works", auto: true },
-            { id: "quick", icon: "≡", title: "Quick Reads", sub: "Under 300 pages, deeply rewarding", auto: true },
-            { id: "gaps", icon: "⊕", title: "Fill My Gaps", sub: "Traditions & voices not yet in your library", auto: true },
-            { id: "surprise", icon: "✦", title: "Surprise Me", sub: "Wildly unexpected — off-pattern picks", auto: true },
-            { id: "finish", icon: "⊙", title: "Finish the Series", sub: "Re-entry points or similar completable series", auto: true },
-            // Input panels
-            { id: "loved", icon: "◑", title: "If You Loved…", sub: "", auto: false, placeholder: "A book title…", inputLabel: "Enter a book you loved" },
-            { id: "authors-like", icon: "◷", title: "Books By Authors Like…", sub: "", auto: false, placeholder: "An author name…", inputLabel: "Enter an author" },
-            { id: "mood", icon: "◐", title: "Match My Mood", sub: "", auto: false, placeholder: "Describe the vibe…", inputLabel: "What are you in the mood for?" },
-            { id: "genre-pick", icon: "▦", title: "By Genre", sub: "", auto: false, isDropdown: true, dropdownOptions: allGenreOptions, inputLabel: "Choose a genre" },
-            { id: "topic", icon: "◫", title: "By Topic", sub: "", auto: false, placeholder: "AI, colonialism, ecology…", inputLabel: "Enter a topic or theme" },
-            { id: "pair", icon: "⊞", title: "Pair It", sub: "Web-searched companion reads", auto: false, placeholder: "A film, show, event, or experience…", inputLabel: "Pair a book with…" },
-          ];
-
-          const RecList = ({ results, loading }) => {
-            if (loading) return (
-              <div style={{ marginTop: 12 }}>
-                <div className="pulse" style={{ height: 12, width: "70%", background: G.border, borderRadius: 4, marginBottom: 6 }} />
-                <div className="pulse" style={{ height: 10, width: "40%", background: G.dimmed, borderRadius: 4, marginBottom: 6 }} />
-                <div className="pulse" style={{ height: 10, width: "90%", background: G.dimmed, borderRadius: 4 }} />
-              </div>
-            );
-            if (!results) return null;
-            const r = results[0];
-            if (!r) return null;
-            return (
-              <div style={{ marginTop: 12, borderTop: `1px solid ${G.border}`, paddingTop: 10 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: G.text, lineHeight: 1.4, marginBottom: 3 }}>{r.title}</div>
-                <div style={{ fontSize: 11, color: G.gold, marginBottom: 6 }}>{r.author}{r.year ? ` · ${r.year}` : ""}</div>
-                {r.reason && <div style={{ fontSize: 11, color: G.muted, lineHeight: 1.6 }}>{r.reason}</div>}
-              </div>
-            );
-          };
-
-          return (
-            <div>
-              <div style={{ marginBottom: 20, textAlign: "center" }}>
-                <div style={{ color: G.muted, fontSize: 13 }}>{LENSES.length} lenses for discovery — one curated pick per lens, refreshes on every new book added.</div>
-              </div>
-
-              <div className="rec-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-                {LENSES.map(lens => {
-                  const results = intentResults[lens.id];
-                  const loading = !!intentLoading[lens.id];
-                  const input = intentInputs[lens.id] || "";
-                  const canFetch = lens.auto || (lens.isDropdown ? !!input : !!input.trim());
-
-                  return (
-                    <div key={lens.id} style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "16px 18px", display: "flex", flexDirection: "column" }}>
-                      {/* Header */}
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                        <span style={{ background: `${G.gold}18`, color: G.gold, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>{lens.icon} {lens.title}</span>
-                        {session && (results || loading) && (
-                          <button onClick={() => { setIntentResults(p => { const n={...p}; delete n[lens.id]; return n; }); fetchIntentRecs(lens.id, input); }}
-                            style={{ background: "none", border: "none", color: G.muted, fontSize: 14, cursor: "pointer", padding: 0, lineHeight: 1 }} title="Refresh">↺</button>
-                        )}
-                      </div>
-                      {lens.sub && <div style={{ fontSize: 11, color: G.muted, marginTop: 6 }}>{lens.sub}</div>}
-
-                      {/* Input for non-auto panels */}
-                      {!lens.auto && (
-                        <div style={{ marginTop: 8, marginBottom: 4 }}>
-                          <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                            {lens.isDropdown ? (
-                              <select className="input-dark" style={{ fontSize: 12, padding: "7px 10px", paddingRight: 32, flex: 1 }}
-                                value={input}
-                                onChange={e => { const v = e.target.value; setIntentInputs(p => ({ ...p, [lens.id]: v })); if (v && session) fetchIntentRecs(lens.id, v); }}>
-                                <option value="">— pick a genre —</option>
-                                {lens.dropdownOptions.map(o => <option key={o} value={o}>{o}</option>)}
-                              </select>
-                            ) : (
-                              <input className="input-dark" style={{ fontSize: 12, paddingRight: 32, flex: 1 }} placeholder={lens.placeholder}
-                                value={input}
-                                onChange={e => setIntentInputs(p => ({ ...p, [lens.id]: e.target.value }))}
-                                onKeyDown={e => { if (e.key === "Enter" && input.trim() && session) fetchIntentRecs(lens.id, input); }} />
-                            )}
-                            {!lens.isDropdown && (
-                              <button
-                                onClick={() => session && canFetch && !loading && fetchIntentRecs(lens.id, input)}
-                                disabled={!session || loading || !canFetch}
-                                title={session ? "Get pick" : "Sign in to get picks"}
-                                style={{ position: "absolute", right: 8, background: "none", border: "none", cursor: session && canFetch && !loading ? "pointer" : "not-allowed", color: session && canFetch && !loading ? G.gold : G.dimmed, fontSize: 14, lineHeight: 1, padding: 0 }}>
-                                {loading ? "…" : "→"}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Results */}
-                      <RecList results={results} loading={loading} />
-
-                      {/* Empty state for auto panels still loading first time */}
-                      {lens.auto && !results && !loading && session && (
-                        <div style={{ fontSize: 11, color: G.dimmed, marginTop: 8 }}>
-                          <button onClick={() => fetchIntentRecs(lens.id)} style={{ background: "none", border: `1px solid ${G.border}`, color: G.muted, fontSize: 11, borderRadius: 5, padding: "4px 10px", cursor: "pointer" }}>Load picks</button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })()}
+        {activeTab === "recs" && (
+          <RecsTab
+            books={books}
+            genreList={genreList}
+            session={session}
+            intentInputs={intentInputs}
+            setIntentInputs={setIntentInputs}
+            intentResults={intentResults}
+            setIntentResults={setIntentResults}
+            intentLoading={intentLoading}
+            fetchIntentRecs={fetchIntentRecs}
+          />
+        )}
 
         {/* ── SERIES RECAP ──────────────────────────────────────────────── */}
         {activeTab === "series" && (() => {
