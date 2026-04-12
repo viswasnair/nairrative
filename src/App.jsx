@@ -680,9 +680,16 @@ Answer with specific references to books, authors, years, and patterns from the 
           messages: [{ role: "user", content: `Please recap the "${seriesName}" series. The reader has read these books (in order): ${seriesBooks.map((b, i) => `${i+1}. ${b.title} (${b.year_read_end})`).join(", ")}. Give a short recap of each book and a "What to remember" section with the 3–5 most important things going into the next installment.` }]
         })
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error?.message || `HTTP ${res.status}`);
+      }
       const data = await res.json();
       setSeriesRecap({ series: seriesName, books: seriesBooks, text: data.content?.[0]?.text || data.error?.message || "Could not generate recap." });
-    } catch { setSeriesRecap({ series: seriesName, books: seriesBooks, text: "Connection error. Please check your API key and try again." }); }
+    } catch (e) {
+      console.error("generateSeriesRecap error:", e);
+      setSeriesRecap({ series: seriesName, books: seriesBooks, text: `Error: ${e?.message || "Unknown error"}` });
+    }
     finally { setSeriesLoading(false); }
   };
 
