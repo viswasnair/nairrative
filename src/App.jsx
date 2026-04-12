@@ -284,7 +284,7 @@ export default function App() {
     setIntentResults({});
     localStorage.removeItem("nairrative_recs");
     localStorage.removeItem("nairrative_recs_fp");
-    AUTO_RECS.forEach((id, i) => setTimeout(() => fetchIntentRecs(id), i * 2000));
+    AUTO_RECS.forEach((id, i) => setTimeout(() => fetchIntentRecs(id), i * 7000));
   }, [booksFingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── COMPUTED DATA ────────────────────────────────────────────────────────
@@ -435,7 +435,7 @@ export default function App() {
   const allYearsListFull = useMemo(() => Object.keys(stats.byYear).sort().map(Number), [stats]);
 
   const readTitlesString = useMemo(() =>
-    books.slice(-200).map(b => b.title.toLowerCase().replace(/^(the|a|an) /i, "")).join("; "),
+    books.slice(-100).map(b => b.title.toLowerCase().replace(/^(the|a|an) /i, "")).join("; "),
   [books]);
 
   // ── HANDLERS ──────────────────────────────────────────────────────────────
