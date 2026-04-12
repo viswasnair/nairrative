@@ -25,3 +25,7 @@ dist-ssr
 scripts/analysis_seed.json
 scripts/analysis_seed2.json
 scripts/analysis_merged.json
+
+# Playwright
+playwright-report/
+test-results/
