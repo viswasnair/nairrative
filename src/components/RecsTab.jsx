@@ -83,8 +83,10 @@ export default function RecsTab({
                 <div style={{ marginTop: 8, marginBottom: 4 }}>
                   <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                     {lens.isDropdown ? (
-                      <select className="input-dark" style={{ fontSize: 12, padding: "7px 10px", paddingRight: 32, flex: 1 }}
+                      <select className="input-dark" style={{ fontSize: 12, padding: "7px 10px", paddingRight: 32, flex: 1, opacity: session ? 1 : 0.5, cursor: session ? "pointer" : "not-allowed" }}
                         value={input}
+                        disabled={!session}
+                        title={session ? undefined : "Sign in to use this"}
                         onChange={e => { const v = e.target.value; setIntentInputs(p => ({ ...p, [lens.id]: v })); if (v && session) fetchIntentRecs(lens.id, v); }}>
                         <option value="">— pick a genre —</option>
                         {lens.dropdownOptions.map(o => <option key={o} value={o}>{o}</option>)}
