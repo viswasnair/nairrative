@@ -271,7 +271,7 @@ export function useBooks({ session }) {
     editingBook,
     bookDraft, setBookDraft,
     bookChatLoading,
-    bookChatPending,
+    bookChatPending, setBookChatPending,
     bookSaving,
     bookMsg, setBookMsg,
     newGenreInput, setNewGenreInput,
