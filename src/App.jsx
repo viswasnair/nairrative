@@ -1760,8 +1760,9 @@ Answer with specific references to books, authors, years, and patterns from the 
                         ))}
                       </div>
                     </div>
-                    <button className="btn-gold" style={{ flexShrink: 0, marginLeft: 12 }} disabled={seriesLoading}
-                      onClick={() => generateSeriesRecap(selectedSeries)}>
+                    <button className="btn-gold" style={{ flexShrink: 0, marginLeft: 12, opacity: session ? 1 : 0.35, cursor: session ? "pointer" : "not-allowed" }} disabled={seriesLoading || !session}
+                      onClick={() => session && generateSeriesRecap(selectedSeries)}
+                      title={session ? "" : "Sign in to generate recaps"}>
                       {seriesLoading ? "Generating…" : "✦ Generate Recap"}
                     </button>
                   </div>
