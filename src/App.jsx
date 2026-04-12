@@ -284,7 +284,7 @@ export default function App() {
     setIntentResults({});
     localStorage.removeItem("nairrative_recs");
     localStorage.removeItem("nairrative_recs_fp");
-    AUTO_RECS.forEach((id, i) => setTimeout(() => fetchIntentRecs(id), i * 7000));
+    // Cache cleared — seeds show immediately. User can manually refresh individual panels.
   }, [booksFingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── COMPUTED DATA ────────────────────────────────────────────────────────
@@ -435,7 +435,7 @@ export default function App() {
   const allYearsListFull = useMemo(() => Object.keys(stats.byYear).sort().map(Number), [stats]);
 
   const readTitlesString = useMemo(() =>
-    books.slice(-100).map(b => b.title.toLowerCase().replace(/^(the|a|an) /i, "")).join("; "),
+    books.slice(-200).map(b => b.title.toLowerCase().replace(/^(the|a|an) /i, "")).join("; "),
   [books]);
 
   // ── HANDLERS ──────────────────────────────────────────────────────────────
@@ -626,7 +626,7 @@ Answer with specific references to books, authors, years, and patterns from the 
         }
         setBooks(prev => [...prev, normalizeBook({ ...book, book_authors: bookAuthors })]);
         setBookMsg("✓ Book added!");
-        setTimeout(() => fetchAnalysisAI(), 2000); // regenerate in background after state settles
+        // Cache cleared on fingerprint change — user can manually regenerate analysis panels.
       }
       setTimeout(() => { setShowBookModal(false); setBookMsg(""); }, 1200);
     } catch (e) { console.error("saveBook error:", e); setBookMsg(`Error: ${e?.message || JSON.stringify(e)}`); }
