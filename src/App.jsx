@@ -1671,7 +1671,7 @@ Answer with specific references to books, authors, years, and patterns from the 
                       {/* Header */}
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                         <span style={{ background: `${G.gold}18`, color: G.gold, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>{lens.icon} {lens.title}</span>
-                        {(results || loading) && (
+                        {session && (results || loading) && (
                           <button onClick={() => { setIntentResults(p => { const n={...p}; delete n[lens.id]; return n; }); fetchIntentRecs(lens.id, input); }}
                             style={{ background: "none", border: "none", color: G.muted, fontSize: 14, cursor: "pointer", padding: 0, lineHeight: 1 }} title="Refresh">↺</button>
                         )}
@@ -1685,7 +1685,7 @@ Answer with specific references to books, authors, years, and patterns from the 
                             {lens.isDropdown ? (
                               <select className="input-dark" style={{ fontSize: 12, padding: "7px 10px", paddingRight: 32, flex: 1 }}
                                 value={input}
-                                onChange={e => { const v = e.target.value; setIntentInputs(p => ({ ...p, [lens.id]: v })); if (v) fetchIntentRecs(lens.id, v); }}>
+                                onChange={e => { const v = e.target.value; setIntentInputs(p => ({ ...p, [lens.id]: v })); if (v && session) fetchIntentRecs(lens.id, v); }}>
                                 <option value="">— pick a genre —</option>
                                 {lens.dropdownOptions.map(o => <option key={o} value={o}>{o}</option>)}
                               </select>
@@ -1693,14 +1693,14 @@ Answer with specific references to books, authors, years, and patterns from the 
                               <input className="input-dark" style={{ fontSize: 12, paddingRight: 32, flex: 1 }} placeholder={lens.placeholder}
                                 value={input}
                                 onChange={e => setIntentInputs(p => ({ ...p, [lens.id]: e.target.value }))}
-                                onKeyDown={e => { if (e.key === "Enter" && input.trim()) fetchIntentRecs(lens.id, input); }} />
+                                onKeyDown={e => { if (e.key === "Enter" && input.trim() && session) fetchIntentRecs(lens.id, input); }} />
                             )}
                             {!lens.isDropdown && (
                               <button
-                                onClick={() => canFetch && !loading && fetchIntentRecs(lens.id, input)}
-                                disabled={loading || !canFetch}
-                                title="Get pick"
-                                style={{ position: "absolute", right: 8, background: "none", border: "none", cursor: canFetch && !loading ? "pointer" : "not-allowed", color: canFetch && !loading ? G.gold : G.dimmed, fontSize: 14, lineHeight: 1, padding: 0 }}>
+                                onClick={() => session && canFetch && !loading && fetchIntentRecs(lens.id, input)}
+                                disabled={!session || loading || !canFetch}
+                                title={session ? "Get pick" : "Sign in to get picks"}
+                                style={{ position: "absolute", right: 8, background: "none", border: "none", cursor: session && canFetch && !loading ? "pointer" : "not-allowed", color: session && canFetch && !loading ? G.gold : G.dimmed, fontSize: 14, lineHeight: 1, padding: 0 }}>
                                 {loading ? "…" : "→"}
                               </button>
                             )}
