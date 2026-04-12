@@ -888,8 +888,8 @@ Answer with specific references to books, authors, years, and patterns from the 
     });
   };
 
-  const savePanelPromptsToSupabase = (prompts) => {
-    supabase.from("panel_prompts").upsert({ id: 1, data: prompts }).catch(() => {});
+  const savePanelPromptsToSupabase = async (prompts) => {
+    try { await supabase.from("panel_prompts").upsert({ id: 1, data: prompts }); } catch { /* silent */ }
   };
 
   const regeneratePanel = async (dimension) => {
