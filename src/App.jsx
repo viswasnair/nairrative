@@ -1712,7 +1712,7 @@ Answer with specific references to books, authors, years, and patterns from the 
                       <RecList results={results} loading={loading} />
 
                       {/* Empty state for auto panels still loading first time */}
-                      {lens.auto && !results && !loading && (
+                      {lens.auto && !results && !loading && session && (
                         <div style={{ fontSize: 11, color: G.dimmed, marginTop: 8 }}>
                           <button onClick={() => fetchIntentRecs(lens.id)} style={{ background: "none", border: `1px solid ${G.border}`, color: G.muted, fontSize: 11, borderRadius: 5, padding: "4px 10px", cursor: "pointer" }}>Load picks</button>
                         </div>
