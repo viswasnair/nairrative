@@ -149,7 +149,7 @@ export default function App() {
   const [showBookModal, setShowBookModal] = useState(false);
   const [editingBook, setEditingBook] = useState(null);
   const [bookDraft, setBookDraft] = useState(EMPTY_DRAFT);
-  const [bookChatInput, setBookChatInput] = useState("");
+  
   const [bookChatLoading, setBookChatLoading] = useState(false);
   const [bookChatPending, setBookChatPending] = useState(null);
   const [bookSaving, setBookSaving] = useState(false);
@@ -162,6 +162,7 @@ export default function App() {
   const [seriesLoading, setSeriesLoading] = useState(false);
   const [selectedSeries, setSelectedSeries] = useState("Wheel of Time");
   const chatEndRef = useRef(null);
+  const bookChatInputRef = useRef(null);
   const prevRecsFingerprint = useRef(null);
 
   useEffect(() => {
@@ -491,7 +492,7 @@ Answer with specific references to books, authors, years, and patterns from the 
   };
   const setChartRange = (id, from, to) => setChartRanges(p => ({ ...p, [id]: { from, to } }));
 
-  const openAddModal = () => { setEditingBook(null); setBookDraft(EMPTY_DRAFT); setBookChatInput(""); setBookChatPending(null); setBookMsg(""); setShowBookModal(true); };
+  const openAddModal = () => { setEditingBook(null); setBookDraft(EMPTY_DRAFT); if (bookChatInputRef.current) bookChatInputRef.current.value = ""; setBookChatPending(null); setBookMsg(""); setShowBookModal(true); };
   const openEditModal = (b) => {
     setEditingBook(b);
     setBookDraft({
@@ -506,11 +507,12 @@ Answer with specific references to books, authors, years, and patterns from the 
       pages: b.pages ? String(b.pages) : "",
       notes: b.notes || "",
     });
-    setBookChatInput(""); setBookChatPending(null); setBookMsg(""); setShowBookModal(true);
+    if (bookChatInputRef.current) bookChatInputRef.current.value = ""; setBookChatPending(null); setBookMsg(""); setShowBookModal(true);
   };
 
   const chatFillBook = async () => {
-    if (!bookChatInput.trim() || bookChatLoading) return;
+    const bookChatValue = bookChatInputRef.current?.value?.trim() || "";
+    if (!bookChatValue || bookChatLoading) return;
     setBookChatLoading(true);
     try {
       const res = await fetch(CLAUDE_URL, {
@@ -518,7 +520,7 @@ Answer with specific references to books, authors, years, and patterns from the 
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001", max_tokens: 400,
           system: `You are a book database assistant. Given a natural language description of a book, extract and return ONLY valid JSON (no markdown) with these fields: title (string), authors (array of {name, country}), genres (array, pick from: Fantasy, Sci-Fi, Thriller, Mystery, Literary Fiction, Historical Fiction, Non-Fiction, Graphic Novel, Memoir, Biography, Classic, Philosophy, Popular Science, Self-Help, Travel, Horror, History, Politics, Economics, Psychology, Business), fiction (boolean), format (MUST be exactly one of these values, no others allowed: "Novel", "Novella", "Short Stories", "Graphic Novel", "Non-Fiction", "Play"), series (string or ""), pages (number or null), year (original publication year as number).`,
-          messages: [{ role: "user", content: bookChatInput }]
+          messages: [{ role: "user", content: bookChatValue }]
         })
       });
       const data = await res.json();
@@ -544,7 +546,7 @@ Answer with specific references to books, authors, years, and patterns from the 
       yearEnd: bookChatPending.year || p.yearEnd,
     }));
     setBookChatPending(null);
-    setBookChatInput("");
+    if (bookChatInputRef.current) bookChatInputRef.current.value = "";
   };
 
   const addGenre = async () => {
@@ -1481,9 +1483,9 @@ Answer with specific references to books, authors, years, and patterns from the 
                 <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 8 }}>✦ Describe the book — AI will fill in the details</div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <input className="input-dark" style={{ flex: 1, fontSize: 12 }} placeholder='e.g. "Dune by Frank Herbert, 1965 sci-fi epic"'
-                    value={bookChatInput} onChange={e => setBookChatInput(e.target.value)}
+                    ref={bookChatInputRef} defaultValue=""
                     onKeyDown={e => e.key === "Enter" && chatFillBook()} />
-                  <button className="btn-gold" style={{ padding: "8px 14px", fontSize: 12, flexShrink: 0 }} onClick={chatFillBook} disabled={bookChatLoading || !bookChatInput.trim()}>
+                  <button className="btn-gold" style={{ padding: "8px 14px", fontSize: 12, flexShrink: 0 }} onClick={chatFillBook} disabled={bookChatLoading}>
                     {bookChatLoading ? "…" : "Fill"}
                   </button>
                 </div>
