@@ -383,8 +383,9 @@ Answer with specific references to books, authors, years, and patterns from the 
     .cell-clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .lib-row:hover { background: ${G.card2}; }
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; }
-    .modal-box { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 16px; width: 100%; max-width: 540px; max-height: 88vh; overflow-y: auto; padding: 28px; position: relative; }
-    .modal-box::-webkit-scrollbar { width: 4px; } .modal-box::-webkit-scrollbar-track { background: transparent; } .modal-box::-webkit-scrollbar-thumb { background: ${G.dimmed}; border-radius: 4px; }
+    .modal-box { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 16px; width: 100%; max-width: 540px; max-height: 88vh; overflow: hidden; position: relative; }
+    .modal-scroll { overflow-y: auto; max-height: 88vh; padding: 28px; }
+    .modal-scroll::-webkit-scrollbar { width: 4px; } .modal-scroll::-webkit-scrollbar-track { background: transparent; } .modal-scroll::-webkit-scrollbar-thumb { background: ${G.dimmed}; border-radius: 4px; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
     .fade-in { animation: fadeIn 0.3s ease; }
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
@@ -594,6 +595,7 @@ Answer with specific references to books, authors, years, and patterns from the 
       {showLoginModal && (
         <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) { setShowLoginModal(false); setLoginError(""); } }}>
           <div className="modal-box" style={{ maxWidth: 360 }}>
+          <div className="modal-scroll">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
               <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, color: G.text }}>Sign In</div>
               <button onClick={() => { setShowLoginModal(false); setLoginError(""); }} style={{ background: "none", border: "none", color: G.muted, fontSize: 20, cursor: "pointer" }}>×</button>
@@ -604,6 +606,7 @@ Answer with specific references to books, authors, years, and patterns from the 
               {loginError && <div style={{ color: G.red, fontSize: 12 }}>{loginError}</div>}
               <button type="submit" className="btn-gold" disabled={loginLoading}>{loginLoading ? "Signing in…" : "Sign In"}</button>
             </form>
+          </div>
           </div>
         </div>
       )}
