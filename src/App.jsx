@@ -67,6 +67,10 @@ export default function App() {
     regeneratePanel,
   } = useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt });
 
+  const readTitlesString = useMemo(() =>
+    books.slice(-200).map(b => b.title.toLowerCase().replace(/^(the|a|an) /i, "")).join("; "),
+  [books]);
+
   const {
     intentInputs, setIntentInputs,
     intentResults, setIntentResults,
@@ -269,10 +273,6 @@ export default function App() {
   const allYearsList = useMemo(() => Object.keys(stats.byYearTracked).sort().map(Number), [stats]);
 
   const allYearsListFull = useMemo(() => Object.keys(stats.byYear).sort().map(Number), [stats]);
-
-  const readTitlesString = useMemo(() =>
-    books.slice(-200).map(b => b.title.toLowerCase().replace(/^(the|a|an) /i, "")).join("; "),
-  [books]);
 
   // ── HANDLERS ──────────────────────────────────────────────────────────────
   const aiHeaders = () => ({
