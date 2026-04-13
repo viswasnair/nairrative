@@ -22,12 +22,11 @@ export async function mockClaudeAPI(page) {
       // Author country lookup
       responseText = 'Unknown';
     } else if (
-      maxTokens >= 1500 ||
-      system.includes('series') ||
-      system.includes('catch-up') ||
-      system.includes('recap')
+      system.includes('recap') ||
+      system.includes('catch up on a book series') ||
+      system.includes('literary companion')
     ) {
-      // Series recap
+      // Series recap (haiku, max 800 tokens)
       responseText = [
         '**Book 1 Recap**',
         '',

@@ -48,15 +48,17 @@ test.describe('Recommendations — panels loading and refreshing', () => {
 
   test('auto-load lenses display recommendations from seed/cache', async ({ page }) => {
     // The app loads recs from Supabase/seed when the tab opens.
-    // Seed data contains "Piranesi" for more-like lens — verify at least one recommendation shows.
+    // Wait for the first auto-lens card to have a title rendered beneath it.
+    // Seed data always loads (SEED_RECS fallback), so at least one rec should appear.
     const firstAutoLens = page.locator('.rec-grid > div').first();
     await expect(firstAutoLens).toBeVisible({ timeout: 8_000 });
-    // Either the seed rec text is present or an AI mock rec loaded
+
+    // The rec title is in a div with fontWeight 600 inside the card.
+    // Seed "more-like" lens has "Piranesi"; if cache differs it will be another title.
+    // Just verify *something* rendered below the lens header (i.e. a rec title div exists).
     await expect(
-      page.locator('.rec-grid').locator('text=Piranesi, text=The Name of the Wind').first()
-    ).toBeVisible({ timeout: 20_000 }).catch(() => {
-      // One of the known seed titles should appear somewhere in the grid
-    });
+      firstAutoLens.locator('div[style*="font-weight: 600"], div[style*="fontWeight"]').first()
+    ).toBeVisible({ timeout: 20_000 });
   });
 
   test('refresh button (↺) re-fetches a recommendation', async ({ page }) => {

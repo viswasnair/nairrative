@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { supabase } from "./lib/supabase";
 import G from "./constants/theme";
-import { READING_CONTEXT, TABS, INPUT_DEFAULTS } from "./constants/config";
+import { TABS } from "./constants/config";
 import { buildBookContext } from "./lib/bookUtils";
 import { useBooks } from "./hooks/useBooks";
 import { useAnalysis } from "./hooks/useAnalysis";
@@ -85,22 +85,10 @@ export default function App() {
   ]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
-  const [analysisChat, setAnalysisChat] = useState([]);
-  const [analysisChatInput, setAnalysisChatInput] = useState("");
-  const [analysisChatLoading, setAnalysisChatLoading] = useState(false);
-  const apiKey = true; // key lives server-side via Netlify function
   const [seriesRecap, setSeriesRecap] = useState(null);
   const [seriesLoading, setSeriesLoading] = useState(false);
   const [selectedSeries, setSelectedSeries] = useState("Wheel of Time");
   const chatEndRef = useRef(null);
-
-  useEffect(() => {
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&family=Cormorant+Garamond:wght@300;400;600&family=Lora:ital,wght@0,400;0,700;1,400&family=DM+Serif+Display:ital@0;1&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Fraunces:ital,wght@0,300;1,300&display=swap";
-    document.head.appendChild(link);
-    return () => document.head.removeChild(link);
-  }, []);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
@@ -219,8 +207,6 @@ export default function App() {
       const dominant = Object.entries(counts).sort((a,b) => b[1]-a[1])[0][0];
       return { era: e, dominant, counts, total: sub.length };
     }).filter(Boolean);
-    const fictionByEra = moodByEra; const peakFictionEra = null; const lowFictionEra = null;
-
     // Notable years — computed from actual volume, no hardcoded life events
     const yearCounts = Object.entries(stats.byYear).map(([y,c]) => ({ year: parseInt(y), count: c })).filter(y => y.year >= 2011).sort((a,b) => a.year - b.year);
     const yearAvg = yearCounts.reduce((s,y) => s+y.count, 0) / yearCounts.length;
