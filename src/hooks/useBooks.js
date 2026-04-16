@@ -279,7 +279,9 @@ export function useBooks({ session }) {
     const saveSuggestions = authors.map(a => {
       const trimmed = a.name.trim();
       if (!trimmed || authorList.some(n => n.toLowerCase() === trimmed.toLowerCase())) return null;
-      return bestFuzzyMatch(trimmed, authorList);
+      const match = bestFuzzyMatch(trimmed, authorList);
+      console.log("[saveBook] fuzzy check:", JSON.stringify(trimmed), "→", match);
+      return match;
     });
     if (saveSuggestions.some(s => s !== null)) {
       setAuthorSuggestions(saveSuggestions);
