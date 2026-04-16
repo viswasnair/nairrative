@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useTransition, useDeferredValue } from "react";
 import { supabase } from "./lib/supabase";
 import G from "./constants/theme";
 import { TABS } from "./constants/config";
@@ -74,6 +74,8 @@ export default function App() {
   const [loginError, setLoginError] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [, startTabTransition] = useTransition();
+  const switchTab = (id) => startTabTransition(() => setActiveTab(id));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const {
     books,
@@ -123,6 +125,8 @@ export default function App() {
     fetchIntentRecs,
   } = useRecs({ books, booksFingerprint, activeTab, readTitlesString });
 
+  const deferredBooks = useDeferredValue(books);
+
   const [search, setSearch] = useState("");
   const [libGenres, setLibGenres] = useState([]);
   const [libYears, setLibYears] = useState([]);
@@ -163,7 +167,7 @@ export default function App() {
   // ── COMPUTED DATA ────────────────────────────────────────────────────────
   const stats = useMemo(() => {
     const byYear = {}, byYearTracked = {}, byGenre = {}, byAuthor = {}, byCountry = {};
-    books.forEach(b => {
+    deferredBooks.forEach(b => {
       byYear[b.year] = (byYear[b.year] || 0) + 1;
       if (b.year_read_start === b.year_read_end)
         byYearTracked[b.year] = (byYearTracked[b.year] || 0) + 1;
@@ -174,18 +178,18 @@ export default function App() {
     const sortedAuthors = Object.entries(byAuthor).sort((a, b) => b[1] - a[1]);
     const sortedGenres = Object.entries(byGenre).sort((a, b) => b[1] - a[1]);
     const sortedYears = Object.entries(byYearTracked).sort((a, b) => b[1] - a[1]);
-    const minYearStart = books.length ? Math.min(...books.map(b => b.year_read_start)) : 1998;
-    const maxYearEnd = books.length ? Math.max(...books.map(b => b.year_read_end)) : new Date().getFullYear();
+    const minYearStart = deferredBooks.length ? Math.min(...deferredBooks.map(b => b.year_read_start)) : 1998;
+    const maxYearEnd = deferredBooks.length ? Math.max(...deferredBooks.map(b => b.year_read_end)) : new Date().getFullYear();
     const readingSpan = maxYearEnd - minYearStart + 1;
-    return { total: books.length, byYear, byYearTracked, byGenre, byAuthor, byCountry, sortedAuthors, sortedGenres, sortedYears, readingSpan };
-  }, [books]);
+    return { total: deferredBooks.length, byYear, byYearTracked, byGenre, byAuthor, byCountry, sortedAuthors, sortedGenres, sortedYears, readingSpan };
+  }, [deferredBooks]);
 
 
   const analysisInsights = useMemo(() => {
     // Temporal
     const years = Object.keys(stats.byYearTracked).map(Number).sort();
     const fullRange = Array.from({length: years[years.length-1] - years[0] + 1}, (_, i) => years[0] + i);
-    const trackedBooks = books.filter(b => b.year_read_start === b.year_read_end);
+    const trackedBooks = deferredBooks.filter(b => b.year_read_start === b.year_read_end);
     const avgPerActive = Math.round(trackedBooks.length / years.length);
     let maxGap = 0, curGap = 0, gapStart = null, longestGapStart = null;
     for (const y of fullRange) {
@@ -194,11 +198,11 @@ export default function App() {
     }
 
     // Genre & Form
-    const fictionCount = books.filter(b => b.fiction === true).length;
-    const fictionPct = Math.round(fictionCount / books.length * 100);
-    const graphicNovels = books.filter(b => (b.genre || []).includes("Graphic Novel")).length;
+    const fictionCount = deferredBooks.filter(b => b.fiction === true).length;
+    const fictionPct = Math.round(fictionCount / deferredBooks.length * 100);
+    const graphicNovels = deferredBooks.filter(b => (b.genre || []).includes("Graphic Novel")).length;
     const genreCount = Object.keys(stats.byGenre).length;
-    const era = (s, e) => books.filter(b => b.year >= s && b.year <= e);
+    const era = (s, e) => deferredBooks.filter(b => b.year >= s && b.year <= e);
     const topGenreIn = sub => Object.entries(sub.reduce((a, b) => { (b.genre||[]).forEach(g=>{a[g]=(a[g]||0)+1;}); return a; }, {})).sort((a,b)=>b[1]-a[1])[0]?.[0] || "—";
     const genreEra = [
       { era: "2010–14", top: topGenreIn(era(2010,2014)) },
@@ -210,24 +214,24 @@ export default function App() {
     // Geographic
     const uniqueCountries = Object.keys(stats.byCountry).length;
     const topCountries = Object.entries(stats.byCountry).sort((a,b)=>b[1]-a[1]).slice(0,5);
-    const indiaPct = Math.round((stats.byCountry["India"]||0) / books.length * 100);
+    const indiaPct = Math.round((stats.byCountry["India"]||0) / deferredBooks.length * 100);
 
     // Author behavior
     const authorEntries = Object.entries(stats.byAuthor);
     const loyal = authorEntries.filter(([,c])=>c>=5).sort((a,b)=>b[1]-a[1]);
     const sampledCount = authorEntries.filter(([,c])=>c===1).length;
     const booksFromLoyal = loyal.reduce((s,[,c])=>s+c,0);
-    const loyaltyRatio = Math.round(booksFromLoyal / books.length * 100);
+    const loyaltyRatio = Math.round(booksFromLoyal / deferredBooks.length * 100);
 
     // Complexity — derived from genre tags only, no hardcoded authors
-    const challengingCount = books.filter(b => (b.genre||[]).some(g => ["Classic","Philosophy","Literary Fiction"].includes(g))).length;
-    const challengePct = Math.round(challengingCount / books.length * 100);
-    const challengingAuthorsFromData = [...new Set(books.filter(b => (b.genre||[]).some(g => ["Classic","Philosophy"].includes(g))).map(b => b.author))].slice(0, 8);
+    const challengingCount = deferredBooks.filter(b => (b.genre||[]).some(g => ["Classic","Philosophy","Literary Fiction"].includes(g))).length;
+    const challengePct = Math.round(challengingCount / deferredBooks.length * 100);
+    const challengingAuthorsFromData = [...new Set(deferredBooks.filter(b => (b.genre||[]).some(g => ["Classic","Philosophy"].includes(g))).map(b => b.author))].slice(0, 8);
 
     // Series — derived from books with a series field set
-    const seriesBooks = books.filter(b => b.series && b.series.trim() !== "");
+    const seriesBooks = deferredBooks.filter(b => b.series && b.series.trim() !== "");
     const seriesCount = seriesBooks.length;
-    const seriesPct = Math.round(seriesCount / books.length * 100);
+    const seriesPct = Math.round(seriesCount / deferredBooks.length * 100);
 
     // Mood mapping by era — derived from genre groupings
     const MOOD_GENRES = {
@@ -237,7 +241,7 @@ export default function App() {
       "Informative":   ["Biography", "Popular Science", "History", "Non-Fiction", "Economics", "Self-Help", "Environment", "Systems", "Sociology", "Psychology", "Business"],
     };
     const bookMood = b => { const g = b.genre || []; for (const [m, tags] of Object.entries(MOOD_GENRES)) { if (g.some(t => tags.includes(t))) return m; } return null; };
-    const allBookYears = [...new Set(books.map(b => b.year))].sort((a,b) => a-b);
+    const allBookYears = [...new Set(deferredBooks.map(b => b.year))].sort((a,b) => a-b);
     const minY = allBookYears[0] ?? 2011;
     const maxY = allBookYears[allBookYears.length - 1] ?? new Date().getFullYear();
     const span = maxY - minY;
@@ -273,7 +277,7 @@ export default function App() {
 
     return {
       peakYear: stats.sortedYears[0], avgPerActive, maxGap, longestGapStart,
-      fictionCount, nonFictionCount: books.length - fictionCount, fictionPct, graphicNovels, genreCount, genreEra,
+      fictionCount, nonFictionCount: deferredBooks.length - fictionCount, fictionPct, graphicNovels, genreCount, genreEra,
       uniqueCountries, topCountries, indiaPct,
       loyal, sampledCount, booksFromLoyal, loyaltyRatio,
       challengingCount, challengePct, challengingAuthorsFromData,
@@ -281,7 +285,7 @@ export default function App() {
       fictionByEra: moodByEra, peakFictionEra: null, lowFictionEra: null,
       notableYears, topAuthorChannels,
     };
-  }, [books, stats]);
+  }, [deferredBooks, stats]);
 
   const filteredBooks = useMemo(() =>
     books.filter(b => {
@@ -446,7 +450,7 @@ Answer primarily from the data, with specific references to books, authors, year
       <div className="page-header" style={{ padding: "28px 28px 0", background: G.bg }}>
         {/* Logo row */}
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: 16, position: "relative" }}>
-          <img src="/nairrative.png" alt="Nairrative" className="header-logo" onClick={() => setActiveTab("overview")} style={{ width: 398, height: 113, mixBlendMode: "multiply", cursor: "pointer" }} />
+          <img src="/nairrative.png" alt="Nairrative" className="header-logo" onClick={() => switchTab("overview")} style={{ width: 398, height: 113, mixBlendMode: "multiply", cursor: "pointer" }} />
           <div style={{ position: "absolute", right: 0, top: 0, display: "flex", alignItems: "center", gap: 8 }}>
             {/* Burger — mobile only */}
             <button className="burger-btn" onClick={() => setMobileMenuOpen(o => !o)}
@@ -472,7 +476,7 @@ Answer primarily from the data, with specific references to books, authors, year
           <div style={{ display: "flex", gap: 4, width: "fit-content", margin: "0 auto" }}>
             {TABS.map(t => (
               <button key={t.id} className={`tab-btn ${activeTab === t.id ? "active" : ""}`}
-                onClick={() => setActiveTab(t.id)}>
+                onClick={() => switchTab(t.id)}>
                 <span style={{ marginRight: 6 }}>{t.icon}</span>{t.label}
               </button>
             ))}
@@ -485,7 +489,7 @@ Answer primarily from the data, with specific references to books, authors, year
             {TABS.map(t => (
               <button key={t.id} className={`tab-btn ${activeTab === t.id ? "active" : ""}`}
                 style={{ width: "100%", textAlign: "left" }}
-                onClick={() => { setActiveTab(t.id); setMobileMenuOpen(false); }}>
+                onClick={() => { switchTab(t.id); setMobileMenuOpen(false); }}>
                 <span style={{ marginRight: 8 }}>{t.icon}</span>{t.label}
               </button>
             ))}
