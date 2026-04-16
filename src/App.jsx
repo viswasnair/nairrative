@@ -92,10 +92,17 @@ export default function App() {
     newGenreOpen, setNewGenreOpen,
     newGenreSaving,
     bookChatInputRef,
+    authorSuggestions,
+    genreSuggestion,
     openAddModal,
     openEditModal,
     chatFillBook,
     applyPending,
+    checkAuthorSuggestion,
+    acceptAuthorSuggestion,
+    dismissAuthorSuggestion,
+    acceptGenreSuggestion,
+    dismissGenreSuggestion,
     addGenre,
     saveBook,
     deleteBook,
@@ -578,6 +585,13 @@ Answer primarily from the data, with specific references to books, authors, year
             saveBook={saveBook}
             deleteBook={deleteBook}
             onClose={() => setShowBookModal(false)}
+            authorSuggestions={authorSuggestions}
+            checkAuthorSuggestion={checkAuthorSuggestion}
+            acceptAuthorSuggestion={acceptAuthorSuggestion}
+            dismissAuthorSuggestion={dismissAuthorSuggestion}
+            genreSuggestion={genreSuggestion}
+            acceptGenreSuggestion={acceptGenreSuggestion}
+            dismissGenreSuggestion={dismissGenreSuggestion}
           />
         )}
 

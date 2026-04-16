@@ -23,6 +23,13 @@ export default function BookModal({
   saveBook,
   deleteBook,
   onClose,
+  authorSuggestions,
+  checkAuthorSuggestion,
+  acceptAuthorSuggestion,
+  dismissAuthorSuggestion,
+  genreSuggestion,
+  acceptGenreSuggestion,
+  dismissGenreSuggestion,
 }) {
   return (
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
@@ -67,12 +74,24 @@ export default function BookModal({
           <div>
             <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 5 }}>Authors *</div>
             {bookDraft.authors.map((a, i) => (
-              <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                <input className="input-dark" style={{ flex: 2, fontSize: 12 }} placeholder="Author name" value={a.name}
-                  onChange={e => setBookDraft(p => { const au = [...p.authors]; au[i] = { ...au[i], name: e.target.value }; return { ...p, authors: au }; })} />
-                {bookDraft.authors.length > 1 && (
-                  <button onClick={() => setBookDraft(p => ({ ...p, authors: p.authors.filter((_, j) => j !== i) }))}
-                    style={{ background: "none", border: "none", color: G.muted, cursor: "pointer", fontSize: 16, padding: "0 4px" }}>×</button>
+              <div key={i}>
+                <div style={{ display: "flex", gap: 6, marginBottom: authorSuggestions?.[i] ? 4 : 6 }}>
+                  <input className="input-dark" style={{ flex: 2, fontSize: 12 }} placeholder="Author name" value={a.name}
+                    onChange={e => setBookDraft(p => { const au = [...p.authors]; au[i] = { ...au[i], name: e.target.value }; return { ...p, authors: au }; })}
+                    onBlur={e => checkAuthorSuggestion(i, e.target.value)} />
+                  {bookDraft.authors.length > 1 && (
+                    <button onClick={() => setBookDraft(p => ({ ...p, authors: p.authors.filter((_, j) => j !== i) }))}
+                      style={{ background: "none", border: "none", color: G.muted, cursor: "pointer", fontSize: 16, padding: "0 4px" }}>×</button>
+                  )}
+                </div>
+                {authorSuggestions?.[i] && (
+                  <div style={{ fontSize: 11, color: G.gold, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
+                    Did you mean "{authorSuggestions[i]}"?
+                    <button onClick={() => acceptAuthorSuggestion(i)}
+                      style={{ background: "none", border: "none", color: G.gold, fontSize: 11, cursor: "pointer", textDecoration: "underline", padding: 0 }}>Use it</button>
+                    <button onClick={() => dismissAuthorSuggestion(i)}
+                      style={{ background: "none", border: "none", color: G.muted, fontSize: 11, cursor: "pointer", textDecoration: "underline", padding: 0 }}>Keep mine</button>
+                  </div>
                 )}
               </div>
             ))}
@@ -86,13 +105,24 @@ export default function BookModal({
             <MultiSelect options={genreList} selected={bookDraft.genres} onChange={v => setBookDraft(p => ({ ...p, genres: v }))} placeholder="Select genres…" style={{ width: "100%" }} />
             {!newGenreOpen
               ? <button onClick={() => setNewGenreOpen(true)} style={{ background: "none", border: "none", color: G.muted, fontSize: 11, cursor: "pointer", padding: "6px 0 0", textDecoration: "underline" }}>+ Add new genre</button>
-              : <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                  <input autoFocus className="input-dark" style={{ flex: 1, fontSize: 12 }} placeholder="New genre name…"
-                    value={newGenreInput} onChange={e => setNewGenreInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter") addGenre(); if (e.key === "Escape") { setNewGenreOpen(false); setNewGenreInput(""); } }} />
-                  <button className="btn-gold" style={{ padding: "6px 12px", fontSize: 12 }} onClick={addGenre} disabled={newGenreSaving}>{newGenreSaving ? "…" : "Add"}</button>
-                  <button onClick={() => { setNewGenreOpen(false); setNewGenreInput(""); }}
-                    style={{ background: "none", border: "none", color: G.muted, fontSize: 18, cursor: "pointer", padding: "0 4px" }}>×</button>
+              : <div style={{ marginTop: 8 }}>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input autoFocus className="input-dark" style={{ flex: 1, fontSize: 12 }} placeholder="New genre name…"
+                      value={newGenreInput} onChange={e => { setNewGenreInput(e.target.value); dismissGenreSuggestion(); }}
+                      onKeyDown={e => { if (e.key === "Enter") addGenre(); if (e.key === "Escape") { setNewGenreOpen(false); setNewGenreInput(""); dismissGenreSuggestion(); } }} />
+                    <button className="btn-gold" style={{ padding: "6px 12px", fontSize: 12 }} onClick={() => addGenre()} disabled={newGenreSaving}>{newGenreSaving ? "…" : "Add"}</button>
+                    <button onClick={() => { setNewGenreOpen(false); setNewGenreInput(""); dismissGenreSuggestion(); }}
+                      style={{ background: "none", border: "none", color: G.muted, fontSize: 18, cursor: "pointer", padding: "0 4px" }}>×</button>
+                  </div>
+                  {genreSuggestion && (
+                    <div style={{ fontSize: 11, color: G.gold, marginTop: 6, display: "flex", alignItems: "center", gap: 8 }}>
+                      Did you mean "{genreSuggestion}"?
+                      <button onClick={acceptGenreSuggestion}
+                        style={{ background: "none", border: "none", color: G.gold, fontSize: 11, cursor: "pointer", textDecoration: "underline", padding: 0 }}>Use it</button>
+                      <button onClick={() => { dismissGenreSuggestion(); addGenre(true); }}
+                        style={{ background: "none", border: "none", color: G.muted, fontSize: 11, cursor: "pointer", textDecoration: "underline", padding: 0 }}>Add as new anyway</button>
+                    </div>
+                  )}
                 </div>
             }
           </div>

@@ -3,6 +3,30 @@ import { supabase } from "../lib/supabase";
 import { normalizeBook } from "../lib/bookUtils";
 import { CLAUDE_URL, AI_HEADERS } from "../lib/api";
 
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = [];
+  for (let i = 0; i <= m; i++) dp[i] = [i];
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  return dp[m][n];
+}
+
+function bestFuzzyMatch(input, list) {
+  if (!input || !list.length) return null;
+  const lower = input.toLowerCase().trim();
+  let best = null, bestDist = Infinity;
+  for (const item of list) {
+    if (item.toLowerCase() === lower) return null; // exact match, no suggestion needed
+    const d = levenshtein(lower, item.toLowerCase());
+    if (d < bestDist) { bestDist = d; best = item; }
+  }
+  const threshold = lower.length <= 5 ? 1 : lower.length <= 10 ? 2 : 3;
+  return bestDist <= threshold ? best : null;
+}
+
 const EMPTY_DRAFT = {
   title: "",
   authors: [{ name: "" }],
@@ -36,7 +60,18 @@ export function useBooks({ session }) {
   const [newGenreSaving, setNewGenreSaving] = useState(false);
   const [lastAddedAt, setLastAddedAt] = useState(null);
 
+  const [authorList, setAuthorList] = useState([]);
+  const [authorSuggestions, setAuthorSuggestions] = useState([]);
+  const [genreSuggestion, setGenreSuggestion] = useState(null);
+
   const bookChatInputRef = useRef(null);
+
+  // Fetch authors for fuzzy matching
+  useEffect(() => {
+    supabase.from("authors").select("name").order("name").then(({ data }) => {
+      if (data) setAuthorList(data.map(a => a.name));
+    });
+  }, []);
 
   // Fetch genres
   useEffect(() => {
@@ -75,6 +110,8 @@ export function useBooks({ session }) {
     if (bookChatInputRef.current) bookChatInputRef.current.value = "";
     setBookChatPending(null);
     setBookMsg("");
+    setAuthorSuggestions([]);
+    setGenreSuggestion(null);
     setShowBookModal(true);
   };
 
@@ -95,6 +132,8 @@ export function useBooks({ session }) {
     if (bookChatInputRef.current) bookChatInputRef.current.value = "";
     setBookChatPending(null);
     setBookMsg("");
+    setAuthorSuggestions([]);
+    setGenreSuggestion(null);
     setShowBookModal(true);
   };
 
@@ -142,6 +181,29 @@ export function useBooks({ session }) {
     if (bookChatInputRef.current) bookChatInputRef.current.value = "";
   };
 
+  const checkAuthorSuggestion = (i, name) => {
+    const trimmed = name.trim();
+    if (!trimmed || authorList.some(n => n.toLowerCase() === trimmed.toLowerCase())) {
+      setAuthorSuggestions(prev => { const next = [...prev]; next[i] = null; return next; });
+      return;
+    }
+    const match = bestFuzzyMatch(trimmed, authorList);
+    setAuthorSuggestions(prev => { const next = [...prev]; next[i] = match || null; return next; });
+  };
+
+  const acceptAuthorSuggestion = (i) => {
+    setBookDraft(p => {
+      const au = [...p.authors];
+      au[i] = { ...au[i], name: authorSuggestions[i] };
+      return { ...p, authors: au };
+    });
+    setAuthorSuggestions(prev => { const next = [...prev]; next[i] = null; return next; });
+  };
+
+  const dismissAuthorSuggestion = (i) => {
+    setAuthorSuggestions(prev => { const next = [...prev]; next[i] = null; return next; });
+  };
+
   const lookupAuthorCountry = async (authorName) => {
     try {
       const res = await fetch(CLAUDE_URL, {
@@ -156,10 +218,32 @@ export function useBooks({ session }) {
     } catch { return null; }
   };
 
-  const addGenre = async () => {
+  const acceptGenreSuggestion = () => {
+    if (!genreSuggestion) return;
+    if (!bookDraft.genres.includes(genreSuggestion))
+      setBookDraft(p => ({ ...p, genres: [...p.genres, genreSuggestion] }));
+    setNewGenreInput(""); setNewGenreOpen(false); setGenreSuggestion(null);
+  };
+
+  const dismissGenreSuggestion = () => setGenreSuggestion(null);
+
+  const addGenre = async (force = false) => {
     const name = newGenreInput.trim();
     if (!name) return;
-    if (genreList.includes(name)) { setNewGenreInput(""); setNewGenreOpen(false); return; }
+    // Case-insensitive exact match — just select it, don't insert
+    const exactMatch = genreList.find(g => g.toLowerCase() === name.toLowerCase());
+    if (exactMatch) {
+      if (!bookDraft.genres.includes(exactMatch))
+        setBookDraft(p => ({ ...p, genres: [...p.genres, exactMatch] }));
+      setNewGenreInput(""); setNewGenreOpen(false); setGenreSuggestion(null);
+      return;
+    }
+    // Fuzzy check before inserting
+    if (!force) {
+      const match = bestFuzzyMatch(name, genreList);
+      if (match) { setGenreSuggestion(match); return; }
+    }
+    setGenreSuggestion(null);
     setNewGenreSaving(true);
     let color = "#a0a0a0";
     try {
@@ -214,6 +298,8 @@ export function useBooks({ session }) {
         const updatedAuthors = authors.filter(a => a.name.trim()).map((a, i) => ({ author_order: i + 1, authors: { id: 0, name: a.name, country: a.country } }));
         const normalized = normalizeBook({ ...editingBook, title: title.trim(), year_read_start: ys, year_read_end: ye, genre: genres, format, fiction, series, pages: pages ? parseInt(pages) : null, notes, book_authors: updatedAuthors });
         setBooks(prev => prev.map(b => b.id === editingBook.id ? normalized : b));
+        const updatedNames = authors.map(a => a.name.trim()).filter(n => n && !authorList.includes(n));
+        if (updatedNames.length) setAuthorList(prev => [...new Set([...prev, ...updatedNames])].sort());
         setBookMsg("✓ Book updated!");
       } else {
         // INSERT
@@ -238,6 +324,8 @@ export function useBooks({ session }) {
           bookAuthors.push({ author_order: i + 1, authors: au });
         }
         setBooks(prev => [...prev, normalizeBook({ ...book, book_authors: bookAuthors })]);
+        const addedNames = authors.map(a => a.name.trim()).filter(n => n && !authorList.includes(n));
+        if (addedNames.length) setAuthorList(prev => [...new Set([...prev, ...addedNames])].sort());
         setBookMsg("✓ Book added!");
         setLastAddedAt(Date.now());
       }
@@ -250,9 +338,33 @@ export function useBooks({ session }) {
     if (!editingBook) return;
     setBookSaving(true);
     try {
+      // Fetch author IDs + names before removing junction rows
+      const { data: junctionRows } = await supabase
+        .from("book_authors")
+        .select("author_id, authors(name)")
+        .eq("book_id", editingBook.id);
+
       await supabase.from("book_authors").delete().eq("book_id", editingBook.id);
       const { error } = await supabase.from("books").delete().eq("id", editingBook.id);
       if (error) throw error;
+
+      // Delete authors that now have no remaining books
+      if (junctionRows?.length) {
+        const orphanedNames = [];
+        for (const row of junctionRows) {
+          const { count } = await supabase
+            .from("book_authors")
+            .select("*", { count: "exact", head: true })
+            .eq("author_id", row.author_id);
+          if (count === 0) {
+            await supabase.from("authors").delete().eq("id", row.author_id);
+            if (row.authors?.name) orphanedNames.push(row.authors.name);
+          }
+        }
+        if (orphanedNames.length)
+          setAuthorList(prev => prev.filter(n => !orphanedNames.includes(n)));
+      }
+
       setBooks(prev => prev.filter(b => b.id !== editingBook.id));
       setShowBookModal(false);
     } catch (e) { console.error("deleteBook error:", e); setBookMsg(`Error: ${e?.message || JSON.stringify(e)}`); }
@@ -276,11 +388,18 @@ export function useBooks({ session }) {
     newGenreSaving,
     bookChatInputRef,
     lastAddedAt,
+    authorSuggestions,
+    genreSuggestion,
     // Functions
     openAddModal,
     openEditModal,
     chatFillBook,
     applyPending,
+    checkAuthorSuggestion,
+    acceptAuthorSuggestion,
+    dismissAuthorSuggestion,
+    acceptGenreSuggestion,
+    dismissGenreSuggestion,
     addGenre,
     saveBook,
     deleteBook,
