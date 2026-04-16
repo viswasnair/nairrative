@@ -68,8 +68,10 @@ export function useBooks({ session }) {
 
   // Fetch authors for fuzzy matching
   useEffect(() => {
-    supabase.from("authors").select("name").order("name").then(({ data }) => {
+    supabase.from("authors").select("name").order("name").then(({ data, error }) => {
+      if (error) console.error("[useBooks] authors fetch failed:", error);
       if (data) setAuthorList(data.map(a => a.name));
+      console.log("[useBooks] authorList loaded:", data?.length ?? 0, data?.slice(0, 3));
     });
   }, []);
 
@@ -273,6 +275,7 @@ export function useBooks({ session }) {
     if (!title.trim() || !authors[0]?.name?.trim()) { setBookMsg("Title and at least one author are required."); return; }
 
     // Validate author names against existing authors before saving
+    console.log("[saveBook] authorList at save time:", authorList.length, authorList.slice(0, 3));
     const saveSuggestions = authors.map(a => {
       const trimmed = a.name.trim();
       if (!trimmed || authorList.some(n => n.toLowerCase() === trimmed.toLowerCase())) return null;
