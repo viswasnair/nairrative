@@ -84,11 +84,15 @@ export default function BookModal({
                       style={{ background: "none", border: "none", color: G.muted, cursor: "pointer", fontSize: 16, padding: "0 4px" }}>×</button>
                   )}
                 </div>
-                {authorSuggestions?.[i] && (
-                  <div style={{ fontSize: 11, color: G.gold, marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
-                    Did you mean "{authorSuggestions[i]}"?
-                    <button onClick={() => acceptAuthorSuggestion(i)}
-                      style={{ background: "none", border: "none", color: G.gold, fontSize: 11, cursor: "pointer", textDecoration: "underline", padding: 0 }}>Use it</button>
+                {authorSuggestions?.[i]?.length > 0 && (
+                  <div style={{ fontSize: 11, color: G.red, marginBottom: 6, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    Did you mean:
+                    {authorSuggestions[i].map(s => (
+                      <button key={s} onClick={() => acceptAuthorSuggestion(i, s)}
+                        style={{ background: "none", border: "none", color: G.red, fontSize: 11, cursor: "pointer", textDecoration: "underline", padding: 0 }}>
+                        {s}
+                      </button>
+                    ))}
                     <button onClick={() => dismissAuthorSuggestion(i)}
                       style={{ background: "none", border: "none", color: G.muted, fontSize: 11, cursor: "pointer", textDecoration: "underline", padding: 0 }}>Keep mine</button>
                   </div>
@@ -114,11 +118,15 @@ export default function BookModal({
                     <button onClick={() => { setNewGenreOpen(false); setNewGenreInput(""); dismissGenreSuggestion(); }}
                       style={{ background: "none", border: "none", color: G.muted, fontSize: 18, cursor: "pointer", padding: "0 4px" }}>×</button>
                   </div>
-                  {genreSuggestion && (
-                    <div style={{ fontSize: 11, color: G.gold, marginTop: 6, display: "flex", alignItems: "center", gap: 8 }}>
-                      Did you mean "{genreSuggestion}"?
-                      <button onClick={acceptGenreSuggestion}
-                        style={{ background: "none", border: "none", color: G.gold, fontSize: 11, cursor: "pointer", textDecoration: "underline", padding: 0 }}>Use it</button>
+                  {genreSuggestion?.length > 0 && (
+                    <div style={{ fontSize: 11, color: G.red, marginTop: 6, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      Did you mean:
+                      {genreSuggestion.map(s => (
+                        <button key={s} onClick={() => acceptGenreSuggestion(s)}
+                          style={{ background: "none", border: "none", color: G.red, fontSize: 11, cursor: "pointer", textDecoration: "underline", padding: 0 }}>
+                          {s}
+                        </button>
+                      ))}
                       <button onClick={() => { dismissGenreSuggestion(); addGenre(true); }}
                         style={{ background: "none", border: "none", color: G.muted, fontSize: 11, cursor: "pointer", textDecoration: "underline", padding: 0 }}>Add as new anyway</button>
                     </div>

@@ -14,17 +14,17 @@ function levenshtein(a, b) {
   return dp[m][n];
 }
 
-function bestFuzzyMatch(input, list) {
-  if (!input || !list.length) return null;
+function fuzzyMatches(input, list) {
+  if (!input || !list.length) return [];
   const lower = input.toLowerCase().trim();
-  let best = null, bestDist = Infinity;
-  for (const item of list) {
-    if (item.toLowerCase() === lower) return null; // exact match, no suggestion needed
-    const d = levenshtein(lower, item.toLowerCase());
-    if (d < bestDist) { bestDist = d; best = item; }
-  }
   const threshold = lower.length <= 5 ? 1 : lower.length <= 10 ? 2 : 3;
-  return bestDist <= threshold ? best : null;
+  const results = [];
+  for (const item of list) {
+    if (item.toLowerCase() === lower) return []; // exact match, no suggestion needed
+    const d = levenshtein(lower, item.toLowerCase());
+    if (d <= threshold) results.push({ item, d });
+  }
+  return results.sort((a, b) => a.d - b.d).map(r => r.item);
 }
 
 const EMPTY_DRAFT = {
@@ -68,10 +68,8 @@ export function useBooks({ session }) {
 
   // Fetch authors for fuzzy matching
   useEffect(() => {
-    supabase.from("authors").select("name").order("name").then(({ data, error }) => {
-      if (error) console.error("[useBooks] authors fetch failed:", error);
+    supabase.from("authors").select("name").order("name").then(({ data }) => {
       if (data) setAuthorList(data.map(a => a.name));
-      console.log("[useBooks] authorList loaded:", data?.length ?? 0, data?.slice(0, 3));
     });
   }, []);
 
@@ -189,14 +187,14 @@ export function useBooks({ session }) {
       setAuthorSuggestions(prev => { const next = [...prev]; next[i] = null; return next; });
       return;
     }
-    const match = bestFuzzyMatch(trimmed, authorList);
-    setAuthorSuggestions(prev => { const next = [...prev]; next[i] = match || null; return next; });
+    const matches = fuzzyMatches(trimmed, authorList);
+    setAuthorSuggestions(prev => { const next = [...prev]; next[i] = matches.length ? matches : null; return next; });
   };
 
-  const acceptAuthorSuggestion = (i) => {
+  const acceptAuthorSuggestion = (i, suggestion) => {
     setBookDraft(p => {
       const au = [...p.authors];
-      au[i] = { ...au[i], name: authorSuggestions[i] };
+      au[i] = { ...au[i], name: suggestion };
       return { ...p, authors: au };
     });
     setAuthorSuggestions(prev => { const next = [...prev]; next[i] = null; return next; });
@@ -220,10 +218,10 @@ export function useBooks({ session }) {
     } catch { return null; }
   };
 
-  const acceptGenreSuggestion = () => {
-    if (!genreSuggestion) return;
-    if (!bookDraft.genres.includes(genreSuggestion))
-      setBookDraft(p => ({ ...p, genres: [...p.genres, genreSuggestion] }));
+  const acceptGenreSuggestion = (suggestion) => {
+    if (!suggestion) return;
+    if (!bookDraft.genres.includes(suggestion))
+      setBookDraft(p => ({ ...p, genres: [...p.genres, suggestion] }));
     setNewGenreInput(""); setNewGenreOpen(false); setGenreSuggestion(null);
   };
 
@@ -242,8 +240,8 @@ export function useBooks({ session }) {
     }
     // Fuzzy check before inserting
     if (!force) {
-      const match = bestFuzzyMatch(name, genreList);
-      if (match) { setGenreSuggestion(match); return; }
+      const matches = fuzzyMatches(name, genreList);
+      if (matches.length) { setGenreSuggestion(matches); return; }
     }
     setGenreSuggestion(null);
     setNewGenreSaving(true);
@@ -275,13 +273,11 @@ export function useBooks({ session }) {
     if (!title.trim() || !authors[0]?.name?.trim()) { setBookMsg("Title and at least one author are required."); return; }
 
     // Validate author names against existing authors before saving
-    console.log("[saveBook] authorList at save time:", authorList.length, authorList.slice(0, 3));
     const saveSuggestions = authors.map(a => {
       const trimmed = a.name.trim();
       if (!trimmed || authorList.some(n => n.toLowerCase() === trimmed.toLowerCase())) return null;
-      const match = bestFuzzyMatch(trimmed, authorList);
-      console.log("[saveBook] fuzzy check:", JSON.stringify(trimmed), "→", match);
-      return match;
+      const matches = fuzzyMatches(trimmed, authorList);
+      return matches.length ? matches : null;
     });
     if (saveSuggestions.some(s => s !== null)) {
       setAuthorSuggestions(saveSuggestions);
