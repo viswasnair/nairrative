@@ -14,6 +14,60 @@ import SeriesTab from "./components/SeriesTab";
 import ChatTab from "./components/ChatTab";
 import LibraryTab from "./components/LibraryTab";
 
+// ── MODULE-LEVEL CONSTANTS ────────────────────────────────────────────────
+const CLAUDE_URL = "/api/claude";
+const AI_HEADERS = { "Content-Type": "application/json" };
+
+const css = `
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: ${G.bg}; }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: ${G.bg}; }
+    ::-webkit-scrollbar-thumb { background: ${G.dimmed}; border-radius: 4px; }
+    .tab-btn { cursor: pointer; padding: 8px 18px; border-radius: 6px; border: 1px solid ${G.goldDim}; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; transition: all 0.2s; white-space: nowrap; color: ${G.goldDim}; background: transparent; }
+    .tab-btn:hover { color: ${G.gold}; border-color: ${G.gold}; }
+    .tab-btn.active { background: ${G.gold}; border-color: ${G.gold}; color: #ffffff; font-weight: 600; }
+    .stat-card { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 12px; padding: 20px 24px; transition: border-color 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .stat-card:hover { border-color: ${G.goldDim}; }
+    .genre-pill { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; }
+    .recharts-wrapper svg { overflow: visible !important; }
+    .input-dark { background: ${G.card2}; border: 1px solid ${G.border}; border-radius: 8px; color: ${G.text}; padding: 10px 14px; font-family: 'DM Sans', sans-serif; font-size: 13px; width: 100%; outline: none; transition: border-color 0.2s; }
+    .input-dark:focus { border-color: ${G.goldDim}; }
+    .btn-gold { background: ${G.gold}; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .btn-gold:hover { background: ${G.goldLight}; }
+    .btn-ghost { background: transparent; color: ${G.muted}; border: 1px solid ${G.border}; border-radius: 8px; padding: 8px 16px; font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer; transition: all 0.2s; }
+    .btn-ghost:hover { color: ${G.text}; border-color: ${G.dimmed}; }
+    .rec-card { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 12px; padding: 18px; transition: all 0.2s; }
+    .rec-card:hover { border-color: ${G.goldDim}; transform: translateY(-1px); }
+    .chat-input-wrap { display: flex; gap: 10px; }
+    .lib-row { display: grid; grid-template-columns: 2fr 150px 110px 90px 90px 50px 56px 56px 32px; gap: 10px; padding: 9px 14px; border-bottom: 1px solid ${G.border}; align-items: center; transition: background 0.15s; }
+    .cell-clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .lib-row:hover { background: ${G.card2}; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .modal-box { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 16px; width: 100%; max-width: 540px; max-height: 88vh; overflow: hidden; position: relative; }
+    .modal-scroll { overflow-y: auto; max-height: 88vh; padding: 28px; }
+    .modal-scroll::-webkit-scrollbar { width: 4px; } .modal-scroll::-webkit-scrollbar-track { background: transparent; } .modal-scroll::-webkit-scrollbar-thumb { background: ${G.dimmed}; border-radius: 4px; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fadeIn 0.3s ease; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .pulse { animation: pulse 1.5s infinite; }
+    .burger-btn { display: none; background: none; border: none; cursor: pointer; flex-direction: column; gap: 5px; padding: 4px; }
+    @media (max-width: 640px) {
+      .tab-nav { display: none !important; }
+      .burger-btn { display: flex !important; }
+      .page-header { padding: 16px 16px 0 !important; }
+      .page-content { padding: 16px !important; }
+      .header-logo { width: 250px !important; height: auto !important; }
+      .kpi-grid { grid-template-columns: repeat(3, 1fr) !important; }
+      .chart-grid { grid-template-columns: 1fr !important; }
+      .rec-grid { grid-template-columns: 1fr !important; }
+      .analysis-grid { grid-template-columns: 1fr !important; }
+      .lib-scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .lib-inner { min-width: 860px; }
+      .lib-row { grid-template-columns: 160px 140px 100px 80px 80px 48px 50px 50px 32px; }
+    }
+  `;
+
 // ── MAIN APP ──────────────────────────────────────────────────────────────
 export default function App() {
   const [session, setSession] = useState(null);
@@ -25,8 +79,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const {
-    books, setBooks,
-    booksLoading,
+    books,
     genreList, genreMap,
     booksFingerprint,
     showBookModal, setShowBookModal,
@@ -35,7 +88,7 @@ export default function App() {
     bookChatLoading,
     bookChatPending, setBookChatPending,
     bookSaving,
-    bookMsg, setBookMsg,
+    bookMsg,
     newGenreInput, setNewGenreInput,
     newGenreOpen, setNewGenreOpen,
     newGenreSaving,
@@ -57,7 +110,6 @@ export default function App() {
     editingPanel, setEditingPanel,
     viewingPanel, setViewingPanel,
     panelLoading,
-    fetchAnalysisAI,
     updatePanelPrompt,
     savePanelPromptsToSupabase,
     regeneratePanel,
@@ -187,7 +239,6 @@ export default function App() {
       "Reflective":    ["Literary Fiction", "Classic", "Philosophy", "Spirituality", "Memoir", "Essays", "Poetry"],
       "Informative":   ["Biography", "Popular Science", "History", "Non-Fiction", "Economics", "Self-Help", "Environment", "Systems", "Sociology", "Psychology", "Business"],
     };
-    const MOOD_COLORS = { "Dark & Tense": "#e06c75", "Imaginative": "#4a9eff", "Reflective": "#c3a6ff", "Informative": "#ffd166" };
     const bookMood = b => { const g = b.genre || []; for (const [m, tags] of Object.entries(MOOD_GENRES)) { if (g.some(t => tags.includes(t))) return m; } return null; };
     const allBookYears = [...new Set(books.map(b => b.year))].sort((a,b) => a-b);
     const minY = allBookYears[0] ?? 2011;
@@ -257,11 +308,6 @@ export default function App() {
   const allYearsListFull = useMemo(() => Object.keys(stats.byYear).sort().map(Number), [stats]);
 
   // ── HANDLERS ──────────────────────────────────────────────────────────────
-  const aiHeaders = () => ({
-    "Content-Type": "application/json",
-  });
-  const CLAUDE_URL = "/api/claude";
-
   const sendChat = async () => {
     if (!chatInput.trim() || chatLoading) return;
     const userMsg = { role: "user", content: chatInput };
@@ -275,7 +321,7 @@ export default function App() {
         .map(b => `[${b.year}] "${b.title}" by ${b.author} | ${(b.genre||[]).join("/")}${b.pages ? " | " + b.pages + "pp" : ""}${b.series ? " | series: " + b.series : ""}${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}${b.notes ? " | " + b.notes : ""}`)
         .join("\n");
       const res = await fetch(CLAUDE_URL, {
-        method: "POST", headers: aiHeaders(),
+        method: "POST", headers: AI_HEADERS,
         body: JSON.stringify({
           model: "claude-sonnet-4-6", max_tokens: 1200,
           system: `You are an insightful personal reading assistant with full access to the user's reading database. Use the data below to answer questions accurately and specifically.
@@ -318,7 +364,7 @@ Answer primarily from the data, with specific references to books, authors, year
     const seriesBooks = books.filter(b => b.series === seriesName).sort((a, b) => (a.id - b.id));
     try {
       const res = await fetch(CLAUDE_URL, {
-        method: "POST", headers: aiHeaders(),
+        method: "POST", headers: AI_HEADERS,
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001", max_tokens: 800,
           system: `You are a literary companion helping a reader catch up on a book series. Write engaging recaps — key characters, major plot turns, how each book ends. Keep each book recap to 2–3 sentences. Be concise.`,
