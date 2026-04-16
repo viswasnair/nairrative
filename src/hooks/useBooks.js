@@ -271,6 +271,19 @@ export function useBooks({ session }) {
   const saveBook = async () => {
     const { title, authors, genres, yearStart, yearEnd, format, fiction, series, pages, notes } = bookDraft;
     if (!title.trim() || !authors[0]?.name?.trim()) { setBookMsg("Title and at least one author are required."); return; }
+
+    // Validate author names against existing authors before saving
+    const saveSuggestions = authors.map(a => {
+      const trimmed = a.name.trim();
+      if (!trimmed || authorList.some(n => n.toLowerCase() === trimmed.toLowerCase())) return null;
+      return bestFuzzyMatch(trimmed, authorList);
+    });
+    if (saveSuggestions.some(s => s !== null)) {
+      setAuthorSuggestions(saveSuggestions);
+      setBookMsg("Check the author name suggestion below — or dismiss it to save as typed.");
+      return;
+    }
+
     setBookSaving(true);
     try {
       const ys = parseInt(yearStart);
