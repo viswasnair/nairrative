@@ -1,9 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { normalizeBook } from "../lib/bookUtils";
-
-const CLAUDE_URL = "/api/claude";
-const aiHeaders = () => ({ "Content-Type": "application/json" });
+import { CLAUDE_URL, AI_HEADERS } from "../lib/api";
 
 const EMPTY_DRAFT = {
   title: "",
@@ -106,7 +104,7 @@ export function useBooks({ session }) {
     setBookChatLoading(true);
     try {
       const res = await fetch(CLAUDE_URL, {
-        method: "POST", headers: aiHeaders(),
+        method: "POST", headers: AI_HEADERS,
         body: JSON.stringify({
           model: "claude-sonnet-4-6", max_tokens: 400,
           system: `You are a book database assistant. Given a natural language description of a book, use your knowledge to identify the exact book (correct title, author spelling, publication year) and return ONLY valid JSON (no markdown) with these fields: title (string), authors (array of {name, country}), genres (array, pick from: Fantasy, Sci-Fi, Thriller, Mystery, Literary Fiction, Historical Fiction, Non-Fiction, Graphic Novel, Memoir, Biography, Classic, Philosophy, Popular Science, Self-Help, Travel, Horror, History, Politics, Economics, Psychology, Business), fiction (boolean), format (MUST be exactly one of these values, no others allowed: "Novel", "Novella", "Short Stories", "Graphic Novel", "Non-Fiction", "Play"), series (string or ""), pages (number or null), year (original publication year as number).`,
@@ -147,7 +145,7 @@ export function useBooks({ session }) {
   const lookupAuthorCountry = async (authorName) => {
     try {
       const res = await fetch(CLAUDE_URL, {
-        method: "POST", headers: aiHeaders(),
+        method: "POST", headers: AI_HEADERS,
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001", max_tokens: 20,
           messages: [{ role: "user", content: `What country is the author "${authorName}" from? Reply with only the ISO 3166-1 short country name (e.g. "United Kingdom" not "UK", "United States" not "USA", "Czechia" not "Czech Republic"). If unknown, reply "Unknown".` }]
@@ -166,7 +164,7 @@ export function useBooks({ session }) {
     let color = "#a0a0a0";
     try {
       const res = await fetch(CLAUDE_URL, {
-        method: "POST", headers: aiHeaders(),
+        method: "POST", headers: AI_HEADERS,
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001", max_tokens: 16,
           messages: [{ role: "user", content: `Pick a single hex color code that visually represents the "${name}" book genre. Consider the mood and tone of the genre. Reply with only the hex code (e.g. #a29bfe), nothing else. Avoid colors already used for similar genres: ${Object.entries(genreMap).map(([g, c]) => g + ":" + c).join(", ")}` }]
@@ -263,8 +261,7 @@ export function useBooks({ session }) {
 
   return {
     // State
-    books, setBooks,
-    booksLoading,
+    books,
     genreList, genreMap,
     booksFingerprint,
     showBookModal, setShowBookModal,

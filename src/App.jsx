@@ -13,10 +13,7 @@ import OverviewTab from "./components/OverviewTab";
 import SeriesTab from "./components/SeriesTab";
 import ChatTab from "./components/ChatTab";
 import LibraryTab from "./components/LibraryTab";
-
-// ── MODULE-LEVEL CONSTANTS ────────────────────────────────────────────────
-const CLAUDE_URL = "/api/claude";
-const AI_HEADERS = { "Content-Type": "application/json" };
+import { CLAUDE_URL, AI_HEADERS } from "./lib/api";
 
 const css = `
     * { box-sizing: border-box; margin: 0; padding: 0; }

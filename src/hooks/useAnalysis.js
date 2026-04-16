@@ -3,9 +3,7 @@ import { supabase } from "../lib/supabase";
 import { buildBookContext } from "../lib/bookUtils";
 import { SEED_ANALYSIS, } from "../constants/seeds";
 import { DEFAULT_PANEL_PROMPTS } from "../constants/config";
-
-const CLAUDE_URL = "/api/claude";
-const aiHeaders = () => ({ "Content-Type": "application/json" });
+import { CLAUDE_URL, AI_HEADERS } from "../lib/api";
 
 export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt }) {
   const [analysisAI, setAnalysisAI] = useState(null);
@@ -74,7 +72,7 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
         const effectivePrompt = panelPrompts[dimension]?.trim() || DEFAULT_PANEL_PROMPTS[dimension] || "";
         const customInstruction = effectivePrompt ? `\n\nFocus: ${effectivePrompt}` : "";
         const res = await fetch(CLAUDE_URL, {
-          method: "POST", headers: aiHeaders(),
+          method: "POST", headers: AI_HEADERS,
           body: JSON.stringify({
             model: "claude-sonnet-4-6", max_tokens: 350,
             system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". Write 3-4 concise sentences focused on patterns and arc — not catalogues of titles or authors. Mention at most 1-2 specific examples to ground the observation. Do not invent facts.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.`,
@@ -128,7 +126,7 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
       const effectivePrompt = panelPrompts[dimension]?.trim() || DEFAULT_PANEL_PROMPTS[dimension] || "";
       const customInstruction = effectivePrompt ? `\n\nFocus: ${effectivePrompt}` : "";
       const res = await fetch(CLAUDE_URL, {
-        method: "POST", headers: aiHeaders(),
+        method: "POST", headers: AI_HEADERS,
         body: JSON.stringify({
           model: "claude-opus-4-6", max_tokens: 400,
           system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". Write 3-4 concise sentences — surface a non-obvious pattern or insight. Mention at most 1-2 specific authors or titles as illustrative examples; do not catalogue books. Do not invent facts.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.`,
@@ -160,7 +158,6 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
     editingPanel, setEditingPanel,
     viewingPanel, setViewingPanel,
     panelLoading,
-    fetchAnalysisAI,
     updatePanelPrompt,
     savePanelPromptsToSupabase,
     regeneratePanel,
