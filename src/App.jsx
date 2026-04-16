@@ -168,6 +168,13 @@ export default function App() {
 
   const logout = async () => { await supabase.auth.signOut(); };
 
+  useEffect(() => {
+    if (!showLoginModal) return;
+    const handler = (e) => { if (e.key === "Escape") { setShowLoginModal(false); setLoginError(""); } };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [showLoginModal]);
+
 
 
 

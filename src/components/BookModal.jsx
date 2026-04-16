@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import G from "../constants/theme";
 import MultiSelect from "./MultiSelect";
 
@@ -31,6 +32,12 @@ export default function BookModal({
   acceptGenreSuggestion,
   dismissGenreSuggestion,
 }) {
+  useEffect(() => {
+    const handler = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
   return (
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal-box">
@@ -178,6 +185,9 @@ export default function BookModal({
           <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
             <button className="btn-gold" style={{ flex: 1 }} onClick={saveBook} disabled={bookSaving}>
               {bookSaving ? "Saving…" : editingBook ? "Save Changes" : "Add to Library"}
+            </button>
+            <button className="btn-ghost" onClick={onClose} disabled={bookSaving}>
+              Cancel
             </button>
             {editingBook && (
               <button onClick={() => { if (window.confirm(`Delete "${editingBook.title}"? This cannot be undone.`)) deleteBook(); }}
