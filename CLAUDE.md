@@ -46,6 +46,7 @@ Nairrative is a personal reading dashboard — a React SPA deployed on Vercel wi
 - `seeds.js` — `SEED_RECS`, `SEED_ANALYSIS` (fallback data for logged-out users)
 - `bookUtils.js` — `buildBookContext`, `downloadCSV`, `downloadJSON`
 - `supabase.js` — Supabase client
+- `api.js` — shared `CLAUDE_URL` and `AI_HEADERS` constants used by all hooks and App.jsx
 
 ### API (`api/`)
 - `claude.js` — Vercel Edge Function proxying requests to Anthropic API. Reads `ANTHROPIC_API_KEY` from environment.
@@ -83,5 +84,6 @@ Set in Vercel dashboard:
 - **Caching**: All AI results cached in localStorage + Supabase. Cache keyed by `booksFingerprint` (hash of book titles/years).
 - **Auth**: Single-user Supabase auth. Logged-out users see seed data; AI features require session.
 - **`lastAddedAt` pattern**: `useBooks` exposes a timestamp that `useAnalysis` watches to trigger re-analysis after a new book is added, avoiding circular hook dependencies.
-- **Styling**: All inline styles using `G.*` colour tokens. No CSS modules or Tailwind.
+- **Styling**: All inline styles using `G.*` colour tokens. No CSS modules or Tailwind. Global CSS injected via a `<style>` tag from the module-level `css` constant in `App.jsx`.
+- **Performance**: Tab switches use `useTransition` (interruptible renders); `stats` and `analysisInsights` memos consume `useDeferredValue(books)` so heavy computation runs at lower priority and doesn't block paint.
 - **Do not push to Vercel without user approval.**
