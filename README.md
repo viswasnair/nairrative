@@ -49,6 +49,7 @@ src/
   lib/
     bookUtils.js       # Context builder, CSV/JSON export
     supabase.js        # Supabase client
+    api.js             # Shared CLAUDE_URL + AI_HEADERS constants
 api/
   claude.js            # Vercel Edge Function → Anthropic API proxy
 ```
