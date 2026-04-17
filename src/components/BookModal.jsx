@@ -224,11 +224,13 @@ export default function BookModal({
             <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 8 }}>Rating</div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {[
-                { value: "transformative", label: "Transformative", color: G.gold },
-                { value: "loved",          label: "Loved",          color: G.blue },
-                { value: "enjoyed",        label: "Enjoyed",        color: G.green },
-                { value: "meh",            label: "Meh",            color: G.muted },
-                { value: "dropped",        label: "Dropped",        color: G.red },
+                { value: "transformative", label: "Transformative", color: G.gold   },
+                { value: "loved",          label: "Loved",          color: G.blue   },
+                { value: "enjoyed",        label: "Enjoyed",        color: G.green  },
+                { value: "meh",            label: "Meh",            color: G.muted  },
+                { value: "dont_remember",  label: "Don't Remember", color: G.purple },
+                { value: "dropped",        label: "Dropped",        color: G.copper },
+                { value: "didnt_like",     label: "Didn't Like",    color: G.red    },
               ].map(t => {
                 const active = bookDraft.rating === t.value;
                 return (

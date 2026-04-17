@@ -319,7 +319,7 @@ export default function App() {
       if (libSort === "title") return a.title.localeCompare(b.title);
       if (libSort === "author") return a.author.localeCompare(b.author);
       if (libSort === "rating") {
-        const order = ["transformative", "loved", "enjoyed", "meh", "dropped"];
+        const order = ["transformative", "loved", "enjoyed", "meh", "dont_remember", "dropped", "didnt_like"];
         const ai = a.rating ? order.indexOf(a.rating) : 99;
         const bi = b.rating ? order.indexOf(b.rating) : 99;
         return ai !== bi ? ai - bi : a.title.localeCompare(b.title);

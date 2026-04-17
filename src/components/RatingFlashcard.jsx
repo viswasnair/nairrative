@@ -2,14 +2,16 @@ import { useState, useEffect, useCallback } from "react";
 import G from "../constants/theme";
 
 const TIERS = [
-  { value: "transformative", label: "Transformative", desc: "Changed how I think",       key: "1", color: G.gold },
-  { value: "loved",          label: "Loved",          desc: "Will recommend to everyone", key: "2", color: G.blue },
+  { value: "transformative", label: "Transformative", desc: "Changed how I think",       key: "1", color: G.gold   },
+  { value: "loved",          label: "Loved",          desc: "Will recommend to everyone", key: "2", color: G.blue  },
   { value: "enjoyed",        label: "Enjoyed",        desc: "Good read, no regrets",      key: "3", color: G.green },
   { value: "meh",            label: "Meh",            desc: "Fine but forgettable",        key: "4", color: G.muted },
-  { value: "dropped",        label: "Dropped",        desc: "Didn't finish / not for me",  key: "5", color: G.red },
+  { value: "dont_remember",  label: "Don't Remember", desc: "Can't recall much about it",  key: "5", color: G.purple },
+  { value: "dropped",        label: "Dropped",        desc: "Didn't finish",               key: "6", color: G.copper },
+  { value: "didnt_like",     label: "Didn't Like",    desc: "Not for me",                  key: "7", color: G.red  },
 ];
 
-const RATING_ORDER = ["transformative", "loved", "enjoyed", "meh", "dropped"];
+const RATING_ORDER = ["transformative", "loved", "enjoyed", "meh", "dont_remember", "dropped", "didnt_like"];
 
 export default function RatingFlashcard({ books, updateBookRating, onClose }) {
   // Queue: unrated first (sorted recent→old), then already-rated for review

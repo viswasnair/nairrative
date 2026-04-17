@@ -3,11 +3,13 @@ import MultiSelect from "./MultiSelect";
 import { downloadCSV, downloadJSON } from "../lib/bookUtils";
 
 const RATING_META = {
-  transformative: { label: "Transformative", color: G.gold },
-  loved:          { label: "Loved",          color: G.blue },
-  enjoyed:        { label: "Enjoyed",        color: G.green },
-  meh:            { label: "Meh",            color: G.muted },
-  dropped:        { label: "Dropped",        color: G.red },
+  transformative: { label: "Transformative", color: G.gold   },
+  loved:          { label: "Loved",          color: G.blue   },
+  enjoyed:        { label: "Enjoyed",        color: G.green  },
+  meh:            { label: "Meh",            color: G.muted  },
+  dont_remember:  { label: "Don't Remember", color: G.purple },
+  dropped:        { label: "Dropped",        color: G.copper },
+  didnt_like:     { label: "Didn't Like",    color: G.red    },
 };
 
 export default function LibraryTab({
