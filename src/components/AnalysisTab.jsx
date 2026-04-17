@@ -18,6 +18,7 @@ export default function AnalysisTab({
   setViewingPanel,
   panelLoading,
   updatePanelPrompt,
+  resetPanelPrompt,
   savePanelPromptsToSupabase,
   regeneratePanel,
 }) {
@@ -61,6 +62,8 @@ export default function AnalysisTab({
               style={{ width: "100%", minHeight: 68, background: G.card2, border: `1px solid ${G.border}`, borderRadius: 6, color: G.text, fontSize: 11, padding: "8px 10px", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" }}
             />
             <div style={{ display: "flex", gap: 6, marginTop: 6, justifyContent: "flex-end" }}>
+              <button onClick={() => resetPanelPrompt(dimension)} title="Reset to default prompt"
+                style={{ background: "none", border: `1px solid ${G.border}`, borderRadius: 5, color: G.dimmed, fontSize: 11, padding: "4px 10px", cursor: "pointer" }}>Reset</button>
               <button onClick={() => { savePanelPromptsToSupabase(panelPrompts); setEditingPanel(null); }}
                 style={{ background: "none", border: `1px solid ${G.border}`, borderRadius: 5, color: G.muted, fontSize: 11, padding: "4px 10px", cursor: "pointer" }}>Save</button>
               <button onClick={() => regeneratePanel(dimension)}

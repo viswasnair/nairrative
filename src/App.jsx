@@ -117,6 +117,7 @@ export default function App() {
     viewingPanel, setViewingPanel,
     panelLoading,
     updatePanelPrompt,
+    resetPanelPrompt,
     savePanelPromptsToSupabase,
     regeneratePanel,
   } = useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt });
@@ -545,6 +546,7 @@ Answer primarily from the data, with specific references to books, authors, year
             setViewingPanel={setViewingPanel}
             panelLoading={panelLoading}
             updatePanelPrompt={updatePanelPrompt}
+            resetPanelPrompt={resetPanelPrompt}
             savePanelPromptsToSupabase={savePanelPromptsToSupabase}
             regeneratePanel={regeneratePanel}
           />

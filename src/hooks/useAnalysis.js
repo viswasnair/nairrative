@@ -111,6 +111,14 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
     });
   };
 
+  const resetPanelPrompt = (dimension) => {
+    setPanelPrompts(p => {
+      const updated = { ...p, [dimension]: DEFAULT_PANEL_PROMPTS[dimension] };
+      localStorage.setItem("nairrative_panel_prompts", JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   const savePanelPromptsToSupabase = async (prompts) => {
     try { await supabase.from("panel_prompts").upsert({ id: 1, data: prompts }); } catch { /* silent */ }
   };
@@ -159,6 +167,7 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
     viewingPanel, setViewingPanel,
     panelLoading,
     updatePanelPrompt,
+    resetPanelPrompt,
     savePanelPromptsToSupabase,
     regeneratePanel,
   };
