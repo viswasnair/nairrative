@@ -1,0 +1,7 @@
+# Files hidden from Claude Code exploration
+.env
+.env.local
+.env.production
+.env.*.local
+*.pem
+*.key
