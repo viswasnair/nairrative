@@ -29,9 +29,16 @@ test.describe('Library — add and remove a book', () => {
 
     // ── 2. Fill in required fields ──
     await page.locator('input[placeholder="Book title"]').fill(title);
-    await page.locator('input[placeholder="Author name"]').first().fill(TEST_AUTHOR);
+    const authorInput = page.locator('input[placeholder="Author name"]').first();
+    await authorInput.fill(TEST_AUTHOR);
+    // Blur the author field so any suggestion UI can resolve before we submit
+    await authorInput.blur();
 
-    // ── 3. Submit ──
+    // ── 3. Submit — dismiss any "Did you mean?" suggestion first ──
+    const keepMineBtn = page.locator('button', { hasText: 'Keep mine' });
+    if (await keepMineBtn.isVisible({ timeout: 1_500 }).catch(() => false)) {
+      await keepMineBtn.click();
+    }
     await page.locator('button.btn-gold', { hasText: 'Add to Library' }).click();
 
     // ── 4. Verify success message ──
@@ -75,6 +82,10 @@ test.describe('Library — add and remove a book', () => {
     );
     // Modal should remain open
     await expect(page.locator('.modal-box')).toBeVisible();
+
+    // Close the modal so afterEach logout isn't blocked by the overlay
+    await page.locator('.modal-box button', { hasText: 'Cancel' }).click();
+    await expect(page.locator('.modal-box')).not.toBeVisible();
   });
 
   test('cancel / close modal without saving', async ({ page }) => {

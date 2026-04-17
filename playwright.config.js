@@ -1,5 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// Load .env.local for the Playwright test runner process.
+// (Vite loads it automatically for the browser; the Node test runner needs it separately.)
+try { process.loadEnvFile('.env.local'); } catch { /* file not present in CI — env vars set via secrets */ }
+
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173';
 
 export default defineConfig({
@@ -37,9 +41,5 @@ export default defineConfig({
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
-    env: {
-      VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL || '',
-      VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY || '',
-    },
   },
 });

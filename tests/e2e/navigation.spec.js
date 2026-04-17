@@ -30,9 +30,9 @@ test.describe('Navigation — all pages render correctly', () => {
     await clickTab(page, 'Library');
     await expect(page.locator('input[placeholder="Search…"]')).toBeVisible();
     await expect(page.locator('button.btn-gold', { hasText: '+ Add Book' })).toBeVisible();
-    // Table header columns
-    await expect(page.locator('text=Title').first()).toBeVisible();
-    await expect(page.locator('text=Author').first()).toBeVisible();
+    // Table header columns — scope to .lib-row to avoid matching hidden <option> elements
+    await expect(page.locator('.lib-row div', { hasText: 'Title' }).first()).toBeVisible();
+    await expect(page.locator('.lib-row div', { hasText: 'Author' }).first()).toBeVisible();
   });
 
   test('Recommendations tab shows lens grid', async ({ page }) => {
@@ -48,8 +48,8 @@ test.describe('Navigation — all pages render correctly', () => {
     await expect(
       page.locator('text=Pick a series to get an AI catch-up')
     ).toBeVisible({ timeout: 8_000 });
-    // The library has series — at least one should be shown
-    await expect(page.locator('text=Wheel of Time')).toBeVisible({ timeout: 8_000 });
+    // The library has series — at least one should be shown (use button to avoid strict-mode violation)
+    await expect(page.locator('button', { hasText: 'Wheel of Time' }).first()).toBeVisible({ timeout: 8_000 });
   });
 
   test('AI Chat tab shows sign-in gate when not authenticated', async ({ page }) => {

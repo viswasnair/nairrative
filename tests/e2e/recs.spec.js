@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mockClaudeAPI, clickTab, waitForAppReady } from './helpers.js';
+import { mockClaudeAPI, login, logout, clickTab, waitForAppReady } from './helpers.js';
 
 test.describe('Recommendations — panels loading and refreshing', () => {
   test.beforeEach(async ({ page }) => {
@@ -62,6 +62,9 @@ test.describe('Recommendations — panels loading and refreshing', () => {
   });
 
   test('refresh button (↺) re-fetches a recommendation', async ({ page }) => {
+    // Refresh button only renders when session && results are loaded
+    await login(page);
+
     // Wait for at least one auto-lens to have a result (seed loads fast)
     const firstAutoLens = page.locator('.rec-grid > div').first();
     // Wait for the refresh button to appear (it only shows when results are loaded)
@@ -70,14 +73,18 @@ test.describe('Recommendations — panels loading and refreshing', () => {
 
     // Click refresh and verify loading skeleton appears
     await refreshBtn.click();
-    await expect(firstAutoLens.locator('.pulse')).toBeVisible({ timeout: 5_000 });
+    await expect(firstAutoLens.locator('.pulse').first()).toBeVisible({ timeout: 5_000 });
     // Wait for mock to resolve
-    await expect(firstAutoLens.locator('.pulse')).not.toBeVisible({ timeout: 15_000 });
+    await expect(firstAutoLens.locator('.pulse').first()).not.toBeVisible({ timeout: 15_000 });
     // Should now show the mock recommendation title
     await expect(firstAutoLens).toContainText('The Name of the Wind', { timeout: 5_000 });
+    await logout(page);
   });
 
   test('manual input lens fetches recommendation when value is entered', async ({ page }) => {
+    // Manual lenses require login — input is disabled for unauthenticated users
+    await login(page);
+
     const lovedLens = page.locator('.rec-grid > div', { hasText: 'If You Loved…' });
     await expect(lovedLens).toBeVisible();
 
@@ -90,11 +97,15 @@ test.describe('Recommendations — panels loading and refreshing', () => {
     await input.press('Enter');
 
     // Should show loading skeleton then result
-    await expect(lovedLens.locator('.pulse')).toBeVisible({ timeout: 5_000 });
+    await expect(lovedLens.locator('.pulse').first()).toBeVisible({ timeout: 5_000 });
     await expect(lovedLens).toContainText('The Name of the Wind', { timeout: 15_000 });
+    await logout(page);
   });
 
   test('genre dropdown lens fetches recommendation on selection', async ({ page }) => {
+    // Manual lenses require login — select is disabled for unauthenticated users
+    await login(page);
+
     const genreLens = page.locator('.rec-grid > div', { hasText: 'By Genre' });
     await expect(genreLens).toBeVisible();
 
@@ -105,7 +116,8 @@ test.describe('Recommendations — panels loading and refreshing', () => {
     await select.selectOption({ index: 1 }); // First real genre option (index 0 is placeholder)
 
     // Should trigger a fetch
-    await expect(genreLens.locator('.pulse')).toBeVisible({ timeout: 5_000 });
+    await expect(genreLens.locator('.pulse').first()).toBeVisible({ timeout: 5_000 });
     await expect(genreLens).toContainText('The Name of the Wind', { timeout: 15_000 });
+    await logout(page);
   });
 });

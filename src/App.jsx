@@ -13,6 +13,8 @@ import OverviewTab from "./components/OverviewTab";
 import SeriesTab from "./components/SeriesTab";
 import ChatTab from "./components/ChatTab";
 import LibraryTab from "./components/LibraryTab";
+import BookshelfTab from "./components/BookshelfTab";
+import RatingFlashcard from "./components/RatingFlashcard";
 import { CLAUDE_URL, AI_HEADERS } from "./lib/api";
 
 const css = `
@@ -37,7 +39,7 @@ const css = `
     .rec-card { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 12px; padding: 18px; transition: all 0.2s; }
     .rec-card:hover { border-color: ${G.goldDim}; transform: translateY(-1px); }
     .chat-input-wrap { display: flex; gap: 10px; }
-    .lib-row { display: grid; grid-template-columns: 2fr 150px 110px 90px 90px 50px 56px 56px 32px; gap: 10px; padding: 9px 14px; border-bottom: 1px solid ${G.border}; align-items: center; transition: background 0.15s; }
+    .lib-row { display: grid; grid-template-columns: 44px 2fr 150px 110px 90px 90px 50px 56px 56px 90px 32px; gap: 10px; padding: 9px 14px; border-bottom: 1px solid ${G.border}; align-items: center; transition: background 0.15s; }
     .cell-clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .lib-row:hover { background: ${G.card2}; }
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; }
@@ -60,8 +62,8 @@ const css = `
       .rec-grid { grid-template-columns: 1fr !important; }
       .analysis-grid { grid-template-columns: 1fr !important; }
       .lib-scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-      .lib-inner { min-width: 860px; }
-      .lib-row { grid-template-columns: 160px 140px 100px 80px 80px 48px 50px 50px 32px; }
+      .lib-inner { min-width: 1010px; }
+      .lib-row { grid-template-columns: 44px 160px 140px 100px 80px 80px 48px 50px 50px 80px 32px; }
     }
   `;
 
@@ -105,9 +107,12 @@ export default function App() {
     dismissGenreSuggestion,
     addGenre,
     saveBook,
+    updateBookRating,
     deleteBook,
     lastAddedAt,
   } = useBooks({ session });
+
+  const [showRatingMode, setShowRatingMode] = useState(false);
 
   const {
     analysisAI,
@@ -313,6 +318,12 @@ export default function App() {
       if (libSort === "year") return b.year - a.year;
       if (libSort === "title") return a.title.localeCompare(b.title);
       if (libSort === "author") return a.author.localeCompare(b.author);
+      if (libSort === "rating") {
+        const order = ["transformative", "loved", "enjoyed", "meh", "dropped"];
+        const ai = a.rating ? order.indexOf(a.rating) : 99;
+        const bi = b.rating ? order.indexOf(b.rating) : 99;
+        return ai !== bi ? ai - bi : a.title.localeCompare(b.title);
+      }
       return 0;
     }), [books, search, libGenres, libYears, libAuthors, libSort]);
 
@@ -427,7 +438,7 @@ Answer primarily from the data, with specific references to books, authors, year
     .rec-card { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 12px; padding: 18px; transition: all 0.2s; }
     .rec-card:hover { border-color: ${G.goldDim}; transform: translateY(-1px); }
     .chat-input-wrap { display: flex; gap: 10px; }
-    .lib-row { display: grid; grid-template-columns: 2fr 150px 110px 90px 90px 50px 56px 56px 32px; gap: 10px; padding: 9px 14px; border-bottom: 1px solid ${G.border}; align-items: center; transition: background 0.15s; }
+    .lib-row { display: grid; grid-template-columns: 44px 2fr 150px 110px 90px 90px 50px 56px 56px 90px 32px; gap: 10px; padding: 9px 14px; border-bottom: 1px solid ${G.border}; align-items: center; transition: background 0.15s; }
     .cell-clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .lib-row:hover { background: ${G.card2}; }
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; }
@@ -450,8 +461,8 @@ Answer primarily from the data, with specific references to books, authors, year
       .rec-grid { grid-template-columns: 1fr !important; }
       .analysis-grid { grid-template-columns: 1fr !important; }
       .lib-scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-      .lib-inner { min-width: 860px; }
-      .lib-row { grid-template-columns: 160px 140px 100px 80px 80px 48px 50px 50px 32px; }
+      .lib-inner { min-width: 1010px; }
+      .lib-row { grid-template-columns: 44px 160px 140px 100px 80px 80px 48px 50px 50px 80px 32px; }
     }
   `;
 
@@ -526,6 +537,8 @@ Answer primarily from the data, with specific references to books, authors, year
             chartRanges={chartRanges}
             getChartRange={getChartRange}
             setChartRange={setChartRange}
+            openEditModal={openEditModal}
+            session={session}
           />
         )}
 
@@ -567,6 +580,16 @@ Answer primarily from the data, with specific references to books, authors, year
             allGenres={allGenres} allYears={allYears} allAuthors={allAuthors}
             openAddModal={openAddModal}
             openEditModal={openEditModal}
+            openRatingMode={() => setShowRatingMode(true)}
+          />
+        )}
+
+        {/* ── RATING FLASHCARD ──────────────────────────────────────────── */}
+        {showRatingMode && (
+          <RatingFlashcard
+            books={books}
+            updateBookRating={updateBookRating}
+            onClose={() => setShowRatingMode(false)}
           />
         )}
 
@@ -601,6 +624,16 @@ Answer primarily from the data, with specific references to books, authors, year
             genreSuggestion={genreSuggestion}
             acceptGenreSuggestion={acceptGenreSuggestion}
             dismissGenreSuggestion={dismissGenreSuggestion}
+          />
+        )}
+
+        {/* ── BOOKSHELF ─────────────────────────────────────────────────── */}
+        {activeTab === "bookshelf" && (
+          <BookshelfTab
+            books={books}
+            genreMap={genreMap}
+            openEditModal={openEditModal}
+            session={session}
           />
         )}
 

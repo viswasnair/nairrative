@@ -15,12 +15,13 @@ POTENTIAL GAPS: Literary romance, poetry, westerns, African literature, Japanese
 RECENT DIRECTION (2025-26): Clear romantasy and fantasy phase – ACOTAR series, Empyrean series, Cosmere. Also some literary fiction. Suggests appetite for character-driven fantasy with romance, not just plot-heavy epic fantasy.`;
 
 export const TABS = [
-  { id: "overview",  icon: "◎", label: "Overview" },
-  { id: "analysis",  icon: "▦", label: "Analysis" },
-  { id: "library",   icon: "≡", label: "Library" },
-  { id: "recs",      icon: "✦", label: "Recommendations" },
-  { id: "series",    icon: "⊙", label: "Series Recap" },
-  { id: "chat",      icon: "◈", label: "AI Chat" },
+  { id: "overview",   icon: "◎", label: "Overview" },
+  { id: "analysis",   icon: "▦", label: "Analysis" },
+  { id: "library",    icon: "≡", label: "Library" },
+  { id: "bookshelf",  icon: "▣", label: "Bookshelf" },
+  { id: "recs",       icon: "✦", label: "Recommendations" },
+  { id: "series",     icon: "⊙", label: "Series Recap" },
+  { id: "chat",       icon: "◈", label: "AI Chat" },
 ];
 
 export const AUTO_RECS = [

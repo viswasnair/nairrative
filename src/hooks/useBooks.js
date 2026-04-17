@@ -38,6 +38,8 @@ const EMPTY_DRAFT = {
   series: "",
   pages: "",
   notes: "",
+  cover_url: "",
+  rating: "",
 };
 
 export function useBooks({ session }) {
@@ -128,6 +130,8 @@ export function useBooks({ session }) {
       series: b.series || "",
       pages: b.pages ? String(b.pages) : "",
       notes: b.notes || "",
+      cover_url: b.cover_url || "",
+      rating: b.rating || "",
     });
     if (bookChatInputRef.current) bookChatInputRef.current.value = "";
     setBookChatPending(null);
@@ -269,7 +273,7 @@ export function useBooks({ session }) {
   };
 
   const saveBook = async () => {
-    const { title, authors, genres, yearStart, yearEnd, format, fiction, series, pages, notes } = bookDraft;
+    const { title, authors, genres, yearStart, yearEnd, format, fiction, series, pages, notes, cover_url, rating } = bookDraft;
     if (!title.trim() || !authors[0]?.name?.trim()) { setBookMsg("Title and at least one author are required."); return; }
 
     // Validate author names against existing authors before saving
@@ -296,6 +300,8 @@ export function useBooks({ session }) {
           title: title.trim(), year_read_start: ys, year_read_end: ye,
           genre: genres, format, fiction, series: series || "",
           pages: pages ? parseInt(pages) : null, notes: notes || "",
+          cover_url: cover_url || null,
+          rating: rating || null,
         }).eq("id", editingBook.id);
         if (error) throw error;
         await supabase.from("book_authors").delete().eq("book_id", editingBook.id);
@@ -310,7 +316,7 @@ export function useBooks({ session }) {
           await supabase.from("book_authors").insert([{ book_id: editingBook.id, author_id: au.id, author_order: i + 1 }]);
         }
         const updatedAuthors = authors.filter(a => a.name.trim()).map((a, i) => ({ author_order: i + 1, authors: { id: 0, name: a.name, country: a.country } }));
-        const normalized = normalizeBook({ ...editingBook, title: title.trim(), year_read_start: ys, year_read_end: ye, genre: genres, format, fiction, series, pages: pages ? parseInt(pages) : null, notes, book_authors: updatedAuthors });
+        const normalized = normalizeBook({ ...editingBook, title: title.trim(), year_read_start: ys, year_read_end: ye, genre: genres, format, fiction, series, pages: pages ? parseInt(pages) : null, notes, cover_url: cover_url || null, rating: rating || null, book_authors: updatedAuthors });
         setBooks(prev => prev.map(b => b.id === editingBook.id ? normalized : b));
         const updatedNames = authors.map(a => a.name.trim()).filter(n => n && !authorList.includes(n));
         if (updatedNames.length) setAuthorList(prev => [...new Set([...prev, ...updatedNames])].sort());
@@ -322,6 +328,8 @@ export function useBooks({ session }) {
           title: title.trim(), year_read_start: ys, year_read_end: ye,
           genre: genres, format, fiction, series: series || "",
           pages: pages ? parseInt(pages) : null, notes: notes || "",
+          cover_url: cover_url || null,
+          rating: rating || null,
           user_added: true,
         }]).select().single();
         if (bookErr) throw bookErr;
@@ -346,6 +354,11 @@ export function useBooks({ session }) {
       setTimeout(() => { setShowBookModal(false); setBookMsg(""); }, 1200);
     } catch (e) { console.error("saveBook error:", e); setBookMsg(`Error: ${e?.message || JSON.stringify(e)}`); }
     setBookSaving(false);
+  };
+
+  const updateBookRating = async (bookId, rating) => {
+    setBooks(prev => prev.map(b => b.id === bookId ? { ...b, rating } : b));
+    await supabase.from("books").update({ rating: rating || null }).eq("id", bookId);
   };
 
   const deleteBook = async () => {
@@ -416,6 +429,7 @@ export function useBooks({ session }) {
     dismissGenreSuggestion,
     addGenre,
     saveBook,
+    updateBookRating,
     deleteBook,
   };
 }

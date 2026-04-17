@@ -72,24 +72,30 @@ export async function mockClaudeAPI(page) {
       responseText =
         '[{"title":"The Name of the Wind","author":"Patrick Rothfuss","year":2007,"reason":"A perfect match for your love of immersive epic fantasy with rich world-building and a compelling protagonist."}]';
     } else if (
+      system.includes('book database assistant') ||
+      system.includes('identify the exact book') ||
       system.includes('extract') ||
-      system.includes('book details') ||
-      (maxTokens <= 500 && userContent.includes('JSON'))
+      system.includes('book details')
     ) {
-      // AI book chat fill
+      // AI book chat fill (chatFillBook in useBooks.js)
       responseText = JSON.stringify({
         title: 'Dune',
-        authors: [{ name: 'Frank Herbert' }],
+        authors: [{ name: 'Frank Herbert', country: 'United States' }],
         genres: ['Science Fiction'],
         fiction: true,
         format: 'Novel',
         year: 1965,
         pages: 688,
+        series: '',
       });
     } else {
       // Generic fallback
       responseText = 'This is a mock response for automated testing.';
     }
+
+    // Small delay so loading states (Regenerating…, Thinking…, .pulse) are visible long
+    // enough for assertions to catch them before the mock resolves.
+    await new Promise(r => setTimeout(r, 150));
 
     await route.fulfill({
       status: 200,
