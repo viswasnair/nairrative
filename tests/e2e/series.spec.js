@@ -52,7 +52,7 @@ test.describe('Series Recap — AI-generated series summaries', () => {
 
     // Mock resolves — recap text should appear
     await expect(page.locator('text=Book 1 Recap')).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('text=What to Remember')).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator('text=What to Remember:').first()).toBeVisible({ timeout: 5_000 });
   });
 
   test('loading indicator disappears when recap is ready', async ({ page }) => {
