@@ -23,9 +23,9 @@ const css = `
     ::-webkit-scrollbar { width: 4px; height: 4px; }
     ::-webkit-scrollbar-track { background: ${G.bg}; }
     ::-webkit-scrollbar-thumb { background: ${G.dimmed}; border-radius: 4px; }
-    .tab-btn { cursor: pointer; padding: 8px 18px; border-radius: 6px; border: 1px solid ${G.goldDim}; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; transition: all 0.2s; white-space: nowrap; color: ${G.goldDim}; background: transparent; }
-    .tab-btn:hover { color: ${G.gold}; border-color: ${G.gold}; }
-    .tab-btn.active { background: ${G.gold}; border-color: ${G.gold}; color: #ffffff; font-weight: 600; }
+    .tab-btn { cursor: pointer; padding: 6px 14px; border: none; border-radius: 0; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 400; transition: color 0.15s; white-space: nowrap; color: #a0a8b4; background: transparent; letter-spacing: 0.2px; }
+    .tab-btn:hover { color: ${G.text}; }
+    .tab-btn.active { color: ${G.gold}; font-weight: 600; }
     .stat-card { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 12px; padding: 20px 24px; transition: border-color 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
     .stat-card:hover { border-color: ${G.goldDim}; }
     .genre-pill { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; }
@@ -51,10 +51,12 @@ const css = `
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
     .pulse { animation: pulse 1.5s infinite; }
     .burger-btn { display: none; background: none; border: none; cursor: pointer; flex-direction: column; gap: 5px; padding: 4px; }
+    .mini-brand { cursor: pointer; padding: 0; }
+    .logo-collapse { overflow: hidden; transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease; }
     @media (max-width: 640px) {
       .tab-nav { display: none !important; }
       .burger-btn { display: flex !important; }
-      .page-header { padding: 16px 16px 0 !important; }
+      .mini-brand { display: none !important; }
       .page-content { padding: 16px !important; }
       .header-logo { width: 250px !important; height: auto !important; }
       .kpi-grid { grid-template-columns: repeat(3, 1fr) !important; }
@@ -113,6 +115,13 @@ export default function App() {
   } = useBooks({ session });
 
   const [showRatingMode, setShowRatingMode] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handler = () => setScrolled(window.scrollY > 70);
+    window.addEventListener("scroll", handler, { passive: true });
+    return () => window.removeEventListener("scroll", handler);
+  }, []);
 
   const {
     analysisAI,
@@ -422,9 +431,9 @@ Answer primarily from the data, with specific references to books, authors, year
     ::-webkit-scrollbar { width: 4px; height: 4px; }
     ::-webkit-scrollbar-track { background: ${G.bg}; }
     ::-webkit-scrollbar-thumb { background: ${G.dimmed}; border-radius: 4px; }
-    .tab-btn { cursor: pointer; padding: 8px 18px; border-radius: 6px; border: 1px solid ${G.goldDim}; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; transition: all 0.2s; white-space: nowrap; color: ${G.goldDim}; background: transparent; }
-    .tab-btn:hover { color: ${G.gold}; border-color: ${G.gold}; }
-    .tab-btn.active { background: ${G.gold}; border-color: ${G.gold}; color: #ffffff; font-weight: 600; }
+    .tab-btn { cursor: pointer; padding: 6px 14px; border: none; border-radius: 0; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 400; transition: color 0.15s; white-space: nowrap; color: #a0a8b4; background: transparent; letter-spacing: 0.2px; }
+    .tab-btn:hover { color: ${G.text}; }
+    .tab-btn.active { color: ${G.gold}; font-weight: 600; }
     .stat-card { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 12px; padding: 20px 24px; transition: border-color 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
     .stat-card:hover { border-color: ${G.goldDim}; }
     .genre-pill { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; }
@@ -450,10 +459,12 @@ Answer primarily from the data, with specific references to books, authors, year
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
     .pulse { animation: pulse 1.5s infinite; }
     .burger-btn { display: none; background: none; border: none; cursor: pointer; flex-direction: column; gap: 5px; padding: 4px; }
+    .mini-brand { cursor: pointer; padding: 0; }
+    .logo-collapse { overflow: hidden; transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease; }
     @media (max-width: 640px) {
       .tab-nav { display: none !important; }
       .burger-btn { display: flex !important; }
-      .page-header { padding: 16px 16px 0 !important; }
+      .mini-brand { display: none !important; }
       .page-content { padding: 16px !important; }
       .header-logo { width: 250px !important; height: auto !important; }
       .kpi-grid { grid-template-columns: repeat(3, 1fr) !important; }
@@ -473,45 +484,51 @@ Answer primarily from the data, with specific references to books, authors, year
       <style>{css}</style>
 
       {/* HEADER */}
-      <div className="page-header" style={{ padding: "28px 28px 0", background: G.bg }}>
-        {/* Logo row */}
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: 16, position: "relative" }}>
-          <img src="/nairrative.png" alt="Nairrative" className="header-logo" onClick={() => switchTab("overview")} style={{ width: 398, height: 113, mixBlendMode: "multiply", cursor: "pointer" }} />
-          <div style={{ position: "absolute", right: 0, top: 0, display: "flex", alignItems: "center", gap: 8 }}>
-            {/* Burger — mobile only */}
-            <button className="burger-btn" onClick={() => setMobileMenuOpen(o => !o)}
-              title="Menu" style={{ color: G.muted }}>
-              <span style={{ display: "block", width: 18, height: 2, background: "currentColor", borderRadius: 2 }} />
-              <span style={{ display: "block", width: 18, height: 2, background: "currentColor", borderRadius: 2 }} />
-              <span style={{ display: "block", width: 18, height: 2, background: "currentColor", borderRadius: 2 }} />
-            </button>
-            {/* Lock */}
-            <button onClick={() => session ? logout() : setShowLoginModal(true)}
-              title={session ? "Sign out" : "Sign in"}
-              style={{ background: "none", border: "none", cursor: "pointer", padding: 4, lineHeight: 1, color: session ? G.gold : G.dimmed }}>
-              {session
-                ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
-                : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              }
-            </button>
-          </div>
-        </div>
+      <div className="page-header" style={{
+        position: "sticky", top: 0, zIndex: 100,
+        background: G.bg,
+        padding: "0 28px",
+        borderBottom: `1px solid ${G.border}`,
+      }}>
+        {/* Nav bar */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 0" }}>
+          {/* Logo */}
+          <img src="/nairrative_transparent.svg" alt="Nairrative" className="mini-brand" onClick={() => switchTab("overview")} style={{ height: 36, width: "auto", flexShrink: 0 }} />
 
-        {/* Desktop tab bar */}
-        <div className="tab-nav" style={{ overflowX: "auto" }}>
-          <div style={{ display: "flex", gap: 4, width: "fit-content", margin: "0 auto" }}>
-            {TABS.map(t => (
-              <button key={t.id} className={`tab-btn ${activeTab === t.id ? "active" : ""}`}
-                onClick={() => switchTab(t.id)}>
-                <span style={{ marginRight: 6 }}>{t.icon}</span>{t.label}
-              </button>
-            ))}
+          {/* Tabs */}
+          <div className="tab-nav" style={{ flex: 1, overflowX: "auto" }}>
+            <div style={{ display: "flex", gap: 4, width: "fit-content", margin: "0 auto" }}>
+              {TABS.map(t => (
+                <button key={t.id} className={`tab-btn ${activeTab === t.id ? "active" : ""}`}
+                  onClick={() => switchTab(t.id)}>
+                  <span style={{ marginRight: 6 }}>{t.icon}</span>{t.label}
+                </button>
+              ))}
+            </div>
           </div>
+
+          {/* Burger — mobile only */}
+          <button className="burger-btn" onClick={() => setMobileMenuOpen(o => !o)}
+            title="Menu" style={{ color: G.muted }}>
+            <span style={{ display: "block", width: 18, height: 2, background: "currentColor", borderRadius: 2 }} />
+            <span style={{ display: "block", width: 18, height: 2, background: "currentColor", borderRadius: 2 }} />
+            <span style={{ display: "block", width: 18, height: 2, background: "currentColor", borderRadius: 2 }} />
+          </button>
+
+          {/* Lock */}
+          <button onClick={() => session ? logout() : setShowLoginModal(true)}
+            title={session ? "Sign out" : "Sign in"}
+            style={{ background: "none", border: "none", cursor: "pointer", padding: 4, lineHeight: 1, color: session ? G.gold : G.dimmed, flexShrink: 0 }}>
+            {session
+              ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+              : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            }
+          </button>
         </div>
 
         {/* Mobile menu */}
         {mobileMenuOpen && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, background: G.card, borderBottom: `1px solid ${G.border}`, padding: "8px 16px 12px", marginTop: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, background: G.card, borderBottom: `1px solid ${G.border}`, padding: "8px 16px 12px" }}>
             {TABS.map(t => (
               <button key={t.id} className={`tab-btn ${activeTab === t.id ? "active" : ""}`}
                 style={{ width: "100%", textAlign: "left" }}

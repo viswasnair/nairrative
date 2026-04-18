@@ -102,8 +102,8 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
     <div>
       {/* Recently Read strip */}
       {recentBooks.length > 0 && (
-        <div style={{ marginBottom: 28 }}>
-          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, color: G.muted, textAlign: "center", marginBottom: 14, letterSpacing: "0.5px" }}>Recently Read</div>
+        <div style={{ marginBottom: 28, display: "flex", alignItems: "flex-start", gap: 16 }}>
+          <div style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", fontFamily: "'Playfair Display', serif", fontSize: 10, color: G.dimmed, letterSpacing: "2px", paddingTop: 8, flexShrink: 0, userSelect: "none", textTransform: "uppercase" }}>Recently Read</div>
           <CoverStrip books={recentBooks} genreMap={genreMap} openEditModal={openEditModal} session={session} />
         </div>
       )}
@@ -113,11 +113,8 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
         const hallBooks = books.filter(b => b.rating === "transformative" || b.rating === "loved");
         if (hallBooks.length === 0) return null;
         return (
-          <div style={{ marginBottom: 28, borderLeft: `3px solid ${G.goldDim}`, paddingLeft: 16 }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 14, justifyContent: "center" }}>
-              <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, color: G.muted, letterSpacing: "0.5px" }}>Hall of Fame</div>
-              <span style={{ fontSize: 11, color: G.dimmed }}>Transformative & Loved</span>
-            </div>
+          <div style={{ marginBottom: 28, display: "flex", alignItems: "flex-start", gap: 16 }}>
+            <div style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", fontFamily: "'Playfair Display', serif", fontSize: 10, color: G.dimmed, letterSpacing: "2px", paddingTop: 8, flexShrink: 0, userSelect: "none", textTransform: "uppercase" }}>Hall of Fame</div>
             <CoverStrip books={hallBooks} genreMap={genreMap} openEditModal={openEditModal} session={session} />
           </div>
         );
