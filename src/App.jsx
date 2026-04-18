@@ -47,6 +47,7 @@ const css = `
     .modal-scroll { overflow-y: auto; max-height: 88vh; padding: 28px; }
     .modal-scroll::-webkit-scrollbar { width: 4px; } .modal-scroll::-webkit-scrollbar-track { background: transparent; } .modal-scroll::-webkit-scrollbar-thumb { background: ${G.dimmed}; border-radius: 4px; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes widgetFade { from { opacity: 0; } to { opacity: 1; } }
     .fade-in { animation: fadeIn 0.3s ease; }
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
     .pulse { animation: pulse 1.5s infinite; }
@@ -455,6 +456,7 @@ Answer primarily from the data, with specific references to books, authors, year
     .modal-scroll { overflow-y: auto; max-height: 88vh; padding: 28px; }
     .modal-scroll::-webkit-scrollbar { width: 4px; } .modal-scroll::-webkit-scrollbar-track { background: transparent; } .modal-scroll::-webkit-scrollbar-thumb { background: ${G.dimmed}; border-radius: 4px; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes widgetFade { from { opacity: 0; } to { opacity: 1; } }
     .fade-in { animation: fadeIn 0.3s ease; }
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
     .pulse { animation: pulse 1.5s infinite; }

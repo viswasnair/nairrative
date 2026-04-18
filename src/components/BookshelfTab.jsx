@@ -1,6 +1,42 @@
 import { useState, useMemo } from "react";
 import G from "../constants/theme";
 
+function CoverRow({ label, books, genreMap, openEditModal, session }) {
+  const [hoveredId, setHoveredId] = useState(null);
+  if (!books.length) return null;
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ fontSize: 9, letterSpacing: "2px", textTransform: "uppercase", color: G.dimmed, marginBottom: 8 }}>{label}</div>
+      <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
+        {books.map(b => {
+          const color = (b.genre?.[0] && genreMap[b.genre[0]]) || G.muted;
+          const isHovered = hoveredId === b.id;
+          return (
+            <div key={b.id}
+              onMouseEnter={() => setHoveredId(b.id)} onMouseLeave={() => setHoveredId(null)}
+              onClick={() => session && openEditModal(b)}
+              style={{ position: "relative", width: 56, height: 80, flexShrink: 0, borderRadius: 4, overflow: "hidden",
+                border: `1px solid ${G.border}`, background: `${color}22`, cursor: session ? "pointer" : "default",
+                transition: "transform 0.15s", transform: isHovered ? "translateY(-3px)" : "none" }}>
+              {b.cover_url
+                ? <img src={b.cover_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} onError={e => { e.target.style.display = "none"; }} />
+                : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <span style={{ fontSize: 18, fontFamily: "'Playfair Display', serif", color, opacity: 0.4 }}>{b.title[0]}</span>
+                  </div>
+              }
+              {isHovered && (
+                <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "flex-end", padding: "5px 4px" }}>
+                  <div style={{ fontSize: 9, color: "#fff", lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical" }}>{b.title}</div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 const VIEWS = [
   { id: "grid",   label: "Grid" },
   { id: "spine",  label: "Shelf" },
@@ -189,6 +225,9 @@ export default function BookshelfTab({ books, genreMap, openEditModal, session }
   const [view, setView] = useState("grid");
   const [search, setSearch] = useState("");
 
+  const recentBooks = useMemo(() => [...books].sort((a, b) => (b.year_read_end || 0) - (a.year_read_end || 0) || b.id - a.id).slice(0, 20), [books]);
+  const hallBooks   = useMemo(() => books.filter(b => b.rating === "transformative" || b.rating === "loved"), [books]);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return books
@@ -198,6 +237,9 @@ export default function BookshelfTab({ books, genreMap, openEditModal, session }
 
   return (
     <div>
+      <CoverRow label="Recently Read" books={recentBooks} genreMap={genreMap} openEditModal={openEditModal} session={session} />
+      <CoverRow label="Hall of Fame"  books={hallBooks}   genreMap={genreMap} openEditModal={openEditModal} session={session} />
+
       {/* Controls */}
       <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 20, flexWrap: "wrap" }}>
         <input className="input-dark" style={{ width: 200, flex: "0 0 auto" }} placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} />

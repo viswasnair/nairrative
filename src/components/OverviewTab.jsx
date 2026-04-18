@@ -5,38 +5,6 @@ import DarkTooltip from "./DarkTooltip";
 
 const FORMAT_COLORS = { "Novel": "#2d6a4f", "Graphic Novel": "#06d6a0", "Non-Fiction": "#4a9eff", "Novella": "#c9a84c", "Short Stories": "#e06c75", "Play": "#c3a6ff", "Unknown": "#b2bec3" };
 
-function CoverStrip({ books, genreMap, openEditModal, session }) {
-  return (
-    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
-      {books.map(b => {
-        const color = (b.genre?.[0] && genreMap[b.genre[0]]) || G.muted;
-        return (
-          <div key={b.id}
-            onClick={() => session && openEditModal(b)}
-            title={`${b.title} — ${b.author}`}
-            style={{ flexShrink: 0, width: 66, cursor: session ? "pointer" : "default" }}>
-            <div style={{
-              width: 66, height: 96, borderRadius: 4, overflow: "hidden",
-              border: `1px solid ${G.border}`, background: `${color}22`,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              transition: "box-shadow 0.15s, transform 0.15s",
-            }}
-              onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.12)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
-              onMouseLeave={e => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; }}>
-              {b.cover_url
-                ? <img src={b.cover_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                    onError={e => { e.target.style.display = "none"; }} />
-                : <span style={{ fontSize: 24, fontFamily: "'Playfair Display', serif", color, opacity: 0.4 }}>{b.title[0]}</span>
-              }
-            </div>
-            <div style={{ marginTop: 5, fontSize: 10, color: G.text, fontWeight: 500, lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{b.title}</div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 export default function OverviewTab({ books, stats, genreMap, allYearsList, allYearsListFull, chartRanges, getChartRange, setChartRange, openEditModal, session }) {
   const cb = id => { const r = getChartRange(id); return books.filter(b => b.year >= r.from && b.year <= r.to); };
 
@@ -100,25 +68,6 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
 
   return (
     <div>
-      {/* Recently Read strip */}
-      {recentBooks.length > 0 && (
-        <div style={{ marginBottom: 28, display: "flex", alignItems: "flex-start", gap: 16 }}>
-          <div style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", fontFamily: "'Playfair Display', serif", fontSize: 10, color: G.dimmed, letterSpacing: "2px", paddingTop: 8, flexShrink: 0, userSelect: "none", textTransform: "uppercase" }}>Recently Read</div>
-          <CoverStrip books={recentBooks} genreMap={genreMap} openEditModal={openEditModal} session={session} />
-        </div>
-      )}
-
-      {/* Hall of Fame strip — populated once ratings are added */}
-      {(() => {
-        const hallBooks = books.filter(b => b.rating === "transformative" || b.rating === "loved");
-        if (hallBooks.length === 0) return null;
-        return (
-          <div style={{ marginBottom: 28, display: "flex", alignItems: "flex-start", gap: 16 }}>
-            <div style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", fontFamily: "'Playfair Display', serif", fontSize: 10, color: G.dimmed, letterSpacing: "2px", paddingTop: 8, flexShrink: 0, userSelect: "none", textTransform: "uppercase" }}>Hall of Fame</div>
-            <CoverStrip books={hallBooks} genreMap={genreMap} openEditModal={openEditModal} session={session} />
-          </div>
-        );
-      })()}
 
       {/* Stat Cards */}
       <div className="kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(9, 1fr)", gap: 10, marginBottom: 24 }}>
