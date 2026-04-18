@@ -17,10 +17,10 @@ RECENT DIRECTION (2025-26): Clear romantasy and fantasy phase – ACOTAR series,
 export const TABS = [
   { id: "overview",   icon: "◎", label: "Overview" },
   { id: "analysis",   icon: "▦", label: "Analysis" },
+  { id: "recs",       icon: "✦", label: "Recommendations" },
   { id: "library",    icon: "≡", label: "Library" },
   { id: "bookshelf",  icon: "▣", label: "Bookshelf" },
-  { id: "recs",       icon: "✦", label: "Recommendations" },
-  { id: "series",     icon: "⊙", label: "Series Recap" },
+  { id: "series",     icon: "⊙", label: "Recap" },
   { id: "chat",       icon: "◈", label: "Chat" },
 ];
 
