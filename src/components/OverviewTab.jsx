@@ -74,9 +74,9 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
         {[
           { label: "Books Read", value: stats.total, color: "#d97706" },
           { label: "Authors Read", value: new Set(books.map(b => b.author)).size, color: "#db2777" },
-          { label: "Books / Year", value: (() => { const activeYears = Object.keys(stats.byYearTracked).filter(y => Number(y) > 2010).length; return activeYears ? Math.round(books.filter(b => b.year > 2010).length / activeYears) : "—"; })(), color: "#0e9488" },
+          { label: "Books / Year", value: stats.readingSpan ? Math.round(stats.total / stats.readingSpan) : "—", color: "#0e9488" },
           { label: "Pages / Book", value: (() => { const withPages = books.filter(b => b.pages); return withPages.length ? Math.round(withPages.reduce((s,b) => s + b.pages, 0) / withPages.length).toLocaleString() : "—"; })(), color: "#f59e0b" },
-          { label: "Countries", value: Object.keys(stats.byCountry).length, color: "#06b6d4" },
+          { label: "Pages / Day", value: (() => { const totalPages = books.filter(b => b.pages).reduce((s,b) => s + b.pages, 0); return stats.readingSpan && totalPages ? (totalPages / (stats.readingSpan * 365)).toFixed(1) : "—"; })(), color: "#06b6d4" },
           { label: "Years Reading", value: stats.readingSpan, color: G.blue },
           { label: "Peak Year", value: `${stats.sortedYears[0]?.[0]} (${stats.sortedYears[0]?.[1]})`, color: "#0284c7" },
           { label: "#1 Author", value: stats.sortedAuthors[0]?.[0], color: G.purple },
