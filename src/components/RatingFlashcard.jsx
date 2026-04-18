@@ -14,11 +14,7 @@ const TIERS = [
 const RATING_ORDER = ["transformative", "loved", "enjoyed", "meh", "dont_remember", "dropped", "didnt_like"];
 
 export default function RatingFlashcard({ books, updateBookRating, onClose }) {
-  // Queue: unrated first (sorted recent→old), then already-rated for review
-  const queue = [
-    ...books.filter(b => !b.rating).sort((a, b) => (b.year_read_end || 0) - (a.year_read_end || 0) || b.id - a.id),
-    ...books.filter(b =>  b.rating).sort((a, b) => (b.year_read_end || 0) - (a.year_read_end || 0) || b.id - a.id),
-  ];
+  const queue = books.filter(b => !b.rating).sort((a, b) => (b.year_read_end || 0) - (a.year_read_end || 0) || b.id - a.id);
 
   const [index, setIndex] = useState(0);
   const [rated, setRated] = useState(0);
