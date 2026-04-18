@@ -7,7 +7,7 @@ const FORMAT_COLORS = { "Novel": "#2d6a4f", "Graphic Novel": "#06d6a0", "Non-Fic
 
 function CoverStrip({ books, genreMap, openEditModal, session }) {
   return (
-    <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4 }}>
+    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
       {books.map(b => {
         const color = (b.genre?.[0] && genreMap[b.genre[0]]) || G.muted;
         return (
@@ -102,8 +102,8 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
     <div>
       {/* Recently Read strip */}
       {recentBooks.length > 0 && (
-        <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "16px 20px", marginBottom: 16 }}>
-          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, color: G.text, marginBottom: 12 }}>Recently Read</div>
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, color: G.muted, textAlign: "center", marginBottom: 14, letterSpacing: "0.5px" }}>Recently Read</div>
           <CoverStrip books={recentBooks} genreMap={genreMap} openEditModal={openEditModal} session={session} />
         </div>
       )}
@@ -113,10 +113,10 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
         const hallBooks = books.filter(b => b.rating === "transformative" || b.rating === "loved");
         if (hallBooks.length === 0) return null;
         return (
-          <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "16px 20px", marginBottom: 16 }}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 12 }}>
-              <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, color: G.text }}>Hall of Fame</div>
-              <span style={{ fontSize: 11, color: G.muted }}>Transformative & Loved</span>
+          <div style={{ marginBottom: 28, borderLeft: `3px solid ${G.goldDim}`, paddingLeft: 16 }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 14, justifyContent: "center" }}>
+              <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, color: G.muted, letterSpacing: "0.5px" }}>Hall of Fame</div>
+              <span style={{ fontSize: 11, color: G.dimmed }}>Transformative & Loved</span>
             </div>
             <CoverStrip books={hallBooks} genreMap={genreMap} openEditModal={openEditModal} session={session} />
           </div>
