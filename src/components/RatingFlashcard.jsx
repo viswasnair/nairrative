@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import G from "../constants/theme";
 
 const TIERS = [
@@ -14,14 +14,16 @@ const TIERS = [
 const RATING_ORDER = ["transformative", "loved", "enjoyed", "meh", "dont_remember", "dropped", "didnt_like"];
 
 export default function RatingFlashcard({ books, updateBookRating, onClose }) {
-  const queue = books.filter(b => !b.rating).sort((a, b) => (b.year_read_end || 0) - (a.year_read_end || 0) || b.id - a.id);
+  const queueRef = useRef(
+    books.filter(b => !b.rating).sort((a, b) => (b.year_read_end || 0) - (a.year_read_end || 0) || b.id - a.id)
+  );
+  const queue = queueRef.current;
 
   const [index, setIndex] = useState(0);
   const [rated, setRated] = useState(0);
-  const [flash, setFlash] = useState(null); // { color } for the brief flash animation
+  const [flash, setFlash] = useState(null);
 
   const total = queue.length;
-  const unratedTotal = books.filter(b => !b.rating).length;
   const book = queue[index];
 
   const advance = useCallback((chosenRating) => {
@@ -84,7 +86,7 @@ export default function RatingFlashcard({ books, updateBookRating, onClose }) {
               <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, color: G.text, marginBottom: 8 }}>All done!</div>
               <div style={{ fontSize: 13, color: G.muted, marginBottom: 24 }}>
                 You rated {rated} book{rated !== 1 ? "s" : ""} this session.
-                {unratedTotal - rated > 0 && ` ${unratedTotal - rated} still unrated.`}
+                {total - rated > 0 && ` ${total - rated} still unrated.`}
               </div>
               <button className="btn-gold" onClick={onClose}>Close</button>
             </div>
