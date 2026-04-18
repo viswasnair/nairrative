@@ -93,7 +93,7 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
       <div className="chart-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         {/* Books Per Year */}
         {chartCard("Reading Activity by Year", "yc",
-          <ResponsiveContainer width="100%" height={200}>
+          <ResponsiveContainer width="100%" height={245}>
             <BarChart data={ycData} barSize={18}>
               <CartesianGrid stroke={G.border} strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="year" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
@@ -159,47 +159,56 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
 
         {/* Fiction vs Non-Fiction */}
         {chartCard("Fiction vs Non-Fiction Over Time", "fn",
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={fnData}>
-              <CartesianGrid stroke={G.border} strokeDasharray="3 3" />
-              <XAxis dataKey="year" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
-              <Tooltip content={<DarkTooltip />} />
-              <Legend wrapperStyle={{ color: G.muted, fontSize: 11 }} />
-              <Area type="monotone" dataKey="Fiction" stackId="1" stroke={G.gold} fill={G.gold} fillOpacity={0.35} />
-              <Area type="monotone" dataKey="Non-Fiction" stackId="1" stroke={G.blue} fill={G.blue} fillOpacity={0.35} />
-            </AreaChart>
-          </ResponsiveContainer>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <ResponsiveContainer width="100%" height={210}>
+              <AreaChart data={fnData}>
+                <CartesianGrid stroke={G.border} strokeDasharray="3 3" />
+                <XAxis dataKey="year" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
+                <Tooltip content={<DarkTooltip />} />
+                <Area type="monotone" dataKey="Fiction" stackId="1" stroke={G.gold} fill={G.gold} fillOpacity={0.35} />
+                <Area type="monotone" dataKey="Non-Fiction" stackId="1" stroke={G.blue} fill={G.blue} fillOpacity={0.35} />
+              </AreaChart>
+            </ResponsiveContainer>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 20, padding: "8px 0" }}>
+              {[["Fiction", G.gold], ["Non-Fiction", G.blue]].map(([label, color]) => (
+                <div key={label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: 2, background: color, flexShrink: 0 }} />
+                  <span style={{ fontSize: 11, color: G.muted }}>{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
         {/* Genre Evolution */}
         {chartCard("Genre Evolution", "ge",
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={geData} margin={{ bottom: 10 }}>
-              <CartesianGrid stroke={G.border} strokeDasharray="3 3" />
-              <XAxis dataKey="year" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
-              <Tooltip content={<DarkTooltip />} />
-              <Legend content={({ payload }) => (
-                <div style={{ display: "flex", justifyContent: "center", marginTop: 10 }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, auto)", gap: "4px 16px" }}>
-                    {payload.map(entry => (
-                      <div key={entry.value} style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                        <div style={{ width: 8, height: 8, borderRadius: 2, background: entry.color, flexShrink: 0 }} />
-                        <span style={{ fontSize: 10, color: G.muted, whiteSpace: "nowrap" }}>{entry.value}</span>
-                      </div>
-                    ))}
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <ResponsiveContainer width="100%" height={210}>
+              <AreaChart data={geData}>
+                <CartesianGrid stroke={G.border} strokeDasharray="3 3" />
+                <XAxis dataKey="year" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
+                <Tooltip content={<DarkTooltip />} />
+                {geTop5.map(g => <Area key={g} type="monotone" dataKey={g} stackId="1" stroke={genreMap[g]} fill={genreMap[g]} fillOpacity={0.5} />)}
+              </AreaChart>
+            </ResponsiveContainer>
+            <div style={{ display: "flex", justifyContent: "center", padding: "8px 0" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, auto)", gap: "4px 16px" }}>
+                {geTop5.map(g => (
+                  <div key={g} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: 2, background: genreMap[g], flexShrink: 0 }} />
+                    <span style={{ fontSize: 10, color: G.muted, whiteSpace: "nowrap" }}>{g}</span>
                   </div>
-                </div>
-              )} />
-              {geTop5.map(g => <Area key={g} type="monotone" dataKey={g} stackId="1" stroke={genreMap[g]} fill={genreMap[g]} fillOpacity={0.5} />)}
-            </AreaChart>
-          </ResponsiveContainer>
+                ))}
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Avg Book Length Over Time */}
         {chartCard("Avg Book Length Over Time", "al",
-          <ResponsiveContainer width="100%" height={200}>
+          <ResponsiveContainer width="100%" height={245}>
             <LineChart data={alData}>
               <CartesianGrid stroke={G.border} strokeDasharray="3 3" />
               <XAxis dataKey="year" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
