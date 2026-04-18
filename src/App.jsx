@@ -509,23 +509,23 @@ Answer primarily from the data, with specific references to books, authors, year
             </div>
           </div>
 
-          {/* Lock */}
-          <button onClick={() => session ? logout() : setShowLoginModal(true)}
-            title={session ? "Sign out" : "Sign in"}
-            style={{ background: "none", border: "none", cursor: "pointer", padding: 4, lineHeight: 1, color: session ? G.gold : G.dimmed, flexShrink: 0 }}>
-            {session
-              ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
-              : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            }
-          </button>
-
-          {/* Burger — mobile only */}
-          <button className="burger-btn" onClick={() => setMobileMenuOpen(o => !o)}
-            title="Menu" style={{ color: G.muted }}>
-            <span style={{ display: "block", width: 18, height: 2, background: "currentColor", borderRadius: 2 }} />
-            <span style={{ display: "block", width: 18, height: 2, background: "currentColor", borderRadius: 2 }} />
-            <span style={{ display: "block", width: 18, height: 2, background: "currentColor", borderRadius: 2 }} />
-          </button>
+          {/* Lock + Burger */}
+          <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: "auto" }}>
+            <button onClick={() => session ? logout() : setShowLoginModal(true)}
+              title={session ? "Sign out" : "Sign in"}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 4, lineHeight: 1, color: session ? G.gold : G.dimmed, flexShrink: 0 }}>
+              {session
+                ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+                : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              }
+            </button>
+            <button className="burger-btn" onClick={() => setMobileMenuOpen(o => !o)}
+              title="Menu" style={{ color: G.muted }}>
+              <span style={{ display: "block", width: 18, height: 2, background: "currentColor", borderRadius: 2 }} />
+              <span style={{ display: "block", width: 18, height: 2, background: "currentColor", borderRadius: 2 }} />
+              <span style={{ display: "block", width: 18, height: 2, background: "currentColor", borderRadius: 2 }} />
+            </button>
+          </div>
         </div>
 
         {/* Mobile menu */}
