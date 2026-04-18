@@ -3,7 +3,7 @@ const G = {
   copper: "#c0522a",
   blue: "#2563eb", red: "#dc2626", green: "#0e9488", purple: "#7c3aed",
   bg: "#f7f8fa", card: "#ffffff", card2: "#f0f2f6", border: "#e4e7ed",
-  text: "#111827", muted: "#6b7280", dimmed: "#d1d5db", hover: "#e8eaef",
+  text: "#111827", muted: "#6b7280", dimmed: "#9ca3af", hover: "#e8eaef",
 };
 
 export default G;

@@ -4,7 +4,7 @@ export default function ChatTab({ session, messages, chatLoading, chatInput, set
   if (!session) return (
     <div style={{ textAlign: "center", padding: "60px 20px", color: G.muted }}>
       <div style={{ fontSize: 32, marginBottom: 16 }}>◈</div>
-      <div style={{ fontSize: 15, fontWeight: 600, color: G.text, marginBottom: 8 }}>Sign in to use AI Chat</div>
+      <div style={{ fontSize: 15, fontWeight: 600, color: G.text, marginBottom: 8 }}>Sign in to use Chat</div>
       <div style={{ fontSize: 13 }}>This feature is only available to the library owner.</div>
     </div>
   );

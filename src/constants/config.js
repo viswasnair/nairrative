@@ -21,7 +21,7 @@ export const TABS = [
   { id: "bookshelf",  icon: "▣", label: "Bookshelf" },
   { id: "recs",       icon: "✦", label: "Recommendations" },
   { id: "series",     icon: "⊙", label: "Series Recap" },
-  { id: "chat",       icon: "◈", label: "AI Chat" },
+  { id: "chat",       icon: "◈", label: "Chat" },
 ];
 
 export const AUTO_RECS = [
