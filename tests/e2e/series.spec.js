@@ -1,14 +1,14 @@
 import { test, expect } from '@playwright/test';
 import { mockClaudeAPI, login, logout, clickTab, waitForAppReady } from './helpers.js';
 
-test.describe('Series Recap — AI-generated series summaries', () => {
+test.describe('Recap — AI-generated series summaries', () => {
   test.beforeEach(async ({ page }) => {
     await mockClaudeAPI(page);
     await page.goto('/');
     await waitForAppReady(page);
     // Generate Recap requires a session — log in for all tests in this suite
     await login(page);
-    await clickTab(page, 'Series Recap');
+    await clickTab(page, 'Recap');
   });
 
   test.afterEach(async ({ page }) => {
@@ -72,7 +72,7 @@ test.describe('Series Recap — AI-generated series summaries', () => {
     // Log out mid-test to verify the locked state
     await logout(page);
     // Re-navigate to series tab
-    await clickTab(page, 'Series Recap');
+    await clickTab(page, 'Recap');
 
     // Wheel of Time is still selected — button should be visually disabled
     const generateBtn = page.locator('button.btn-gold', { hasText: /Generate Recap/ });

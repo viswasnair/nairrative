@@ -43,8 +43,8 @@ test.describe('Navigation — all pages render correctly', () => {
     await expect(page.locator('text=If You Loved…')).toBeVisible();
   });
 
-  test('Series Recap tab shows description and series list', async ({ page }) => {
-    await clickTab(page, 'Series Recap');
+  test('Recap tab shows description and series list', async ({ page }) => {
+    await clickTab(page, 'Recap');
     await expect(
       page.locator('text=Pick a series to get an AI catch-up')
     ).toBeVisible({ timeout: 8_000 });
@@ -52,9 +52,9 @@ test.describe('Navigation — all pages render correctly', () => {
     await expect(page.locator('button', { hasText: 'Wheel of Time' }).first()).toBeVisible({ timeout: 8_000 });
   });
 
-  test('AI Chat tab shows sign-in gate when not authenticated', async ({ page }) => {
-    await clickTab(page, 'AI Chat');
-    await expect(page.locator('text=Sign in to use AI Chat')).toBeVisible();
+  test('Chat tab shows sign-in gate when not authenticated', async ({ page }) => {
+    await clickTab(page, 'Chat');
+    await expect(page.locator('text=Sign in to use Chat')).toBeVisible();
     await expect(
       page.locator('text=This feature is only available to the library owner')
     ).toBeVisible();

@@ -1,13 +1,13 @@
 import { test, expect } from '@playwright/test';
 import { mockClaudeAPI, login, logout, clickTab, waitForAppReady } from './helpers.js';
 
-test.describe('AI Chat — conversational reading assistant', () => {
+test.describe('Chat — conversational reading assistant', () => {
   test.beforeEach(async ({ page }) => {
     await mockClaudeAPI(page);
     await page.goto('/');
     await waitForAppReady(page);
     await login(page);
-    await clickTab(page, 'AI Chat');
+    await clickTab(page, 'Chat');
   });
 
   test.afterEach(async ({ page }) => {
@@ -92,8 +92,8 @@ test.describe('AI Chat — conversational reading assistant', () => {
     await logout(page);
     // Navigate away and back to the chat tab
     await clickTab(page, 'Overview');
-    await clickTab(page, 'AI Chat');
-    await expect(page.locator('text=Sign in to use AI Chat')).toBeVisible({ timeout: 5_000 });
+    await clickTab(page, 'Chat');
+    await expect(page.locator('text=Sign in to use Chat')).toBeVisible({ timeout: 5_000 });
     await expect(
       page.locator('input[placeholder*="Ask about your reading"]')
     ).not.toBeVisible();

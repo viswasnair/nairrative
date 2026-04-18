@@ -77,10 +77,10 @@ test.describe('Authentication — login and logout lock', () => {
     await logout(page);
   });
 
-  test('AI Chat is accessible after login', async ({ page }) => {
+  test('Chat is accessible after login', async ({ page }) => {
     await login(page);
-    await clickTab(page, 'AI Chat');
-    await expect(page.locator('text=Sign in to use AI Chat')).not.toBeVisible();
+    await clickTab(page, 'Chat');
+    await expect(page.locator('text=Sign in to use Chat')).not.toBeVisible();
     await expect(
       page.locator('text=Hello! I know your complete reading history')
     ).toBeVisible({ timeout: 5_000 });
@@ -95,15 +95,15 @@ test.describe('Authentication — login and logout lock', () => {
     await expect(page.locator('button[title="Sign in"]')).toBeVisible({ timeout: 8_000 });
   });
 
-  test('AI Chat shows sign-in gate after logout', async ({ page }) => {
+  test('Chat shows sign-in gate after logout', async ({ page }) => {
     await login(page);
-    await clickTab(page, 'AI Chat');
+    await clickTab(page, 'Chat');
     await expect(
       page.locator('text=Hello! I know your complete reading history')
     ).toBeVisible();
     await logout(page);
     // Chat tab should re-lock
-    await clickTab(page, 'AI Chat');
-    await expect(page.locator('text=Sign in to use AI Chat')).toBeVisible({ timeout: 5_000 });
+    await clickTab(page, 'Chat');
+    await expect(page.locator('text=Sign in to use Chat')).toBeVisible({ timeout: 5_000 });
   });
 });
