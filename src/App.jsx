@@ -57,7 +57,6 @@ const css = `
     @media (max-width: 640px) {
       .tab-nav { display: none !important; }
       .burger-btn { display: flex !important; }
-      .mini-brand { display: none !important; }
       .page-content { padding: 16px !important; }
       .header-logo { width: 250px !important; height: auto !important; }
       .kpi-grid { grid-template-columns: repeat(3, 1fr) !important; }
@@ -466,7 +465,6 @@ Answer primarily from the data, with specific references to books, authors, year
     @media (max-width: 640px) {
       .tab-nav { display: none !important; }
       .burger-btn { display: flex !important; }
-      .mini-brand { display: none !important; }
       .page-content { padding: 16px !important; }
       .header-logo { width: 250px !important; height: auto !important; }
       .kpi-grid { grid-template-columns: repeat(3, 1fr) !important; }
