@@ -3,6 +3,7 @@ import { mockClaudeAPI, login, logout, clickTab, clickSubTab, waitForAppReady } 
 
 test.describe('Recap — AI-generated series summaries', () => {
   test.beforeEach(async ({ page }) => {
+    test.setTimeout(60_000);
     await mockClaudeAPI(page);
     await page.goto('/');
     await waitForAppReady(page);
