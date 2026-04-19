@@ -18,7 +18,9 @@ export default function NewReleasesTab({ books, session }) {
       .from("new_releases")
       .select("*")
       .eq("dismissed", false)
-      .order("detected_at", { ascending: false });
+      .gte("published_date", `${new Date().getFullYear() - 2}-01-01`)
+      .order("published_date", { ascending: false })
+      .limit(20);
     setReleases(data || []);
     setLoading(false);
   };
