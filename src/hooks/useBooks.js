@@ -14,6 +14,16 @@ function levenshtein(a, b) {
   return dp[m][n];
 }
 
+// Strip control chars (except \n/\t) and truncate — for free-form inputs sent to Claude
+function sanitizePromptInput(str, max = 500) {
+  return str.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "").slice(0, max).trim();
+}
+
+// Strip ALL control chars including newlines and truncate — for short structured fields
+function sanitizeShortInput(str, max = 100) {
+  return str.replace(/[\x00-\x1f\x7f]/g, "").slice(0, max).trim();
+}
+
 function sanitizeCoverUrl(url) {
   if (!url) return null;
   try {
@@ -150,7 +160,7 @@ export function useBooks({ session }) {
   };
 
   const chatFillBook = async () => {
-    const bookChatValue = bookChatInputRef.current?.value?.trim() || "";
+    const bookChatValue = sanitizePromptInput(bookChatInputRef.current?.value?.trim() || "");
     if (!bookChatValue || bookChatLoading) return;
     setBookChatLoading(true);
     try {
@@ -217,12 +227,13 @@ export function useBooks({ session }) {
   };
 
   const lookupAuthorCountry = async (authorName) => {
+    const safeName = sanitizeShortInput(authorName);
     try {
       const res = await fetch(CLAUDE_URL, {
         method: "POST", headers: claudeHeaders(session),
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001", max_tokens: 20,
-          messages: [{ role: "user", content: `What country is the author "${authorName}" from? Reply with only the ISO 3166-1 short country name (e.g. "United Kingdom" not "UK", "United States" not "USA", "Czechia" not "Czech Republic"). If unknown, reply "Unknown".` }]
+          messages: [{ role: "user", content: `What country is the author "${safeName}" from? Reply with only the ISO 3166-1 short country name (e.g. "United Kingdom" not "UK", "United States" not "USA", "Czechia" not "Czech Republic"). If unknown, reply "Unknown".` }]
         })
       });
       const data = await res.json();
@@ -240,7 +251,7 @@ export function useBooks({ session }) {
   const dismissGenreSuggestion = () => setGenreSuggestion(null);
 
   const addGenre = async (force = false) => {
-    const name = newGenreInput.trim();
+    const name = sanitizeShortInput(newGenreInput.trim());
     if (!name) return;
     // Case-insensitive exact match — just select it, don't insert
     const exactMatch = genreList.find(g => g.toLowerCase() === name.toLowerCase());
