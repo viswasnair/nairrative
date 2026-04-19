@@ -19,9 +19,10 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
   const [refreshCounts, setRefreshCounts] = useState({});
   const prevRecsFingerprint = useRef(null);
 
-  // Load recs from cache on tab switch
+  // Load recs from cache on tab switch or when books first load
   useEffect(() => {
-    if (activeTab !== "recs" || !books.length) return;
+    if (activeTab !== "recs") return;
+    if (!books.length) { setIntentResults(SEED_RECS); return; }
     const cachedFp = localStorage.getItem("nairrative_recs_fp");
     const cachedResult = localStorage.getItem("nairrative_recs");
     if (cachedFp === booksFingerprint && cachedResult) {
@@ -39,7 +40,7 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
         }
       })
       .catch(() => setIntentResults(SEED_RECS));
-  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeTab, booksFingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveRecsToSupabase = async (data) => {
     try {

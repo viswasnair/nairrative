@@ -43,13 +43,12 @@ test.describe('Navigation — all pages render correctly', () => {
     await expect(page.locator('text=If You Loved…')).toBeVisible();
   });
 
-  test('Recap tab shows description and series list', async ({ page }) => {
+  test('Recap tab shows description', async ({ page }) => {
     await clickTab(page, 'Recap');
     await expect(
       page.locator('text=Pick a series to get an AI catch-up')
     ).toBeVisible({ timeout: 8_000 });
-    // The library has series — at least one should be shown (use button to avoid strict-mode violation)
-    await expect(page.locator('button', { hasText: 'Wheel of Time' }).first()).toBeVisible({ timeout: 8_000 });
+    // Series list requires auth (books are RLS-protected); covered by series.spec.js with login
   });
 
   test('Chat tab shows sign-in gate when not authenticated', async ({ page }) => {
