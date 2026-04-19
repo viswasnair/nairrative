@@ -81,9 +81,19 @@ export default function NewReleasesTab({ books, session }) {
         </div>
       )}
 
-      {!loading && releases.length > 0 && (
+      {!loading && releases.length > 0 && (() => {
+        const readTitles = new Set(books.map(b => b.title?.toLowerCase().trim()));
+        const unread = releases.filter(r => !readTitles.has(r.title?.toLowerCase().trim()));
+        if (unread.length === 0) return (
+          <div style={{ textAlign: "center", padding: "60px 0", color: G.muted }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>⊛</div>
+            <div style={{ fontSize: 13 }}>You've already read all the new releases!</div>
+            <div style={{ fontSize: 12, color: G.dimmed, marginTop: 6 }}>Check back after your next book drops.</div>
+          </div>
+        );
+        return (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-          {releases.map(r => (
+          {unread.map(r => (
             <div key={r.id} style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "16px 18px", display: "flex", flexDirection: "column", gap: 4 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: G.text, lineHeight: 1.4 }}>{r.title}</div>
@@ -102,7 +112,8 @@ export default function NewReleasesTab({ books, session }) {
             </div>
           ))}
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
