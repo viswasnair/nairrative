@@ -35,6 +35,35 @@ test.describe('Navigation — all pages render correctly', () => {
     await expect(page.locator('.lib-row div', { hasText: 'Author' }).first()).toBeVisible();
   });
 
+  test('Library subtabs are present and in correct order', async ({ page }) => {
+    await clickTab(page, 'Library');
+    const subtabs = page.locator('.subtab-btn');
+    await expect(subtabs).toHaveCount(2, { timeout: 8_000 });
+    await expect(subtabs.nth(0)).toHaveText('List');
+    await expect(subtabs.nth(1)).toHaveText('Bookshelf');
+  });
+
+  test('Library Bookshelf subtab shows timeline mosaic view', async ({ page }) => {
+    await clickTab(page, 'Library');
+    await clickSubTab(page, 'Bookshelf');
+    // Grid and Shelf views must not exist
+    await expect(page.locator('button', { hasText: 'Grid' })).not.toBeVisible();
+    await expect(page.locator('button', { hasText: 'Shelf' })).not.toBeVisible();
+    // Search box must not exist in bookshelf
+    await expect(page.locator('input[placeholder="Search…"]')).not.toBeVisible();
+    // Timeline mosaic renders year labels for books
+    await expect(page.locator('text=Recently Read')).toBeVisible({ timeout: 8_000 });
+  });
+
+  test('New Releases subtab renders without errors', async ({ page }) => {
+    await clickTab(page, 'Recommendations');
+    await clickSubTab(page, 'New Releases');
+    // Should show either releases grid or empty state — either is valid
+    const hasReleases = await page.locator('text=New books from authors in your library').isVisible({ timeout: 8_000 }).catch(() => false);
+    const hasEmpty = await page.locator('text=No new releases found yet').isVisible({ timeout: 8_000 }).catch(() => false);
+    expect(hasReleases || hasEmpty).toBe(true);
+  });
+
   test('Recommendations tab shows Picks subtab by default with lens grid', async ({ page }) => {
     await clickTab(page, 'Recommendations');
     await expect(page.locator('.rec-grid')).toBeVisible({ timeout: 8_000 });
