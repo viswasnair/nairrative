@@ -49,7 +49,7 @@ src/
   lib/
     bookUtils.js       # Context builder, CSV/JSON export
     supabase.js        # Supabase client
-    api.js             # Shared CLAUDE_URL + AI_HEADERS constants
+    api.js             # Shared CLAUDE_URL + claudeHeaders(session)
 api/
   claude.js            # Vercel Edge Function → Anthropic API proxy
 ```
@@ -58,8 +58,11 @@ api/
 
 ```bash
 npm install
-npm run dev
-npm run build
+npm run dev             # Vite dev server
+npm run build           # Production build
+npm run lint            # ESLint
+npm run audit:ci        # Dependency vulnerability check (also runs on every Vercel deploy)
+npm run test:security   # Security regression tests against deployed URL
 ```
 
 AI features (`/api/claude`) require the Vercel Edge Function and won't work in local dev without additional setup.
@@ -73,6 +76,19 @@ VITE_SUPABASE_URL
 VITE_SUPABASE_ANON_KEY
 ANTHROPIC_API_KEY
 ```
+
+## Security
+
+The `/api/claude` edge function enforces:
+- **JWT authentication** — Supabase session token verified via JWKS
+- **CORS** — restricted to `nairrative.vercel.app`
+- **Rate limiting** — 30 requests/min per user
+- **Model allowlist** — only approved Claude models accepted
+- **Input sanitization** — control chars stripped, cover URLs validated, prompt inputs length-capped
+
+Security headers (`vercel.json`): X-Frame-Options, CSP, HSTS (2yr + preload), X-Content-Type-Options, Referrer-Policy, Permissions-Policy.
+
+Supabase RLS enforces row-level ownership on all tables — unauthenticated requests cannot read or write any user data.
 
 ## Database Schema
 

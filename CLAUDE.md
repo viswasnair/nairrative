@@ -46,28 +46,35 @@ Nairrative is a personal reading dashboard — a React SPA deployed on Vercel wi
 - `seeds.js` — `SEED_RECS`, `SEED_ANALYSIS` (fallback data for logged-out users)
 - `bookUtils.js` — `buildBookContext`, `downloadCSV`, `downloadJSON`
 - `supabase.js` — Supabase client
-- `api.js` — shared `CLAUDE_URL` and `AI_HEADERS` constants used by all hooks and App.jsx
+- `api.js` — shared `CLAUDE_URL`, `AI_HEADERS`, and `claudeHeaders(session)` used by all hooks and App.jsx
 
 ### API (`api/`)
-- `claude.js` — Vercel Edge Function proxying requests to Anthropic API. Reads `ANTHROPIC_API_KEY` from environment.
+- `claude.js` — Vercel Edge Function proxying requests to Anthropic API. Reads `ANTHROPIC_API_KEY` from environment. Enforces JWT auth (JWKS), CORS restriction, rate limiting (30 req/min per user), model allowlist, and max_tokens cap.
 
 ## Supabase Tables
 
 | Table | Purpose |
 |-------|---------|
 | `books` | Main book records |
+| `authors` | Author lookup table |
+| `book_authors` | Book↔author join table |
 | `genres` | Genre list with colour codes |
 | `recs_cache` | Cached recommendation results (id=1) |
 | `analysis_cache` | Cached analysis panel results (id=1) |
 | `panel_prompts` | User-customised analysis prompts (id=1) |
 
+### RLS posture
+All tables have RLS enabled. `books`, `book_authors` — authenticated only, scoped to `auth.uid() = user_id`. `authors`, `genres` — public SELECT (shared lookup data), authenticated write. Cache tables — public SELECT, authenticated write.
+
 ## Development
 
 ```bash
 npm install
-npm run dev      # local dev server (Vite)
-npm run build    # production build
-npm run lint     # ESLint
+npm run dev           # local dev server (Vite)
+npm run build         # production build
+npm run lint          # ESLint
+npm run audit:ci      # npm audit --audit-level=high (also runs on every Vercel deploy)
+npm run test:security # Playwright security regression tests (requires deployed URL)
 ```
 
 Note: AI features (`/api/claude`) require Vercel deployment — they won't work locally without a local serverless runtime.
@@ -87,3 +94,11 @@ Set in Vercel dashboard:
 - **Styling**: All inline styles using `G.*` colour tokens. No CSS modules or Tailwind. Global CSS injected via a `<style>` tag from the module-level `css` constant in `App.jsx`.
 - **Performance**: Tab switches use `useTransition` (interruptible renders); `stats` and `analysisInsights` memos consume `useDeferredValue(books)` so heavy computation runs at lower priority and doesn't block paint.
 - **Do not push to Vercel without user approval.**
+
+## Security
+
+- **API proxy** (`api/claude.js`): JWKS JWT verification, CORS restricted to `nairrative.vercel.app`, rate limit 30 req/min per user, model allowlist, max_tokens hard cap of 2000.
+- **Input sanitization** (`useBooks.js`): control characters stripped and length-capped on all prompt inputs; `cover_url` validated to http/https only before saving.
+- **Security headers** (`vercel.json`): X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, CSP, HSTS (2yr + preload).
+- **Dependabot**: enabled on GitHub for automated CVE alerts.
+- **MCP**: Vercel MCP configured via `.mcp.json` for deployment management from Claude Code.
