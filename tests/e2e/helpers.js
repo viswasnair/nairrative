@@ -26,7 +26,7 @@ export async function mockClaudeAPI(page) {
       system.includes('catch up on a book series') ||
       system.includes('literary companion')
     ) {
-      // Series recap (haiku, max 800 tokens)
+      // Series recap or custom recap
       responseText = [
         '**Book 1 Recap**',
         '',
@@ -153,6 +153,14 @@ export async function logout(page) {
  */
 export async function clickTab(page, label) {
   await page.locator('.tab-btn', { hasText: label }).click();
+  await page.waitForTimeout(300);
+}
+
+/**
+ * Clicks a subtab within the Recommendations tab by its label text.
+ */
+export async function clickSubTab(page, label) {
+  await page.locator('.subtab-btn', { hasText: label }).click();
   await page.waitForTimeout(300);
 }
 

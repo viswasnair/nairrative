@@ -25,8 +25,8 @@ const RecList = ({ results, loading }) => {
 
 const SUB_TABS = [
   { id: "picks",    label: "Picks" },
-  { id: "recap",    label: "Series Recap" },
   { id: "releases", label: "New Releases" },
+  { id: "recap",    label: "Recap" },
 ];
 
 export default function RecsTab({
@@ -70,11 +70,11 @@ export default function RecsTab({
   return (
     <div>
       {/* Subtab nav */}
-      <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 24 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, marginBottom: 24 }}>
         {SUB_TABS.map((t, i) => (
           <>
             {i > 0 && <span key={`sep-${i}`} style={{ color: G.dimmed, fontSize: 12, userSelect: "none" }}>·</span>}
-            <button key={t.id} onClick={() => setSubTab(t.id)}
+            <button key={t.id} className="subtab-btn" onClick={() => setSubTab(t.id)}
               style={{ background: "none", border: "none", padding: "4px 8px", cursor: "pointer", fontSize: 13, fontWeight: subTab === t.id ? 600 : 400, color: subTab === t.id ? G.gold : G.muted, fontFamily: "'DM Sans', sans-serif" }}>
               {t.label}
             </button>

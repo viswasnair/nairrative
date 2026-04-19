@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mockClaudeAPI, clickTab, waitForAppReady } from './helpers.js';
+import { mockClaudeAPI, clickTab, clickSubTab, waitForAppReady } from './helpers.js';
 
 test.describe('Navigation — all pages render correctly', () => {
   test.beforeEach(async ({ page }) => {
@@ -35,7 +35,7 @@ test.describe('Navigation — all pages render correctly', () => {
     await expect(page.locator('.lib-row div', { hasText: 'Author' }).first()).toBeVisible();
   });
 
-  test('Recommendations tab shows lens grid', async ({ page }) => {
+  test('Recommendations tab shows Picks subtab by default with lens grid', async ({ page }) => {
     await clickTab(page, 'Recommendations');
     await expect(page.locator('.rec-grid')).toBeVisible({ timeout: 8_000 });
     await expect(page.locator('text=More Like Last Book')).toBeVisible();
@@ -43,12 +43,24 @@ test.describe('Navigation — all pages render correctly', () => {
     await expect(page.locator('text=If You Loved…')).toBeVisible();
   });
 
-  test('Recap tab shows description', async ({ page }) => {
-    await clickTab(page, 'Recap');
+  test('Recommendations subtabs are centered and in correct order', async ({ page }) => {
+    await clickTab(page, 'Recommendations');
+    const subtabs = page.locator('.subtab-btn');
+    await expect(subtabs).toHaveCount(3, { timeout: 8_000 });
+    await expect(subtabs.nth(0)).toHaveText('Picks');
+    await expect(subtabs.nth(1)).toHaveText('New Releases');
+    await expect(subtabs.nth(2)).toHaveText('Recap');
+  });
+
+  test('Recap subtab shows custom input and series picker', async ({ page }) => {
+    await clickTab(page, 'Recommendations');
+    await clickSubTab(page, 'Recap');
     await expect(
       page.locator('text=Pick a series to get an AI catch-up')
     ).toBeVisible({ timeout: 8_000 });
-    // Series list requires auth (books are RLS-protected); covered by series.spec.js with login
+    await expect(
+      page.locator('input[placeholder="Enter any series or book name…"]')
+    ).toBeVisible();
   });
 
   test('Chat tab shows sign-in gate when not authenticated', async ({ page }) => {
