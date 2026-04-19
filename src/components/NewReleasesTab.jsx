@@ -9,8 +9,8 @@ export default function NewReleasesTab({ books, session }) {
   const [lastChecked, setLastChecked] = useState(null);
 
   useEffect(() => {
-    if (session) fetchReleases();
-  }, [session]);
+    fetchReleases();
+  }, []);
 
   const fetchReleases = async () => {
     setLoading(true);
