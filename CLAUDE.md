@@ -95,6 +95,14 @@ Set in Vercel dashboard:
 - **Performance**: Tab switches use `useTransition` (interruptible renders); `stats` and `analysisInsights` memos consume `useDeferredValue(books)` so heavy computation runs at lower priority and doesn't block paint.
 - **Do not push to Vercel without user approval.**
 
+## Task Tracking
+
+A `TODO.md` file at the project root tracks pending work across sessions.
+
+- **When a new task is requested**: add it to the **Pending** section of `TODO.md` before starting work.
+- **When a task is completed**: remove it from `TODO.md`.
+- This applies to every Claude Code session in this project, regardless of which tab or conversation window.
+
 ## Security
 
 - **API proxy** (`api/claude.js`): JWKS JWT verification, CORS restricted to `nairrative.vercel.app`, rate limit 30 req/min per user, model allowlist, max_tokens hard cap of 2000.
