@@ -41,12 +41,6 @@ export default function NewReleasesTab({ books, session }) {
     setReleases(prev => prev.filter(r => r.id !== id));
   };
 
-  if (!session) return (
-    <div style={{ textAlign: "center", padding: "60px 0", color: G.muted }}>
-      <div style={{ fontSize: 13 }}>Sign in to see new releases from authors you've read.</div>
-    </div>
-  );
-
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
@@ -54,13 +48,15 @@ export default function NewReleasesTab({ books, session }) {
           <div style={{ color: G.muted, fontSize: 13 }}>New books from authors in your library — checked weekly, or refresh manually.</div>
           {lastChecked && <div style={{ color: G.dimmed, fontSize: 11, marginTop: 3 }}>Last checked {lastChecked.toLocaleTimeString()}</div>}
         </div>
-        <button
-          onClick={refresh}
-          disabled={refreshing}
-          className="btn-gold"
-          style={{ opacity: refreshing ? 0.6 : 1, cursor: refreshing ? "not-allowed" : "pointer" }}>
-          {refreshing ? "Checking…" : "↺ Refresh"}
-        </button>
+        {session && (
+          <button
+            onClick={refresh}
+            disabled={refreshing}
+            className="btn-gold"
+            style={{ opacity: refreshing ? 0.6 : 1, cursor: refreshing ? "not-allowed" : "pointer" }}>
+            {refreshing ? "Checking…" : "↺ Refresh"}
+          </button>
+        )}
       </div>
 
       {loading && (
