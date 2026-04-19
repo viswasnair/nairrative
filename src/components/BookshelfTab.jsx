@@ -341,43 +341,18 @@ function MosaicView({ filtered, genreMap, session, openEditModal }) {
 
 // ── BookshelfTab ──────────────────────────────────────────────────────────────
 export default function BookshelfTab({ books, genreMap, openEditModal, session }) {
-  const [view, setView] = useState("grid");
-  const [search, setSearch] = useState("");
-
   const recentBooks = useMemo(() => [...books].sort((a, b) => (b.year_read_end || 0) - (a.year_read_end || 0) || b.id - a.id).slice(0, 20), [books]);
   const hallBooks   = useMemo(() => books.filter(b => b.rating === "transformative" || b.rating === "loved"), [books]);
 
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return books
-      .filter(b => !q || b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q))
-      .sort((a, b) => (a.year_read_end || 0) - (b.year_read_end || 0) || a.title.localeCompare(b.title));
-  }, [books, search]);
+  const sorted = useMemo(() =>
+    [...books].sort((a, b) => (a.year_read_end || 0) - (b.year_read_end || 0) || a.title.localeCompare(b.title)),
+  [books]);
 
   return (
     <div>
       <CoverRow label="Recently Read" books={recentBooks} genreMap={genreMap} openEditModal={openEditModal} session={session} />
       <CoverRow label="Hall of Fame"  books={hallBooks}   genreMap={genreMap} openEditModal={openEditModal} session={session} />
-
-      {/* Controls */}
-      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 20, flexWrap: "wrap" }}>
-        <input className="input-dark" style={{ width: 200, flex: "0 0 auto" }} placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} />
-        <div style={{ flex: 1 }} />
-        <div style={{ display: "flex", gap: 4 }}>
-          {VIEWS.map(v => (
-            <button key={v.id}
-              className={`tab-btn ${view === v.id ? "active" : ""}`}
-              style={{ fontSize: 12, padding: "6px 14px" }}
-              onClick={() => setView(v.id)}>
-              {v.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {view === "grid"   && <GridView   filtered={filtered} genreMap={genreMap} session={session} openEditModal={openEditModal} />}
-      {view === "spine"  && <SpineView  filtered={filtered} genreMap={genreMap} session={session} openEditModal={openEditModal} />}
-      {view === "mosaic" && <MosaicView filtered={filtered} genreMap={genreMap} session={session} openEditModal={openEditModal} />}
+      <MosaicView filtered={sorted} genreMap={genreMap} session={session} openEditModal={openEditModal} />
     </div>
   );
 }
