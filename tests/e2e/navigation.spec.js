@@ -56,11 +56,9 @@ test.describe('Navigation — all pages render correctly', () => {
     await clickTab(page, 'Recommendations');
     await clickSubTab(page, 'Recap');
     await expect(
-      page.locator('text=Pick a series to get an AI catch-up')
+      page.locator('text=Or pick a series from your library')
     ).toBeVisible({ timeout: 8_000 });
-    await expect(
-      page.locator('input[placeholder="Enter any series or book name…"]')
-    ).toBeVisible();
+    await expect(page.locator('text=Recap anything')).toBeVisible();
   });
 
   test('Chat tab shows sign-in gate when not authenticated', async ({ page }) => {

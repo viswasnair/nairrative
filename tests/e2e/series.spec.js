@@ -20,7 +20,7 @@ test.describe('Recap — AI-generated series summaries', () => {
       page.locator('input[placeholder="Enter any series or book name…"]')
     ).toBeVisible({ timeout: 8_000 });
     await expect(
-      page.locator('text=Pick a series to get an AI catch-up')
+      page.locator('text=Or pick a series from your library')
     ).toBeVisible({ timeout: 8_000 });
     await expect(page.locator('button', { hasText: 'Wheel of Time' }).first()).toBeVisible({
       timeout: 8_000,
