@@ -11,7 +11,9 @@
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
-    "test:report": "playwright show-report"
+    "test:report": "playwright show-report",
+    "test:security": "PLAYWRIGHT_BASE_URL=https://nairrative.vercel.app playwright test security",
+    "audit:ci": "npm audit --audit-level=high"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.102.1",
