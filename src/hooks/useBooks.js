@@ -106,9 +106,11 @@ export function useBooks({ session }) {
   // Fetch books — depends on session so we re-fetch once auth is established
   useEffect(() => {
     if (session === undefined) return; // still initialising
+    const PUBLIC_COLS = "id, user_id, title, year_read_start, year_read_end, genre, format, fiction, series, series_number, pages, user_added, created_at, updated_at, cover_url, rating";
+    const cols = session ? "*" : PUBLIC_COLS;
     supabase
       .from("books")
-      .select("*, book_authors(author_order, authors(id, name, country))")
+      .select(`${cols}, book_authors(author_order, authors(id, name, country))`)
       .order("id")
       .then(({ data, error }) => {
         if (error) { console.error("Supabase fetch error:", error); setBooksLoading(false); return; }
