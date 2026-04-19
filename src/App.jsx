@@ -10,7 +10,6 @@ import BookModal from "./components/BookModal";
 import AnalysisTab from "./components/AnalysisTab";
 import RecsTab from "./components/RecsTab";
 import OverviewTab from "./components/OverviewTab";
-import SeriesTab from "./components/SeriesTab";
 import ChatTab from "./components/ChatTab";
 import LibraryTab from "./components/LibraryTab";
 import BookshelfTab from "./components/BookshelfTab";
@@ -668,14 +667,6 @@ Answer primarily from the data, with specific references to books, authors, year
             setIntentResults={setIntentResults}
             intentLoading={intentLoading}
             fetchIntentRecs={fetchIntentRecs}
-          />
-        )}
-
-        {/* ── SERIES RECAP ──────────────────────────────────────────────── */}
-        {activeTab === "series" && (
-          <SeriesTab
-            books={books}
-            session={session}
             selectedSeries={selectedSeries}
             setSelectedSeries={setSelectedSeries}
             seriesRecap={seriesRecap}
@@ -685,7 +676,7 @@ Answer primarily from the data, with specific references to books, authors, year
           />
         )}
 
-        {/* ── CHAT ──────────────────────────────────────────────────────── */}
+{/* ── CHAT ──────────────────────────────────────────────────────── */}
         {activeTab === "chat" && (
           <ChatTab
             session={session}

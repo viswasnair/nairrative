@@ -1,0 +1,110 @@
+import { useState, useEffect } from "react";
+import G from "../constants/theme";
+import { supabase } from "../lib/supabase";
+
+export default function NewReleasesTab({ books, session }) {
+  const [releases, setReleases] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastChecked, setLastChecked] = useState(null);
+
+  useEffect(() => {
+    if (session) fetchReleases();
+  }, [session]);
+
+  const fetchReleases = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("new_releases")
+      .select("*")
+      .eq("dismissed", false)
+      .order("detected_at", { ascending: false });
+    setReleases(data || []);
+    setLoading(false);
+  };
+
+  const refresh = async () => {
+    setRefreshing(true);
+    try {
+      await supabase.functions.invoke("check-releases");
+      await fetchReleases();
+      setLastChecked(new Date());
+    } catch (e) {
+      console.error("check-releases error:", e);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const dismiss = async (id) => {
+    await supabase.from("new_releases").update({ dismissed: true }).eq("id", id);
+    setReleases(prev => prev.filter(r => r.id !== id));
+  };
+
+  if (!session) return (
+    <div style={{ textAlign: "center", padding: "60px 0", color: G.muted }}>
+      <div style={{ fontSize: 13 }}>Sign in to see new releases from authors you've read.</div>
+    </div>
+  );
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <div>
+          <div style={{ color: G.muted, fontSize: 13 }}>New books from authors in your library — checked weekly, or refresh manually.</div>
+          {lastChecked && <div style={{ color: G.dimmed, fontSize: 11, marginTop: 3 }}>Last checked {lastChecked.toLocaleTimeString()}</div>}
+        </div>
+        <button
+          onClick={refresh}
+          disabled={refreshing}
+          className="btn-gold"
+          style={{ opacity: refreshing ? 0.6 : 1, cursor: refreshing ? "not-allowed" : "pointer" }}>
+          {refreshing ? "Checking…" : "↺ Refresh"}
+        </button>
+      </div>
+
+      {loading && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+          {[1, 2, 3].map(i => (
+            <div key={i} style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "16px 18px" }}>
+              <div className="pulse" style={{ height: 12, width: "80%", background: G.border, borderRadius: 4, marginBottom: 8 }} />
+              <div className="pulse" style={{ height: 10, width: "50%", background: G.dimmed, borderRadius: 4, marginBottom: 8 }} />
+              <div className="pulse" style={{ height: 10, width: "90%", background: G.dimmed, borderRadius: 4 }} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!loading && releases.length === 0 && (
+        <div style={{ textAlign: "center", padding: "60px 0", color: G.muted }}>
+          <div style={{ fontSize: 28, marginBottom: 8 }}>⊛</div>
+          <div style={{ fontSize: 13 }}>No new releases found yet.</div>
+          <div style={{ fontSize: 12, color: G.dimmed, marginTop: 6 }}>Hit refresh to check for new books from your authors.</div>
+        </div>
+      )}
+
+      {!loading && releases.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+          {releases.map(r => (
+            <div key={r.id} style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "16px 18px", display: "flex", flexDirection: "column", gap: 4 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: G.text, lineHeight: 1.4 }}>{r.title}</div>
+                <button onClick={() => dismiss(r.id)}
+                  style={{ background: "none", border: "none", color: G.dimmed, cursor: "pointer", fontSize: 16, padding: 0, lineHeight: 1, flexShrink: 0 }}
+                  title="Dismiss">×</button>
+              </div>
+              <div style={{ fontSize: 11, color: G.gold }}>{r.author}</div>
+              {r.series && <div style={{ fontSize: 10, color: G.muted }}>Series: {r.series}</div>}
+              {r.published_date && <div style={{ fontSize: 10, color: G.dimmed }}>{r.published_date}</div>}
+              {r.description && (
+                <div style={{ fontSize: 11, color: G.muted, lineHeight: 1.6, marginTop: 6 }}>
+                  {r.description.length > 160 ? r.description.slice(0, 160) + "…" : r.description}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

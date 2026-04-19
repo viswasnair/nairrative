@@ -1,4 +1,7 @@
+import { useState } from "react";
 import G from "../constants/theme";
+import SeriesTab from "./SeriesTab";
+import NewReleasesTab from "./NewReleasesTab";
 
 const RecList = ({ results, loading }) => {
   if (loading) return (
@@ -20,6 +23,12 @@ const RecList = ({ results, loading }) => {
   );
 };
 
+const SUB_TABS = [
+  { id: "picks",    label: "Picks" },
+  { id: "recap",    label: "Series Recap" },
+  { id: "releases", label: "New Releases" },
+];
+
 export default function RecsTab({
   books,
   genreList,
@@ -30,7 +39,14 @@ export default function RecsTab({
   setIntentResults,
   intentLoading,
   fetchIntentRecs,
+  selectedSeries,
+  setSelectedSeries,
+  seriesRecap,
+  setSeriesRecap,
+  seriesLoading,
+  generateSeriesRecap,
 }) {
+  const [subTab, setSubTab] = useState("picks");
   const lastBook = books[books.length - 1];
 
   const LENSES = [
@@ -53,79 +69,108 @@ export default function RecsTab({
 
   return (
     <div>
-      <div style={{ marginBottom: 20, textAlign: "center" }}>
-        <div style={{ color: G.muted, fontSize: 13 }}>{LENSES.length} lenses for discovery — one curated pick per lens, refreshes on every new book added.</div>
+      {/* Subtab nav */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
+        {SUB_TABS.map(t => (
+          <button key={t.id} onClick={() => setSubTab(t.id)}
+            style={{ background: subTab === t.id ? `${G.gold}15` : "none", border: `1px solid ${subTab === t.id ? G.goldDim : G.border}`, borderRadius: 20, padding: "6px 18px", cursor: "pointer", fontSize: 12, fontWeight: 600, color: subTab === t.id ? G.gold : G.muted, fontFamily: "'DM Sans', sans-serif" }}>
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      <div className="rec-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-        {LENSES.map(lens => {
-          const results = intentResults[lens.id];
-          const loading = !!intentLoading[lens.id];
-          const input = intentInputs[lens.id] || "";
-          const canFetch = lens.auto || (lens.isDropdown ? !!input : !!input.trim());
+      {/* Picks */}
+      {subTab === "picks" && (
+        <div>
+          <div style={{ marginBottom: 20, textAlign: "center" }}>
+            <div style={{ color: G.muted, fontSize: 13 }}>{LENSES.length} lenses for discovery — one curated pick per lens, refreshes on every new book added.</div>
+          </div>
+          <div className="rec-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+            {LENSES.map(lens => {
+              const results = intentResults[lens.id];
+              const loading = !!intentLoading[lens.id];
+              const input = intentInputs[lens.id] || "";
+              const canFetch = lens.auto || (lens.isDropdown ? !!input : !!input.trim());
 
-          return (
-            <div key={lens.id} style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "16px 18px", display: "flex", flexDirection: "column" }}>
-              {/* Header */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <span style={{ background: `${G.gold}18`, color: G.gold, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>{lens.icon} {lens.title}</span>
-                {session && (results || loading) && (
-                  <button
-                    onClick={() => { setIntentResults(p => { const n = { ...p }; delete n[lens.id]; return n; }); fetchIntentRecs(lens.id, input); }}
-                    style={{ background: "none", border: "none", color: G.muted, fontSize: 14, cursor: "pointer", padding: 0, lineHeight: 1 }}
-                    title="Refresh">↺</button>
-                )}
-              </div>
-              {lens.sub && <div style={{ fontSize: 11, color: G.muted, marginTop: 6 }}>{lens.sub}</div>}
-
-              {/* Input for non-auto panels */}
-              {!lens.auto && (
-                <div style={{ marginTop: 8, marginBottom: 4 }}>
-                  <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                    {lens.isDropdown ? (
-                      <select className="input-dark" style={{ fontSize: 12, padding: "7px 10px", paddingRight: 32, flex: 1, opacity: session ? 1 : 0.5, cursor: session ? "pointer" : "not-allowed" }}
-                        value={input}
-                        disabled={!session}
-                        title={session ? undefined : "Sign in to use this"}
-                        onChange={e => { const v = e.target.value; setIntentInputs(p => ({ ...p, [lens.id]: v })); if (v && session) fetchIntentRecs(lens.id, v); }}>
-                        <option value="">— pick a genre —</option>
-                        {lens.dropdownOptions.map(o => <option key={o} value={o}>{o}</option>)}
-                      </select>
-                    ) : (
-                      <input className="input-dark" style={{ fontSize: 12, paddingRight: 32, flex: 1, opacity: session ? 1 : 0.5, cursor: session ? "text" : "not-allowed" }}
-                        placeholder={session ? lens.placeholder : "Sign in to use this"}
-                        value={input}
-                        disabled={!session}
-                        onChange={e => setIntentInputs(p => ({ ...p, [lens.id]: e.target.value }))}
-                        onKeyDown={e => { if (e.key === "Enter" && input.trim() && session) fetchIntentRecs(lens.id, input); }} />
-                    )}
-                    {!lens.isDropdown && (
+              return (
+                <div key={lens.id} style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "16px 18px", display: "flex", flexDirection: "column" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <span style={{ background: `${G.gold}18`, color: G.gold, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>{lens.icon} {lens.title}</span>
+                    {session && (results || loading) && (
                       <button
-                        onClick={() => session && canFetch && !loading && fetchIntentRecs(lens.id, input)}
-                        disabled={!session || loading || !canFetch}
-                        title={session ? "Get pick" : "Sign in to get picks"}
-                        style={{ position: "absolute", right: 8, background: "none", border: "none", cursor: session && canFetch && !loading ? "pointer" : "not-allowed", color: session && canFetch && !loading ? G.gold : G.dimmed, fontSize: 14, lineHeight: 1, padding: 0 }}>
-                        {loading ? "…" : "→"}
-                      </button>
+                        onClick={() => { setIntentResults(p => { const n = { ...p }; delete n[lens.id]; return n; }); fetchIntentRecs(lens.id, input); }}
+                        style={{ background: "none", border: "none", color: G.muted, fontSize: 14, cursor: "pointer", padding: 0, lineHeight: 1 }}
+                        title="Refresh">↺</button>
                     )}
                   </div>
-                </div>
-              )}
+                  {lens.sub && <div style={{ fontSize: 11, color: G.muted, marginTop: 6 }}>{lens.sub}</div>}
 
-              {/* Results */}
-              <RecList results={results} loading={loading} />
+                  {!lens.auto && (
+                    <div style={{ marginTop: 8, marginBottom: 4 }}>
+                      <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                        {lens.isDropdown ? (
+                          <select className="input-dark" style={{ fontSize: 12, padding: "7px 10px", paddingRight: 32, flex: 1, opacity: session ? 1 : 0.5, cursor: session ? "pointer" : "not-allowed" }}
+                            value={input}
+                            disabled={!session}
+                            title={session ? undefined : "Sign in to use this"}
+                            onChange={e => { const v = e.target.value; setIntentInputs(p => ({ ...p, [lens.id]: v })); if (v && session) fetchIntentRecs(lens.id, v); }}>
+                            <option value="">— pick a genre —</option>
+                            {lens.dropdownOptions.map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        ) : (
+                          <input className="input-dark" style={{ fontSize: 12, paddingRight: 32, flex: 1, opacity: session ? 1 : 0.5, cursor: session ? "text" : "not-allowed" }}
+                            placeholder={session ? lens.placeholder : "Sign in to use this"}
+                            value={input}
+                            disabled={!session}
+                            onChange={e => setIntentInputs(p => ({ ...p, [lens.id]: e.target.value }))}
+                            onKeyDown={e => { if (e.key === "Enter" && input.trim() && session) fetchIntentRecs(lens.id, input); }} />
+                        )}
+                        {!lens.isDropdown && (
+                          <button
+                            onClick={() => session && canFetch && !loading && fetchIntentRecs(lens.id, input)}
+                            disabled={!session || loading || !canFetch}
+                            title={session ? "Get pick" : "Sign in to get picks"}
+                            style={{ position: "absolute", right: 8, background: "none", border: "none", cursor: session && canFetch && !loading ? "pointer" : "not-allowed", color: session && canFetch && !loading ? G.gold : G.dimmed, fontSize: 14, lineHeight: 1, padding: 0 }}>
+                            {loading ? "…" : "→"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
-              {/* Empty state for auto panels */}
-              {lens.auto && !results && !loading && session && (
-                <div style={{ fontSize: 11, color: G.dimmed, marginTop: 8 }}>
-                  <button onClick={() => fetchIntentRecs(lens.id)}
-                    style={{ background: "none", border: `1px solid ${G.border}`, color: G.muted, fontSize: 11, borderRadius: 5, padding: "4px 10px", cursor: "pointer" }}>Load picks</button>
+                  <RecList results={results} loading={loading} />
+
+                  {lens.auto && !results && !loading && session && (
+                    <div style={{ fontSize: 11, color: G.dimmed, marginTop: 8 }}>
+                      <button onClick={() => fetchIntentRecs(lens.id)}
+                        style={{ background: "none", border: `1px solid ${G.border}`, color: G.muted, fontSize: 11, borderRadius: 5, padding: "4px 10px", cursor: "pointer" }}>Load picks</button>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Series Recap */}
+      {subTab === "recap" && (
+        <SeriesTab
+          books={books}
+          session={session}
+          selectedSeries={selectedSeries}
+          setSelectedSeries={setSelectedSeries}
+          seriesRecap={seriesRecap}
+          setSeriesRecap={setSeriesRecap}
+          seriesLoading={seriesLoading}
+          generateSeriesRecap={generateSeriesRecap}
+        />
+      )}
+
+      {/* New Releases */}
+      {subTab === "releases" && (
+        <NewReleasesTab books={books} session={session} />
+      )}
     </div>
   );
 }
