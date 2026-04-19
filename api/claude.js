@@ -1,5 +1,17 @@
 export const config = { runtime: "edge" };
 
+const PRODUCTION_ORIGIN = "https://nairrative.vercel.app";
+
+function corsHeaders(req) {
+  const origin = req.headers.get("Origin") || "";
+  const allowed = process.env.ALLOWED_ORIGIN || PRODUCTION_ORIGIN;
+  return {
+    "Access-Control-Allow-Origin": origin === allowed ? allowed : "",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  };
+}
+
 const ALLOWED_MODELS = new Set([
   "claude-haiku-4-5-20251001",
   "claude-sonnet-4-6",
@@ -44,6 +56,9 @@ async function verifyJWT(token, supabaseUrl) {
 }
 
 export default async function handler(req) {
+  if (req.method === "OPTIONS")
+    return new Response(null, { status: 204, headers: corsHeaders(req) });
+
   if (req.method !== "POST")
     return new Response("Method not allowed", { status: 405 });
 
@@ -52,19 +67,21 @@ export default async function handler(req) {
   if (!apiKey) return new Response("API key not configured", { status: 500 });
   if (!supabaseUrl) return new Response("Server misconfigured", { status: 500 });
 
+  const cors = corsHeaders(req);
+
   const authHeader = req.headers.get("Authorization") || "";
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) return new Response("Unauthorized", { status: 401 });
+  if (!token) return new Response("Unauthorized", { status: 401, headers: cors });
 
   if (!(await verifyJWT(token, supabaseUrl)))
-    return new Response("Unauthorized", { status: 401 });
+    return new Response("Unauthorized", { status: 401, headers: cors });
 
   let body;
   try { body = await req.json(); }
-  catch { return new Response("Invalid JSON", { status: 400 }); }
+  catch { return new Response("Invalid JSON", { status: 400, headers: cors }); }
 
   if (body.model && !ALLOWED_MODELS.has(body.model))
-    return new Response("Model not allowed", { status: 400 });
+    return new Response("Model not allowed", { status: 400, headers: cors });
   if (body.max_tokens > MAX_TOKENS_HARD_LIMIT)
     body.max_tokens = MAX_TOKENS_HARD_LIMIT;
 
@@ -81,12 +98,12 @@ export default async function handler(req) {
     const data = await response.text();
     return new Response(data, {
       status: response.status,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...cors, "Content-Type": "application/json" },
     });
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...cors, "Content-Type": "application/json" },
     });
   }
 }
