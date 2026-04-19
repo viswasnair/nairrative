@@ -1,12 +1,9 @@
 name: E2E Tests
 
 on:
-  # Run on every push to main/master
-  push:
-    branches: [main, master]
-  # Run on pull requests targeting main/master
+  # Run on pull requests targeting main only — not on direct pushes
   pull_request:
-    branches: [main, master]
+    branches: [main]
   # Allow manual runs — optionally against a deployed URL
   workflow_dispatch:
     inputs:
