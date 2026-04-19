@@ -14,6 +14,14 @@ function levenshtein(a, b) {
   return dp[m][n];
 }
 
+function sanitizeCoverUrl(url) {
+  if (!url) return null;
+  try {
+    const { protocol } = new URL(url);
+    return (protocol === "https:" || protocol === "http:") ? url : null;
+  } catch { return null; }
+}
+
 function fuzzyMatches(input, list) {
   if (!input || !list.length) return [];
   const lower = input.toLowerCase().trim();
@@ -300,7 +308,7 @@ export function useBooks({ session }) {
           title: title.trim(), year_read_start: ys, year_read_end: ye,
           genre: genres, format, fiction, series: series || "",
           pages: pages ? parseInt(pages) : null, notes: notes || "",
-          cover_url: cover_url || null,
+          cover_url: sanitizeCoverUrl(cover_url),
           rating: rating || null,
         }).eq("id", editingBook.id);
         if (error) throw error;
@@ -316,7 +324,7 @@ export function useBooks({ session }) {
           await supabase.from("book_authors").insert([{ book_id: editingBook.id, author_id: au.id, author_order: i + 1 }]);
         }
         const updatedAuthors = authors.filter(a => a.name.trim()).map((a, i) => ({ author_order: i + 1, authors: { id: 0, name: a.name, country: a.country } }));
-        const normalized = normalizeBook({ ...editingBook, title: title.trim(), year_read_start: ys, year_read_end: ye, genre: genres, format, fiction, series, pages: pages ? parseInt(pages) : null, notes, cover_url: cover_url || null, rating: rating || null, book_authors: updatedAuthors });
+        const normalized = normalizeBook({ ...editingBook, title: title.trim(), year_read_start: ys, year_read_end: ye, genre: genres, format, fiction, series, pages: pages ? parseInt(pages) : null, notes, cover_url: sanitizeCoverUrl(cover_url), rating: rating || null, book_authors: updatedAuthors });
         setBooks(prev => prev.map(b => b.id === editingBook.id ? normalized : b));
         const updatedNames = authors.map(a => a.name.trim()).filter(n => n && !authorList.includes(n));
         if (updatedNames.length) setAuthorList(prev => [...new Set([...prev, ...updatedNames])].sort());
@@ -328,7 +336,7 @@ export function useBooks({ session }) {
           title: title.trim(), year_read_start: ys, year_read_end: ye,
           genre: genres, format, fiction, series: series || "",
           pages: pages ? parseInt(pages) : null, notes: notes || "",
-          cover_url: cover_url || null,
+          cover_url: sanitizeCoverUrl(cover_url),
           rating: rating || null,
           user_added: true,
         }]).select().single();
