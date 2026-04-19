@@ -19,26 +19,45 @@ const ALLOWED_MODELS = new Set([
 ]);
 const MAX_TOKENS_HARD_LIMIT = 2000;
 
+// Rate limit: 30 requests per 60s per user
+// Module-level map persists within an edge function instance
+const rateLimitMap = new Map();
+const RATE_LIMIT = 30;
+const RATE_WINDOW_MS = 60_000;
+
+function checkRateLimit(sub) {
+  const now = Date.now();
+  const entry = rateLimitMap.get(sub);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(sub, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT) return false;
+  entry.count++;
+  return true;
+}
+
 function b64url(s) {
   return atob(s.replace(/-/g, "+").replace(/_/g, "/"));
 }
 
+// Returns { ok: true, sub } on success, { ok: false } on failure
 async function verifyJWT(token, supabaseUrl) {
   try {
     const parts = token.split(".");
-    if (parts.length !== 3) return false;
+    if (parts.length !== 3) return { ok: false };
 
     const header = JSON.parse(b64url(parts[0]));
     const payload = JSON.parse(b64url(parts[1]));
 
-    if (payload.exp && payload.exp < Date.now() / 1000) return false;
+    if (payload.exp && payload.exp < Date.now() / 1000) return { ok: false };
 
     const jwksRes = await fetch(`${supabaseUrl}/auth/v1/.well-known/jwks.json`);
-    if (!jwksRes.ok) return false;
+    if (!jwksRes.ok) return { ok: false };
     const { keys } = await jwksRes.json();
 
     const jwk = header.kid ? keys.find(k => k.kid === header.kid) : keys[0];
-    if (!jwk) return false;
+    if (!jwk) return { ok: false };
 
     const enc = new TextEncoder();
     const sig = Uint8Array.from(b64url(parts[2]), c => c.charCodeAt(0));
@@ -48,11 +67,12 @@ async function verifyJWT(token, supabaseUrl) {
     if (jwk.kty === "RSA") algorithm = { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" };
     else if (jwk.kty === "EC") algorithm = { name: "ECDSA", namedCurve: jwk.crv || "P-256", hash: "SHA-256" };
     else if (jwk.kty === "oct") algorithm = { name: "HMAC", hash: "SHA-256" };
-    else return false;
+    else return { ok: false };
 
     const key = await crypto.subtle.importKey("jwk", jwk, algorithm, false, ["verify"]);
-    return await crypto.subtle.verify(algorithm, key, sig, data);
-  } catch { return false; }
+    const valid = await crypto.subtle.verify(algorithm, key, sig, data);
+    return valid ? { ok: true, sub: payload.sub } : { ok: false };
+  } catch { return { ok: false }; }
 }
 
 export default async function handler(req) {
@@ -73,8 +93,11 @@ export default async function handler(req) {
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token) return new Response("Unauthorized", { status: 401, headers: cors });
 
-  if (!(await verifyJWT(token, supabaseUrl)))
-    return new Response("Unauthorized", { status: 401, headers: cors });
+  const { ok, sub } = await verifyJWT(token, supabaseUrl);
+  if (!ok) return new Response("Unauthorized", { status: 401, headers: cors });
+
+  if (!checkRateLimit(sub))
+    return new Response("Too Many Requests", { status: 429, headers: cors });
 
   let body;
   try { body = await req.json(); }
