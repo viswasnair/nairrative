@@ -46,7 +46,7 @@ export default function NewReleasesTab({ books, session }) {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-        <div>
+        <div style={{ flex: 1, textAlign: "center" }}>
           <div style={{ color: G.muted, fontSize: 13 }}>New books from authors in your library — checked weekly, or refresh manually.</div>
           {lastChecked && <div style={{ color: G.dimmed, fontSize: 11, marginTop: 3 }}>Last checked {lastChecked.toLocaleTimeString()}</div>}
         </div>
