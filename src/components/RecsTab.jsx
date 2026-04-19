@@ -70,10 +70,10 @@ export default function RecsTab({
   return (
     <div>
       {/* Subtab nav */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
+      <div style={{ display: "flex", borderBottom: `1px solid ${G.border}`, marginBottom: 24 }}>
         {SUB_TABS.map(t => (
           <button key={t.id} onClick={() => setSubTab(t.id)}
-            style={{ background: subTab === t.id ? `${G.gold}15` : "none", border: `1px solid ${subTab === t.id ? G.goldDim : G.border}`, borderRadius: 20, padding: "6px 18px", cursor: "pointer", fontSize: 12, fontWeight: 600, color: subTab === t.id ? G.gold : G.muted, fontFamily: "'DM Sans', sans-serif" }}>
+            style={{ background: "none", border: "none", borderBottom: `2px solid ${subTab === t.id ? G.gold : "transparent"}`, padding: "8px 20px", marginBottom: "-1px", cursor: "pointer", fontSize: 13, fontWeight: subTab === t.id ? 600 : 400, color: subTab === t.id ? G.gold : G.muted, fontFamily: "'DM Sans', sans-serif" }}>
             {t.label}
           </button>
         ))}
