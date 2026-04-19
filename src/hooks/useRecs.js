@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabase";
 import { buildBookContext } from "../lib/bookUtils";
 import { SEED_RECS, } from "../constants/seeds";
 import { AUTO_RECS } from "../constants/config";
-import { CLAUDE_URL, AI_HEADERS } from "../lib/api";
+import { CLAUDE_URL, claudeHeaders } from "../lib/api";
 
 export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }) {
   const [intentInputs, setIntentInputs] = useState({
@@ -84,7 +84,8 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
         messages: [{ role: "user", content: "JSON array only." }],
       };
       if (useWebSearch) body.tools = [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }];
-      const res = await fetch(CLAUDE_URL, { method: "POST", headers: AI_HEADERS, body: JSON.stringify(body) });
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(CLAUDE_URL, { method: "POST", headers: claudeHeaders(session), body: JSON.stringify(body) });
       const data = await res.json();
       if (data.error) throw new Error(data.error.message || data.error.type || JSON.stringify(data.error));
       const txt = (data.content || []).filter(c => c.type === "text").map(c => c.text).join("");

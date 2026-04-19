@@ -15,7 +15,7 @@ import ChatTab from "./components/ChatTab";
 import LibraryTab from "./components/LibraryTab";
 import BookshelfTab from "./components/BookshelfTab";
 import RatingFlashcard from "./components/RatingFlashcard";
-import { CLAUDE_URL, AI_HEADERS } from "./lib/api";
+import { CLAUDE_URL, claudeHeaders } from "./lib/api";
 
 const css = `
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -358,7 +358,7 @@ export default function App() {
         .map(b => `[${b.year}] "${b.title}" by ${b.author} | ${(b.genre||[]).join("/")}${b.pages ? " | " + b.pages + "pp" : ""}${b.series ? " | series: " + b.series : ""}${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}${b.notes ? " | " + b.notes : ""}`)
         .join("\n");
       const res = await fetch(CLAUDE_URL, {
-        method: "POST", headers: AI_HEADERS,
+        method: "POST", headers: claudeHeaders(session),
         body: JSON.stringify({
           model: "claude-sonnet-4-6", max_tokens: 1200,
           system: `You are an insightful personal reading assistant with full access to the user's reading database. Use the data below to answer questions accurately and specifically.
@@ -401,7 +401,7 @@ Answer primarily from the data, with specific references to books, authors, year
     const seriesBooks = books.filter(b => b.series === seriesName).sort((a, b) => (a.id - b.id));
     try {
       const res = await fetch(CLAUDE_URL, {
-        method: "POST", headers: AI_HEADERS,
+        method: "POST", headers: claudeHeaders(session),
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001", max_tokens: 800,
           system: `You are a literary companion helping a reader catch up on a book series. Write engaging recaps — key characters, major plot turns, how each book ends. Keep each book recap to 2–3 sentences. Be concise.`,
