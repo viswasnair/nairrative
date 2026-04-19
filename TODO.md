@@ -6,6 +6,10 @@ Tasks are added here as they come up in chat. Completed tasks are removed.
 
 - [ ] Support for multiple users
 - [ ] Push content to AWS infrastructure
+  - Depends on: Multi-user data model design (authors/genres ownership decision)
+  - Depends on: Fix `authors` table write RLS
+  - Depends on: Remove `script-src 'unsafe-inline'` from CSP
+  - Note: Global rate limiting and security event logging should be solved in AWS (API Gateway + CloudWatch), not before
 - [ ] Support for movies
 - [ ] Relationship graph chart
 
