@@ -33,7 +33,7 @@ jobs:
           echo "VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}" >> .env.local
 
       - name: Run E2E tests (local dev server)
-        run: npx playwright test --ignore=tests/e2e/security.spec.js
+        run: npx playwright test --ignore-glob="**/security.spec.js"
         env:
           CI: true
           TEST_EMAIL: ${{ secrets.TEST_EMAIL }}
