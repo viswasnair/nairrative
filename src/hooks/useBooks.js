@@ -103,8 +103,9 @@ export function useBooks({ session }) {
     });
   }, []);
 
-  // Fetch books
+  // Fetch books — depends on session so we re-fetch once auth is established
   useEffect(() => {
+    if (session === undefined) return; // still initialising
     supabase
       .from("books")
       .select("*, book_authors(author_order, authors(id, name, country))")
@@ -118,7 +119,7 @@ export function useBooks({ session }) {
         setBooksLoading(false);
       })
       .catch(e => { console.error("Supabase connection error:", e); setBooksLoading(false); });
-  }, []);
+  }, [session]);
 
   const booksFingerprint = useMemo(() =>
     books.map(b => `${b.id}|${b.title}|${b.year}|${(b.genre || []).join("")}`).join(","),
