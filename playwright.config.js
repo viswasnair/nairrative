@@ -8,6 +8,7 @@ const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173';
 
 export default defineConfig({
   testDir: './tests/e2e',
+  testIgnore: (process.env.CI && !process.env.PLAYWRIGHT_BASE_URL) ? ['**/security.spec.js'] : [],
   // Run all tests in the suite sequentially to avoid Supabase conflicts
   fullyParallel: false,
   workers: 1,
