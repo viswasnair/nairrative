@@ -12,6 +12,9 @@ Tasks are added here as they come up in chat. Completed tasks are removed.
   - Note: Global rate limiting and security event logging should be solved in AWS (API Gateway + CloudWatch), not before
 - [ ] Support for movies
 - [ ] Relationship graph chart
+- [ ] Overview tab: limit "Recently Read" to last 5 books; limit "Hall of Fame" to 5 books and auto-rotate them every few seconds
+- [ ] Library tab cleanup: remove shelf view, remove grid view, default to timeline (no toggle needed), remove search box
+- [ ] Move to branch-based workflow: use feature branches instead of committing directly to main, so E2E tests only run on PRs and main stays clean
 
 ## Security (red teaming)
 
