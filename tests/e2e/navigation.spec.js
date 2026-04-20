@@ -46,13 +46,13 @@ test.describe('Navigation — all pages render correctly', () => {
   test('Library Bookshelf subtab shows timeline mosaic view', async ({ page }) => {
     await clickTab(page, 'Library');
     await clickSubTab(page, 'Bookshelf');
-    // Grid and Shelf views must not exist
-    await expect(page.locator('button', { hasText: 'Grid' })).not.toBeVisible();
-    await expect(page.locator('button', { hasText: 'Shelf' })).not.toBeVisible();
-    // Search box must not exist in bookshelf
-    await expect(page.locator('input[placeholder="Search…"]')).not.toBeVisible();
-    // Timeline mosaic renders year labels for books
+    // Recently Read cover row should appear
     await expect(page.locator('text=Recently Read')).toBeVisible({ timeout: 8_000 });
+    // No view-toggle buttons (Grid / Shelf removed)
+    await expect(page.locator('button.tab-btn', { hasText: 'Grid' })).not.toBeVisible();
+    await expect(page.locator('button.tab-btn', { hasText: 'Timeline' })).not.toBeVisible();
+    // No search box in bookshelf
+    await expect(page.locator('input[placeholder="Search…"]')).not.toBeVisible();
   });
 
   test('New Releases subtab renders without errors', async ({ page }) => {
