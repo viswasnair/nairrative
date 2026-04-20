@@ -17,7 +17,6 @@ export default function NewReleasesTab({ books, session }) {
     const { data } = await supabase
       .from("new_releases")
       .select("*")
-      .eq("dismissed", false)
       .gte("published_date", `${new Date().getFullYear() - 2}-01-01`)
       .order("published_date", { ascending: false })
       .limit(20);
@@ -38,10 +37,6 @@ export default function NewReleasesTab({ books, session }) {
     }
   };
 
-  const dismiss = async (id) => {
-    await supabase.from("new_releases").update({ dismissed: true }).eq("id", id);
-    setReleases(prev => prev.filter(r => r.id !== id));
-  };
 
   return (
     <div>
@@ -95,12 +90,7 @@ export default function NewReleasesTab({ books, session }) {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
           {unread.map(r => (
             <div key={r.id} style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "16px 18px", display: "flex", flexDirection: "column", gap: 4 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: G.text, lineHeight: 1.4 }}>{r.title}</div>
-                <button onClick={() => dismiss(r.id)}
-                  style={{ background: "none", border: "none", color: G.dimmed, cursor: "pointer", fontSize: 16, padding: 0, lineHeight: 1, flexShrink: 0 }}
-                  title="Dismiss">×</button>
-              </div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: G.text, lineHeight: 1.4 }}>{r.title}</div>
               <div style={{ fontSize: 11, color: G.gold }}>{r.author}</div>
               {r.series && <div style={{ fontSize: 10, color: G.muted }}>Series: {r.series}</div>}
               {r.published_date && <div style={{ fontSize: 10, color: G.dimmed }}>{r.published_date}</div>}
