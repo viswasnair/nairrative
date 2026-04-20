@@ -1,14 +1,35 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import G from "../constants/theme";
 
+const HALL_VISIBLE = 5;
+const HALL_INTERVAL = 3000;
+
 function CoverRow({ label, books, genreMap, openEditModal, session }) {
   const [hoveredId, setHoveredId] = useState(null);
+  const [offset, setOffset] = useState(0);
+  const [fade, setFade] = useState(true);
+
+  useEffect(() => {
+    if (books.length <= HALL_VISIBLE) return;
+    const id = setInterval(() => {
+      setFade(false);
+      setTimeout(() => {
+        setOffset(o => (o + 1) % books.length);
+        setFade(true);
+      }, 300);
+    }, HALL_INTERVAL);
+    return () => clearInterval(id);
+  }, [books.length]);
+
   if (!books.length) return null;
+
+  const visible = Array.from({ length: Math.min(HALL_VISIBLE, books.length) }, (_, i) => books[(offset + i) % books.length]);
+
   return (
     <div style={{ marginBottom: 20, display: "flex", flexDirection: "column", alignItems: "center" }}>
       <div style={{ fontSize: 9, letterSpacing: "2px", textTransform: "uppercase", color: G.dimmed, marginBottom: 8 }}>{label}</div>
-      <div style={{ display: "flex", gap: 8, paddingBottom: 4 }}>
-        {books.map(b => {
+      <div style={{ display: "flex", gap: 8, paddingBottom: 4, transition: "opacity 0.3s", opacity: fade ? 1 : 0 }}>
+        {visible.map(b => {
           const color = (b.genre?.[0] && genreMap[b.genre[0]]) || G.muted;
           const isHovered = hoveredId === b.id;
           return (
@@ -341,7 +362,7 @@ function MosaicView({ filtered, genreMap, session, openEditModal }) {
 
 // ── BookshelfTab ──────────────────────────────────────────────────────────────
 export default function BookshelfTab({ books, genreMap, openEditModal, session }) {
-  const hallBooks = useMemo(() => books.filter(b => b.rating === "transformative" || b.rating === "loved").slice(0, 5), [books]);
+  const hallBooks = useMemo(() => books.filter(b => b.rating === "transformative" || b.rating === "loved"), [books]);
 
   const sorted = useMemo(() =>
     [...books].sort((a, b) => (a.year_read_end || 0) - (b.year_read_end || 0) || a.title.localeCompare(b.title)),
