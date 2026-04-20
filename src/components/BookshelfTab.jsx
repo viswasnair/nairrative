@@ -5,9 +5,9 @@ function CoverRow({ label, books, genreMap, openEditModal, session }) {
   const [hoveredId, setHoveredId] = useState(null);
   if (!books.length) return null;
   return (
-    <div style={{ marginBottom: 20 }}>
+    <div style={{ marginBottom: 20, display: "flex", flexDirection: "column", alignItems: "center" }}>
       <div style={{ fontSize: 9, letterSpacing: "2px", textTransform: "uppercase", color: G.dimmed, marginBottom: 8 }}>{label}</div>
-      <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
+      <div style={{ display: "flex", gap: 8, paddingBottom: 4 }}>
         {books.map(b => {
           const color = (b.genre?.[0] && genreMap[b.genre[0]]) || G.muted;
           const isHovered = hoveredId === b.id;
@@ -341,7 +341,7 @@ function MosaicView({ filtered, genreMap, session, openEditModal }) {
 
 // ── BookshelfTab ──────────────────────────────────────────────────────────────
 export default function BookshelfTab({ books, genreMap, openEditModal, session }) {
-  const hallBooks = useMemo(() => books.filter(b => b.rating === "transformative" || b.rating === "loved"), [books]);
+  const hallBooks = useMemo(() => books.filter(b => b.rating === "transformative" || b.rating === "loved").slice(0, 5), [books]);
 
   const sorted = useMemo(() =>
     [...books].sort((a, b) => (a.year_read_end || 0) - (b.year_read_end || 0) || a.title.localeCompare(b.title)),
