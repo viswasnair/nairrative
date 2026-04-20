@@ -2,7 +2,6 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, AreaCh
 import G from "../constants/theme";
 import RangeFilter from "./RangeFilter";
 import DarkTooltip from "./DarkTooltip";
-import RelationshipGraph from "./RelationshipGraph";
 
 const FORMAT_COLORS = { "Novel": "#2d6a4f", "Graphic Novel": "#06d6a0", "Non-Fiction": "#4a9eff", "Novella": "#c9a84c", "Short Stories": "#e06c75", "Play": "#c3a6ff", "Unknown": "#b2bec3" };
 
@@ -243,8 +242,6 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
           </div>
         )}
       </div>
-
-      <RelationshipGraph books={books} session={session} />
     </div>
   );
 }
