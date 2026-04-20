@@ -18,18 +18,22 @@ const GRAPH_H = 460;
 const BOOK_R  = 30;
 const NODE_R  = 22;
 
-// Synchronous force simulation — fine for small AI-generated graphs (~20 nodes)
-function forceLayout(nodes, edges, w, h) {
+// fixed: { [nodeId]: { x, y } } — those nodes are pinned and don't move
+function forceLayout(nodes, edges, w, h, fixed = {}) {
   if (!nodes.length) return {};
   const pos = {};
   nodes.forEach((n, i) => {
-    const angle = (i / nodes.length) * 2 * Math.PI;
-    const r = Math.min(w, h) * 0.28;
-    pos[n.id] = {
-      x: w / 2 + r * Math.cos(angle) + (Math.random() - 0.5) * 15,
-      y: h / 2 + r * Math.sin(angle) + (Math.random() - 0.5) * 15,
-      vx: 0, vy: 0,
-    };
+    if (fixed[n.id]) {
+      pos[n.id] = { x: fixed[n.id].x, y: fixed[n.id].y, vx: 0, vy: 0 };
+    } else {
+      const angle = (i / nodes.length) * 2 * Math.PI;
+      const r = Math.min(w, h) * 0.28;
+      pos[n.id] = {
+        x: w / 2 + r * Math.cos(angle) + (Math.random() - 0.5) * 15,
+        y: h / 2 + r * Math.sin(angle) + (Math.random() - 0.5) * 15,
+        vx: 0, vy: 0,
+      };
+    }
   });
 
   const ITERS = 320, REPULSE = 5000, TARGET = 130;
@@ -65,8 +69,9 @@ function forceLayout(nodes, edges, w, h) {
       pos[n.id].vy += (h / 2 - pos[n.id].y) * 0.015 * alpha;
     });
 
-    // Integrate + dampen + clamp
+    // Integrate + dampen + clamp (skip fixed nodes)
     nodes.forEach(n => {
+      if (fixed[n.id]) return;
       const p = pos[n.id];
       p.vx *= 0.75; p.vy *= 0.75;
       p.x = Math.max(60, Math.min(w - 60, p.x + p.vx));
@@ -74,6 +79,30 @@ function forceLayout(nodes, edges, w, h) {
     });
   }
   return pos;
+}
+
+// BFS to find shortest path node IDs between source and dest
+function bfsPath(nodes, edges, sourceId, destId) {
+  const adj = {};
+  nodes.forEach(n => { adj[n.id] = []; });
+  edges.forEach(e => {
+    adj[e.source]?.push(e.target);
+    adj[e.target]?.push(e.source);
+  });
+  const queue = [[sourceId]];
+  const visited = new Set([sourceId]);
+  while (queue.length) {
+    const path = queue.shift();
+    const node = path[path.length - 1];
+    if (node === destId) return new Set(path);
+    for (const neighbor of (adj[node] || [])) {
+      if (!visited.has(neighbor)) {
+        visited.add(neighbor);
+        queue.push([...path, neighbor]);
+      }
+    }
+  }
+  return null;
 }
 
 function BookPicker({ books, onChange, placeholder }) {
@@ -129,6 +158,7 @@ export default function RelationshipGraph({ books, session }) {
   const [error, setError]         = useState("");
   const [hoveredId, setHoveredId] = useState(null);
   const [explanation, setExplanation] = useState("");
+  const [pathEndpoints, setPathEndpoints] = useState(null); // { sourceId, destId }
   const containerRef = useRef(null);
   const [graphW, setGraphW] = useState(680);
   const dragRef = useRef(null);
@@ -141,12 +171,17 @@ export default function RelationshipGraph({ books, session }) {
 
   useEffect(() => {
     if (!graphData?.nodes?.length) return;
-    setPositions(forceLayout(graphData.nodes, graphData.edges, graphW, GRAPH_H));
-  }, [graphData, graphW]);
+    const fixed = {};
+    if (mode === "path" && pathEndpoints) {
+      fixed[pathEndpoints.sourceId] = { x: BOOK_R + 24, y: GRAPH_H / 2 };
+      fixed[pathEndpoints.destId]   = { x: graphW - BOOK_R - 24, y: GRAPH_H / 2 };
+    }
+    setPositions(forceLayout(graphData.nodes, graphData.edges, graphW, GRAPH_H, fixed));
+  }, [graphData, graphW, pathEndpoints, mode]);
 
   const generate = async () => {
     if (!book1 || (mode === "path" && !book2)) return;
-    setLoading(true); setError(""); setGraphData(null); setExplanation("");
+    setLoading(true); setError(""); setGraphData(null); setExplanation(""); setPathEndpoints(null);
 
     const bookList = books.map(b =>
       `"${b.title}" by ${b.author}` +
@@ -168,15 +203,23 @@ export default function RelationshipGraph({ books, session }) {
           max_tokens: 1800,
           system: `You are a literary graph expert. Generate a relationship graph between books through meaningful intermediary nodes.
 
-RULES:
+RULES (all modes):
 - Books NEVER connect directly to each other — always via an intermediary
 - Intermediary node types: genre, author, series, country, era, theme, narrative_style, mood
-- Each intermediary node connects AT MOST 3 book nodes
-- PATH mode: find the shortest meaningful path (1–3 intermediaries); include only nodes on or near the path
-- NEIGHBORHOOD mode: show 4–8 neighboring books each connected via exactly 1 intermediary; use varied intermediary types; prefer meaningful thematic or stylistic links over just genre
-- Keep graph compact: max ~20 nodes total
-- Every node id must be unique (use slugified strings, e.g. "book-dune", "genre-thriller", "theme-redemption")
+- Every node id must be unique (slugified strings, e.g. "book-dune", "genre-thriller", "theme-redemption")
 - Only include books that exist in the provided library
+
+PATH MODE rules:
+- Find the single shortest meaningful path between the two books
+- Include ONLY nodes that lie on this exact path — no branches, no extra books, no dead ends
+- Path structure: [source-book] — [intermediary] — … — [dest-book] (1–3 intermediaries max)
+- The source book node label must EXACTLY match: "${book1}"
+- The destination book node label must EXACTLY match: "${book2}"
+
+NEIGHBORHOOD MODE rules:
+- Show 4–8 neighboring books each connected via exactly 1 intermediary
+- Use varied intermediary types; prefer thematic/stylistic links over just genre
+- Max ~20 nodes total
 
 LIBRARY:
 ${bookList}
@@ -194,7 +237,32 @@ Return ONLY valid JSON — no markdown fences, no commentary:
       const text = data.content?.[0]?.text || "";
       const match = text.match(/\{[\s\S]*\}/);
       if (!match) throw new Error("No JSON in response");
-      const parsed = JSON.parse(match[0]);
+      let parsed = JSON.parse(match[0]);
+
+      if (mode === "path") {
+        // Find source and dest nodes by label match
+        const sourceNode = parsed.nodes.find(n =>
+          n.type === "book" && n.label.toLowerCase().includes(book1.toLowerCase().slice(0, 10))
+        );
+        const destNode = parsed.nodes.find(n =>
+          n.type === "book" && n.label.toLowerCase().includes(book2.toLowerCase().slice(0, 10))
+          && n.id !== sourceNode?.id
+        );
+
+        if (sourceNode && destNode) {
+          // BFS to keep only nodes on the shortest path
+          const pathSet = bfsPath(parsed.nodes, parsed.edges, sourceNode.id, destNode.id);
+          if (pathSet) {
+            parsed = {
+              ...parsed,
+              nodes: parsed.nodes.filter(n => pathSet.has(n.id)),
+              edges: parsed.edges.filter(e => pathSet.has(e.source) && pathSet.has(e.target)),
+            };
+          }
+          setPathEndpoints({ sourceId: sourceNode.id, destId: destNode.id });
+        }
+      }
+
       setGraphData(parsed);
       setExplanation(parsed.explanation || "");
     } catch (e) {
@@ -311,9 +379,10 @@ Return ONLY valid JSON — no markdown fences, no commentary:
                     {/* Type label inside non-book nodes */}
                     {!isBook && (
                       <text x={p.x} y={p.y + 4} textAnchor="middle"
-                        fill={color} fontSize={7} fontWeight={700} letterSpacing="0.8px"
+                        fill="#fff" fontSize={7} fontWeight={700} letterSpacing="0.8px"
                         fontFamily="'DM Sans', sans-serif"
-                        style={{ pointerEvents: "none", userSelect: "none", textTransform: "uppercase" }}>
+                        stroke="rgba(0,0,0,0.55)" strokeWidth={2.5} paintOrder="stroke fill"
+                        style={{ pointerEvents: "none", userSelect: "none" }}>
                         {n.type.replace("_", " ").toUpperCase()}
                       </text>
                     )}

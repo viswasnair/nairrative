@@ -12,6 +12,34 @@ Tasks are added here as they come up in chat. Completed tasks are removed.
   - Note: Global rate limiting and security event logging should be solved in AWS (API Gateway + CloudWatch), not before
 - [ ] Support for movies
 
+## Multi-User Support
+
+### Critical (crashes / garbage output for new users)
+- [ ] **AnalysisTab** — fix `Math.min/max()` on empty books array (renders `-Infinity years`)
+- [ ] **`buildBookContext()`** — guard against 0 books producing `NaN%` fiction ratio
+- [ ] **RecsTab** — `books[books.length - 1]` on empty array renders `undefined` as sublabel
+
+### High (broken UX)
+- [ ] **Seed data disclaimers** — `SEED_ANALYSIS` and `SEED_RECS` are silently shown to new users as if personalized; add "this is a sample" messaging
+- [ ] **OverviewTab charts** — all 8 charts render blank with no empty-state or CTA to add books
+- [ ] **OverviewTab KPI cards** — all 9 show `—`/`0` with no "get started" context
+- [ ] **LibraryTab** — no empty-state message when user has 0 books and no filters active
+- [ ] **Hall of Fame** — silently disappears; replace `return null` with "Rate books to build your Hall of Fame"
+
+### Medium (missing guidance)
+- [ ] **Onboarding** — no welcome flow; new users land on Overview with no first-book prompt
+- [ ] **RecsTab auto-lenses** — auto-fetch fires on 0 books; add a minimum book count guard
+- [ ] **AnalysisTab panels** — show seed data with no disclaimer for new users
+- [ ] **BookshelfTab timeline/mosaic** — renders empty with no message
+- [ ] **RelationshipGraph** — visible but non-functional with 0 books; add guidance message
+- [ ] **Chat suggestion chips** — questions like "peak reading years?" are nonsensical for 0 books
+
+### Low (polish)
+- [ ] **NewReleasesTab** — empty message doesn't explain that books are required
+- [ ] **SeriesTab** — empty-state message buried at bottom, not prominent
+
+---
+
 ## Security (red teaming)
 
 - [ ] Remove `script-src 'unsafe-inline'` from CSP in `vercel.json` — verify Vite production build emits no inline scripts, then drop it. Meaningful XSS protection improvement.

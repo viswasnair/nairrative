@@ -29,3 +29,6 @@ scripts/analysis_merged.json
 # Playwright
 playwright-report/
 test-results/
+
+# Claude Code local settings
+.claude/settings.local.json
