@@ -341,8 +341,7 @@ function MosaicView({ filtered, genreMap, session, openEditModal }) {
 
 // ── BookshelfTab ──────────────────────────────────────────────────────────────
 export default function BookshelfTab({ books, genreMap, openEditModal, session }) {
-  const recentBooks = useMemo(() => [...books].sort((a, b) => (b.year_read_end || 0) - (a.year_read_end || 0) || b.id - a.id).slice(0, 20), [books]);
-  const hallBooks   = useMemo(() => books.filter(b => b.rating === "transformative" || b.rating === "loved"), [books]);
+  const hallBooks = useMemo(() => books.filter(b => b.rating === "transformative" || b.rating === "loved"), [books]);
 
   const sorted = useMemo(() =>
     [...books].sort((a, b) => (a.year_read_end || 0) - (b.year_read_end || 0) || a.title.localeCompare(b.title)),
@@ -350,8 +349,7 @@ export default function BookshelfTab({ books, genreMap, openEditModal, session }
 
   return (
     <div>
-      <CoverRow label="Recently Read" books={recentBooks} genreMap={genreMap} openEditModal={openEditModal} session={session} />
-      <CoverRow label="Hall of Fame"  books={hallBooks}   genreMap={genreMap} openEditModal={openEditModal} session={session} />
+      <CoverRow label="Hall of Fame" books={hallBooks} genreMap={genreMap} openEditModal={openEditModal} session={session} />
       <MosaicView filtered={sorted} genreMap={genreMap} session={session} openEditModal={openEditModal} />
     </div>
   );

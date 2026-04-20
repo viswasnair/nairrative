@@ -19,7 +19,6 @@ export const TABS = [
   { id: "analysis",   icon: "▦", label: "Analysis" },
   { id: "recs",       icon: "✦", label: "Recommendations" },
   { id: "library",    icon: "≡", label: "Library" },
-  { id: "bookshelf",  icon: "▣", label: "Bookshelf" },
   { id: "chat",       icon: "◈", label: "Chat" },
 ];
 

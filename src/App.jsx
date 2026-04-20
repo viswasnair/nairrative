@@ -12,7 +12,6 @@ import RecsTab from "./components/RecsTab";
 import OverviewTab from "./components/OverviewTab";
 import ChatTab from "./components/ChatTab";
 import LibraryTab from "./components/LibraryTab";
-import BookshelfTab from "./components/BookshelfTab";
 import RatingFlashcard from "./components/RatingFlashcard";
 import { CLAUDE_URL, claudeHeaders } from "./lib/api";
 
@@ -356,11 +355,29 @@ export default function App() {
       const fullList = books
         .map(b => `[${b.year}] "${b.title}" by ${b.author} | ${(b.genre||[]).join("/")}${b.pages ? " | " + b.pages + "pp" : ""}${b.series ? " | series: " + b.series : ""}${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}${b.notes ? " | " + b.notes : ""}`)
         .join("\n");
+      const resolvedAnalysis = analysisAI ?? (() => {
+        try { return JSON.parse(localStorage.getItem("nairrative_analysis_ai") || "null"); } catch { return null; }
+      })();
+      const resolvedRecs = Object.keys(intentResults).length > 0 ? intentResults : (() => {
+        try { return JSON.parse(localStorage.getItem("nairrative_recs") || "null"); } catch { return null; }
+      })();
+      const analysisContext = resolvedAnalysis && typeof resolvedAnalysis === "object"
+        ? Object.entries(resolvedAnalysis)
+            .filter(([, v]) => v && typeof v === "string")
+            .map(([k, v]) => `[${k.toUpperCase()}]\n${v}`)
+            .join("\n\n")
+        : "";
+      const recsContext = resolvedRecs && typeof resolvedRecs === "object"
+        ? Object.entries(resolvedRecs)
+            .filter(([, v]) => v && typeof v === "string")
+            .map(([k, v]) => `[${k.toUpperCase()}]\n${v}`)
+            .join("\n\n")
+        : "";
       const res = await fetch(CLAUDE_URL, {
         method: "POST", headers: claudeHeaders(session),
         body: JSON.stringify({
           model: "claude-sonnet-4-6", max_tokens: 1200,
-          system: `You are an insightful personal reading assistant with full access to the user's reading database. Use the data below to answer questions accurately and specifically.
+          system: `You are an insightful personal reading assistant with full access to the user's reading database, AI analysis, and recommendations. Use the data below to answer questions accurately and specifically.
 
 IMPORTANT CONTEXT: Year 2010 is a collective placeholder for all books read between 1998 and 2010 — not a single-year anomaly. Do not treat it as unusual.
 
@@ -369,8 +386,10 @@ ${summary}
 
 --- FULL BOOK LIST (${books.length} books) ---
 ${fullList}
+${analysisContext ? `\n--- AI ANALYSIS PANELS ---\n${analysisContext}` : ""}
+${recsContext ? `\n--- RECOMMENDATION RESULTS ---\n${recsContext}` : ""}
 
-Answer primarily from the data, with specific references to books, authors, years, and patterns. For general knowledge questions about books or authors not requiring personal library data, you may use your broader knowledge — but never invent books the user has read.`,
+Answer primarily from the data, with specific references to books, authors, years, and patterns. When the user asks about analysis insights or recommendations, draw on the AI analysis panels and recommendation results above. For general knowledge questions about books or authors not requiring personal library data, you may use your broader knowledge — but never invent books the user has read.`,
           messages: updated.map(m => ({ role: m.role, content: m.content }))
         })
       });
@@ -642,16 +661,6 @@ Answer primarily from the data, with specific references to books, authors, year
             genreSuggestion={genreSuggestion}
             acceptGenreSuggestion={acceptGenreSuggestion}
             dismissGenreSuggestion={dismissGenreSuggestion}
-          />
-        )}
-
-        {/* ── BOOKSHELF ─────────────────────────────────────────────────── */}
-        {activeTab === "bookshelf" && (
-          <BookshelfTab
-            books={books}
-            genreMap={genreMap}
-            openEditModal={openEditModal}
-            session={session}
           />
         )}
 
