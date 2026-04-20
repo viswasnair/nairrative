@@ -57,7 +57,7 @@ export default function NewReleasesTab({ books, session }) {
       </div>
 
       {loading && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+        <div className="new-releases-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
           {[1, 2, 3].map(i => (
             <div key={i} style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "16px 18px" }}>
               <div className="pulse" style={{ height: 12, width: "80%", background: G.border, borderRadius: 4, marginBottom: 8 }} />
@@ -87,7 +87,7 @@ export default function NewReleasesTab({ books, session }) {
           </div>
         );
         return (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+        <div className="new-releases-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
           {unread.map(r => (
             <div key={r.id} style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "16px 18px", display: "flex", flexDirection: "column", gap: 4 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: G.text, lineHeight: 1.4 }}>{r.title}</div>

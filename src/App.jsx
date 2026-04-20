@@ -62,6 +62,7 @@ const css = `
       .chart-grid { grid-template-columns: 1fr !important; }
       .rec-grid { grid-template-columns: 1fr !important; }
       .analysis-grid { grid-template-columns: 1fr !important; }
+      .new-releases-grid { grid-template-columns: repeat(2, 1fr) !important; }
       .lib-scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
       .lib-inner { min-width: 1010px; }
       .lib-row { grid-template-columns: 44px 160px 140px 100px 80px 80px 48px 50px 50px 80px 32px; }
@@ -491,6 +492,7 @@ Answer primarily from the data, with specific references to books, authors, year
       .chart-grid { grid-template-columns: 1fr !important; }
       .rec-grid { grid-template-columns: 1fr !important; }
       .analysis-grid { grid-template-columns: 1fr !important; }
+      .new-releases-grid { grid-template-columns: repeat(2, 1fr) !important; }
       .lib-scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
       .lib-inner { min-width: 1010px; }
       .lib-row { grid-template-columns: 44px 160px 140px 100px 80px 80px 48px 50px 50px 80px 32px; }

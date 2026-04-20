@@ -34,7 +34,7 @@ export default function LibraryTab({
   return (
     <div>
       {/* Subtab nav */}
-      <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 24 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, marginBottom: 24 }}>
         {LIB_SUBTABS.map((t, i) => (
           <>
             {i > 0 && <span key={`sep-${i}`} style={{ color: G.dimmed, fontSize: 12, userSelect: "none" }}>·</span>}
