@@ -46,8 +46,9 @@ test.describe('Navigation — all pages render correctly', () => {
   test('Library Bookshelf subtab shows timeline mosaic view', async ({ page }) => {
     await clickTab(page, 'Library');
     await clickSubTab(page, 'Bookshelf');
-    // Recently Read cover row should appear
-    await expect(page.locator('text=Recently Read')).toBeVisible({ timeout: 8_000 });
+    // Recently Read section was removed; mosaic renders year-grouped spines
+    await expect(page.locator('text=Recently Read')).not.toBeVisible();
+    await expect(page.locator('text=pre-2011')).toBeVisible({ timeout: 8_000 });
     // No view-toggle buttons (Grid / Shelf removed)
     await expect(page.locator('button.tab-btn', { hasText: 'Grid' })).not.toBeVisible();
     await expect(page.locator('button.tab-btn', { hasText: 'Timeline' })).not.toBeVisible();
