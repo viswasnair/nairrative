@@ -11,8 +11,6 @@ Tasks are added here as they come up in chat. Completed tasks are removed.
   - Depends on: Remove `script-src 'unsafe-inline'` from CSP
   - Note: Global rate limiting and security event logging should be solved in AWS (API Gateway + CloudWatch), not before
 - [ ] Support for movies
-- [ ] Relationship graph chart
-- [ ] Overview tab: limit "Recently Read" to last 5 books; limit "Hall of Fame" to 5 books and auto-rotate them every few seconds
 
 ## Security (red teaming)
 
