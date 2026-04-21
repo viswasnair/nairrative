@@ -9,7 +9,10 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
   const cb = id => { const r = getChartRange(id); return books.filter(b => b.year >= r.from && b.year <= r.to); };
 
   const ycBooks = cb("yc");
-  const ycData = Object.entries(ycBooks.reduce((a,b)=>{a[b.year]=(a[b.year]||0)+1;return a;},{})).sort((a,b)=>Number(a[0])-Number(b[0])).map(([year,count])=>({year,count}));
+  const ycCounts = ycBooks.reduce((a,b)=>{a[b.year]=(a[b.year]||0)+1;return a;},{});
+  const ycRange = getChartRange("yc");
+  const ycData = [];
+  for (let y = ycRange.from; y <= ycRange.to; y++) ycData.push({ year: y, count: ycCounts[y] || 0 });
   const ycMax = Math.max(...ycData.map(d=>d.count),1);
 
   const gcBooks = cb("gc");
