@@ -19,11 +19,14 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
   const gcData = Object.entries(gcBooks.reduce((a,b)=>{(b.genre||[]).forEach(g=>{a[g]=(a[g]||0)+1;});return a;},{})).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([genre,count])=>({genre,count}));
 
   const fnBooks = cb("fn");
-  const fnYrs = [...new Set(fnBooks.map(b=>b.year))].sort();
-  const fnData = fnYrs.map(year=>{const yb=fnBooks.filter(b=>b.year===year);return{year,Fiction:yb.filter(b=>b.fiction).length,"Non-Fiction":yb.filter(b=>b.fiction===false).length};});
+  const fnRange = getChartRange("fn");
+  const fnData = [];
+  for (let y = fnRange.from; y <= fnRange.to; y++) { const yb=fnBooks.filter(b=>b.year===y); fnData.push({year:y,Fiction:yb.filter(b=>b.fiction).length,"Non-Fiction":yb.filter(b=>b.fiction===false).length}); }
 
   const geBooks = cb("ge");
-  const geYrs = [...new Set(geBooks.map(b=>b.year))].sort();
+  const geRange = getChartRange("ge");
+  const geYrs = [];
+  for (let y = geRange.from; y <= geRange.to; y++) geYrs.push(y);
   const geCount = geBooks.reduce((a,b)=>{(b.genre||[]).forEach(g=>{a[g]=(a[g]||0)+1;});return a;},{});
   const geTop5 = Object.entries(geCount).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([g])=>g);
   const geData = geYrs.map(year=>{const e={year};geTop5.forEach(g=>{e[g]=geBooks.filter(b=>b.year===year&&(b.genre||[]).includes(g)).length;});return e;});
