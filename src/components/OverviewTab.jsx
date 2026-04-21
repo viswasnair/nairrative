@@ -38,8 +38,9 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
   const coData = Object.entries(coBooks.filter(b=>b.country).reduce((a,b)=>{a[b.country]=(a[b.country]||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([country,count])=>({country,count}));
 
   const alBooks = cb("al");
-  const alYrs = [...new Set(alBooks.filter(b=>b.pages&&b.year>2010).map(b=>b.year))].sort();
-  const alData = alYrs.map(year => { const yb = alBooks.filter(b=>b.year===year&&b.pages); return yb.length ? { year, avg: Math.round(yb.reduce((s,b)=>s+b.pages,0)/yb.length) } : null; }).filter(Boolean);
+  const alRange = getChartRange("al");
+  const alData = [];
+  for (let y = Math.max(alRange.from, 2011); y <= alRange.to; y++) { const yb=alBooks.filter(b=>b.year===y&&b.pages); alData.push({year:y,avg:yb.length?Math.round(yb.reduce((s,b)=>s+b.pages,0)/yb.length):null}); }
 
   const fmBooks = cb("fm");
   const fmCounts = fmBooks.reduce((a,b)=>{ const f=b.format||"Unknown"; a[f]=(a[f]||0)+1; return a; },{});
