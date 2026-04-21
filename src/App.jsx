@@ -339,7 +339,15 @@ export default function App() {
   const allGenres = genreList;
   const allYears = useMemo(() => Object.keys(stats.byYear).sort().reverse(), [stats]);
   const allAuthors = useMemo(() => [...new Set(books.flatMap(b => (b.authors || []).map(a => a.name)))].sort(), [books]);
-  const allYearsList = useMemo(() => Object.keys(stats.byYearTracked).sort().map(Number), [stats]);
+  const allYearsList = useMemo(() => {
+    const years = Object.keys(stats.byYearTracked).map(Number);
+    if (!years.length) return [];
+    const min = Math.min(...years);
+    const max = Math.max(Math.max(...years), new Date().getFullYear());
+    const full = [];
+    for (let y = min; y <= max; y++) full.push(y);
+    return full;
+  }, [stats]);
 
   const allYearsListFull = useMemo(() => Object.keys(stats.byYear).sort().map(Number), [stats]);
 

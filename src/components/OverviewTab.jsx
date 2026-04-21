@@ -9,18 +9,24 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
   const cb = id => { const r = getChartRange(id); return books.filter(b => b.year >= r.from && b.year <= r.to); };
 
   const ycBooks = cb("yc");
-  const ycData = Object.entries(ycBooks.reduce((a,b)=>{a[b.year]=(a[b.year]||0)+1;return a;},{})).sort((a,b)=>Number(a[0])-Number(b[0])).map(([year,count])=>({year,count}));
+  const ycCounts = ycBooks.reduce((a,b)=>{a[b.year]=(a[b.year]||0)+1;return a;},{});
+  const ycRange = getChartRange("yc");
+  const ycData = [];
+  for (let y = ycRange.from; y <= ycRange.to; y++) ycData.push({ year: y, count: ycCounts[y] || 0 });
   const ycMax = Math.max(...ycData.map(d=>d.count),1);
 
   const gcBooks = cb("gc");
   const gcData = Object.entries(gcBooks.reduce((a,b)=>{(b.genre||[]).forEach(g=>{a[g]=(a[g]||0)+1;});return a;},{})).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([genre,count])=>({genre,count}));
 
   const fnBooks = cb("fn");
-  const fnYrs = [...new Set(fnBooks.map(b=>b.year))].sort();
-  const fnData = fnYrs.map(year=>{const yb=fnBooks.filter(b=>b.year===year);return{year,Fiction:yb.filter(b=>b.fiction).length,"Non-Fiction":yb.filter(b=>b.fiction===false).length};});
+  const fnRange = getChartRange("fn");
+  const fnData = [];
+  for (let y = fnRange.from; y <= fnRange.to; y++) { const yb=fnBooks.filter(b=>b.year===y); fnData.push({year:y,Fiction:yb.filter(b=>b.fiction).length,"Non-Fiction":yb.filter(b=>b.fiction===false).length}); }
 
   const geBooks = cb("ge");
-  const geYrs = [...new Set(geBooks.map(b=>b.year))].sort();
+  const geRange = getChartRange("ge");
+  const geYrs = [];
+  for (let y = geRange.from; y <= geRange.to; y++) geYrs.push(y);
   const geCount = geBooks.reduce((a,b)=>{(b.genre||[]).forEach(g=>{a[g]=(a[g]||0)+1;});return a;},{});
   const geTop5 = Object.entries(geCount).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([g])=>g);
   const geData = geYrs.map(year=>{const e={year};geTop5.forEach(g=>{e[g]=geBooks.filter(b=>b.year===year&&(b.genre||[]).includes(g)).length;});return e;});
@@ -32,8 +38,9 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
   const coData = Object.entries(coBooks.filter(b=>b.country).reduce((a,b)=>{a[b.country]=(a[b.country]||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([country,count])=>({country,count}));
 
   const alBooks = cb("al");
-  const alYrs = [...new Set(alBooks.filter(b=>b.pages&&b.year>2010).map(b=>b.year))].sort();
-  const alData = alYrs.map(year => { const yb = alBooks.filter(b=>b.year===year&&b.pages); return yb.length ? { year, avg: Math.round(yb.reduce((s,b)=>s+b.pages,0)/yb.length) } : null; }).filter(Boolean);
+  const alRange = getChartRange("al");
+  const alData = [];
+  for (let y = Math.max(alRange.from, 2011); y <= alRange.to; y++) { const yb=alBooks.filter(b=>b.year===y&&b.pages); alData.push({year:y,avg:yb.length?Math.round(yb.reduce((s,b)=>s+b.pages,0)/yb.length):null}); }
 
   const fmBooks = cb("fm");
   const fmCounts = fmBooks.reduce((a,b)=>{ const f=b.format||"Unknown"; a[f]=(a[f]||0)+1; return a; },{});
