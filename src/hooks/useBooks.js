@@ -58,6 +58,11 @@ const EMPTY_DRAFT = {
   notes: "",
   cover_url: "",
   rating: "",
+  theme: [],
+  mood: "",
+  narrative_style: "",
+  setting_era: "",
+  archetype: "",
 };
 
 export function useBooks({ session }) {
@@ -153,6 +158,11 @@ export function useBooks({ session }) {
       notes: b.notes || "",
       cover_url: b.cover_url || "",
       rating: b.rating || "",
+      theme: b.theme || [],
+      mood: b.mood || "",
+      narrative_style: b.narrative_style || "",
+      setting_era: b.setting_era || "",
+      archetype: b.archetype || "",
     });
     if (bookChatInputRef.current) bookChatInputRef.current.value = "";
     setBookChatPending(null);
@@ -171,7 +181,7 @@ export function useBooks({ session }) {
         method: "POST", headers: claudeHeaders(session),
         body: JSON.stringify({
           model: "claude-sonnet-4-6", max_tokens: 400,
-          system: `You are a book database assistant. Given a natural language description of a book, use your knowledge to identify the exact book (correct title, author spelling, publication year) and return ONLY valid JSON (no markdown) with these fields: title (string), authors (array of {name, country}), genres (array, pick from: Fantasy, Sci-Fi, Thriller, Mystery, Literary Fiction, Historical Fiction, Non-Fiction, Graphic Novel, Memoir, Biography, Classic, Philosophy, Popular Science, Self-Help, Travel, Horror, History, Politics, Economics, Psychology, Business), fiction (boolean), format (MUST be exactly one of these values, no others allowed: "Novel", "Novella", "Short Stories", "Graphic Novel", "Non-Fiction", "Play"), series (string or ""), pages (number or null), year (original publication year as number).`,
+          system: `You are a book database assistant. Given a natural language description of a book, use your knowledge to identify the exact book (correct title, author spelling, publication year) and return ONLY valid JSON (no markdown) with these fields: title (string), authors (array of {name, country}), genres (array, pick from: Fantasy, Sci-Fi, Thriller, Mystery, Literary Fiction, Historical Fiction, Non-Fiction, Graphic Novel, Memoir, Biography, Classic, Philosophy, Popular Science, Self-Help, Travel, Horror, History, Politics, Economics, Psychology, Business), fiction (boolean), format (MUST be exactly one of these values, no others allowed: "Novel", "Novella", "Short Stories", "Graphic Novel", "Non-Fiction", "Play"), series (string or ""), pages (number or null), year (original publication year as number), theme (array of 2-4 core themes, e.g. ["identity", "power", "survival"]), mood (single word or short phrase, e.g. "melancholic", "tense", "whimsical"), narrative_style (single phrase, e.g. "unreliable narrator", "omniscient third-person", "epistolary", "linear"), setting_era (single phrase for the time period of the story's setting, e.g. "Victorian England", "Cold War", "contemporary", "dystopian future"), archetype (single phrase, e.g. "Hero's Journey", "Rebirth", "Tragedy", "Quest", "Comedy", "Overcoming the Monster").`,
           messages: [{ role: "user", content: bookChatValue }]
         })
       });
@@ -201,6 +211,11 @@ export function useBooks({ session }) {
       pages: bookChatPending.pages ? String(bookChatPending.pages) : p.pages,
       yearStart: bookChatPending.year || p.yearStart,
       yearEnd: bookChatPending.year || p.yearEnd,
+      theme: bookChatPending.theme?.length ? bookChatPending.theme : p.theme,
+      mood: bookChatPending.mood || p.mood,
+      narrative_style: bookChatPending.narrative_style || p.narrative_style,
+      setting_era: bookChatPending.setting_era || p.setting_era,
+      archetype: bookChatPending.archetype || p.archetype,
     }));
     setBookChatPending(null);
     if (bookChatInputRef.current) bookChatInputRef.current.value = "";
@@ -324,6 +339,11 @@ export function useBooks({ session }) {
           pages: pages ? parseInt(pages) : null, notes: notes || "",
           cover_url: sanitizeCoverUrl(cover_url),
           rating: rating || null,
+          theme: bookDraft.theme?.length ? bookDraft.theme : null,
+          mood: bookDraft.mood || null,
+          narrative_style: bookDraft.narrative_style || null,
+          setting_era: bookDraft.setting_era || null,
+          archetype: bookDraft.archetype || null,
         }).eq("id", editingBook.id);
         if (error) throw error;
         await supabase.from("book_authors").delete().eq("book_id", editingBook.id);
@@ -353,6 +373,11 @@ export function useBooks({ session }) {
           cover_url: sanitizeCoverUrl(cover_url),
           rating: rating || null,
           user_added: true,
+          theme: bookDraft.theme?.length ? bookDraft.theme : null,
+          mood: bookDraft.mood || null,
+          narrative_style: bookDraft.narrative_style || null,
+          setting_era: bookDraft.setting_era || null,
+          archetype: bookDraft.archetype || null,
         }]).select().single();
         if (bookErr) throw bookErr;
         const bookAuthors = [];

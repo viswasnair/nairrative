@@ -183,13 +183,16 @@ export default function RelationshipGraph({ books, session }) {
     if (!book1 || (mode === "path" && !book2)) return;
     setLoading(true); setError(""); setGraphData(null); setExplanation(""); setPathEndpoints(null);
 
-    const bookList = books.map(b =>
-      `"${b.title}" by ${b.author}` +
-      (b.genre?.length  ? ` [${b.genre.join(", ")}]` : "") +
-      (b.series         ? ` (series: ${b.series})`   : "") +
-      (b.country        ? ` — ${b.country}`           : "") +
-      (b.year           ? ` (${b.year})`              : "")
-    ).join("\n");
+    const bookList = books.map(b => {
+      let line = `"${b.title}" by ${b.author}`;
+      if (b.genre?.length)   line += ` [genre: ${b.genre.join(", ")}]`;
+      if (b.theme?.length)   line += ` [theme: ${b.theme.join(", ")}]`;
+      if (b.mood)            line += ` [mood: ${b.mood}]`;
+      if (b.narrative_style) line += ` [style: ${b.narrative_style}]`;
+      if (b.setting_era)     line += ` [era: ${b.setting_era}]`;
+      if (b.archetype)       line += ` [archetype: ${b.archetype}]`;
+      return line;
+    }).join("\n");
 
     const userPrompt = mode === "path"
       ? `Find the shortest meaningful relationship path between "${book1}" and "${book2}".`
@@ -204,10 +207,13 @@ export default function RelationshipGraph({ books, session }) {
           system: `You are a literary graph expert. Generate a relationship graph between books through meaningful intermediary nodes.
 
 RULES (all modes):
-- Books NEVER connect directly to each other — always via an intermediary
-- Intermediary node types: genre, author, series, country, era, theme, narrative_style, mood
-- Every node id must be unique (slugified strings, e.g. "book-dune", "genre-thriller", "theme-redemption")
+- Books NEVER connect directly to each other — always via an intermediary node
+- Every node id must be unique (slugified strings, e.g. "book-dune", "theme-redemption")
 - Only include books that exist in the provided library
+- PREFERRED intermediary types (use these first): theme, mood, narrative_style, archetype
+- FALLBACK intermediary type (only use if no preferred connection exists): setting_era
+- FORBIDDEN intermediary types: author, series, country, genre
+- Base connections on the structured attributes provided in the library — do not invent attributes not present
 
 PATH MODE rules:
 - Find the single shortest meaningful path between the two books
@@ -218,7 +224,7 @@ PATH MODE rules:
 
 NEIGHBORHOOD MODE rules:
 - Show 4–8 neighboring books each connected via exactly 1 intermediary
-- Use varied intermediary types; prefer thematic/stylistic links over just genre
+- Use varied preferred intermediary types across the neighborhood
 - Max ~20 nodes total
 
 LIBRARY:

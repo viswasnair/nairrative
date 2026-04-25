@@ -2,6 +2,18 @@ import { useEffect, useState } from "react";
 import G from "../constants/theme";
 import MultiSelect from "./MultiSelect";
 
+function Chip({ label, color }) {
+  return (
+    <span style={{
+      padding: "3px 10px", borderRadius: 12, fontSize: 10, fontWeight: 500,
+      background: `${color}18`, border: `1px solid ${color}40`, color,
+      textTransform: "capitalize",
+    }}>
+      {label}
+    </span>
+  );
+}
+
 export default function BookModal({
   editingBook,
   bookDraft,
@@ -218,6 +230,20 @@ export default function BookModal({
             <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 5 }}>Series</div>
             <input className="input-dark" placeholder="Series name (optional)" value={bookDraft.series} onChange={e => setBookDraft(p => ({ ...p, series: e.target.value }))} />
           </div>
+
+          {/* Literary attributes (AI-populated, read-only) */}
+          {(bookDraft.theme?.length > 0 || bookDraft.mood || bookDraft.narrative_style || bookDraft.setting_era || bookDraft.archetype) && (
+            <div>
+              <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 8 }}>Literary Profile</div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {bookDraft.theme?.map(t => <Chip key={t} label={t} color="#4ae8ff" />)}
+                {bookDraft.mood         && <Chip label={bookDraft.mood}             color="#ff4aaa" />}
+                {bookDraft.narrative_style && <Chip label={bookDraft.narrative_style} color="#ff9f4a" />}
+                {bookDraft.setting_era  && <Chip label={bookDraft.setting_era}      color="#9aaacc" />}
+                {bookDraft.archetype    && <Chip label={bookDraft.archetype}        color="#b06fff" />}
+              </div>
+            </div>
+          )}
 
           {/* Rating */}
           <div>
