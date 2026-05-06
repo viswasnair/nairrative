@@ -49,7 +49,7 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
     if (cachedFp === booksFingerprint && cachedResult) {
       try { setIntentResults({ ...SEED_RECS, ...JSON.parse(cachedResult) }); return; } catch {}
     }
-    supabase.from("recs_cache").select("data").eq("id", 1).maybeSingle()
+    supabase.from("recs_cache").select("data").maybeSingle()
       .then(({ data }) => {
         if (data?.data) {
           const merged = { ...SEED_RECS, ...data.data };
@@ -65,7 +65,12 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
 
   const saveRecsToSupabase = async (data) => {
     try {
-      await supabase.from("recs_cache").upsert({ id: 1, fingerprint: booksFingerprint, data });
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      await supabase.from("recs_cache").upsert(
+        { user_id: session.user.id, fingerprint: booksFingerprint, data },
+        { onConflict: "user_id" }
+      );
     } catch (e) { console.error("Failed to save recs to Supabase:", e); }
   };
 

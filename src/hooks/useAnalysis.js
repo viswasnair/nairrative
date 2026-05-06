@@ -24,7 +24,7 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
 
   // Load panel prompts from Supabase for cross-device sync
   useEffect(() => {
-    supabase.from("panel_prompts").select("data").eq("id", 1).maybeSingle()
+    supabase.from("panel_prompts").select("data").maybeSingle()
       .then(({ data }) => {
         if (data?.data) {
           setPanelPrompts(data.data);
@@ -41,7 +41,7 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
     if (cachedFp === booksFingerprint && cachedResult) {
       try { setAnalysisAI(JSON.parse(cachedResult)); return; } catch {}
     }
-    supabase.from("analysis_cache").select("data").eq("id", 1).maybeSingle()
+    supabase.from("analysis_cache").select("data").maybeSingle()
       .then(({ data }) => {
         if (data?.data) {
           setAnalysisAI(data.data);
@@ -56,7 +56,12 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
 
   const saveAnalysisToSupabase = async (data) => {
     try {
-      await supabase.from("analysis_cache").upsert({ id: 1, fingerprint: booksFingerprint, data });
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      await supabase.from("analysis_cache").upsert(
+        { user_id: session.user.id, fingerprint: booksFingerprint, data },
+        { onConflict: "user_id" }
+      );
     } catch (e) { console.error("Failed to save analysis to Supabase:", e); }
   };
 
@@ -138,7 +143,14 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
   };
 
   const savePanelPromptsToSupabase = async (prompts) => {
-    try { await supabase.from("panel_prompts").upsert({ id: 1, data: prompts }); } catch (e) { console.error("Failed to save panel prompts:", e); }
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      await supabase.from("panel_prompts").upsert(
+        { user_id: session.user.id, data: prompts },
+        { onConflict: "user_id" }
+      );
+    } catch (e) { console.error("Failed to save panel prompts:", e); }
   };
 
   const regeneratePanel = async (dimension) => {
