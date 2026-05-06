@@ -242,7 +242,7 @@ export default function AnalysisTab({
         </div>
 
         {/* 7 · BLINDSPOTS */}
-        <div style={{ gridColumn: "1 / -1", background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
+        <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ background: `${G.gold}18`, color: G.gold, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Blindspots</span>
             {renderEditIcon("blindspots")}
@@ -252,7 +252,7 @@ export default function AnalysisTab({
         </div>
 
         {/* 8 · RECENT — LAST 12 MONTHS */}
-        <div style={{ gridColumn: "1 / -1", background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
+        <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ background: `${G.green}18`, color: G.green, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Recent</span>
             {renderEditIcon("recent")}
