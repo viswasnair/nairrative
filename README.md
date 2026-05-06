@@ -32,24 +32,9 @@ npm install
 
 1. Create a new project at [supabase.com](https://supabase.com)
 2. Go to **Settings → API** and note your **Project URL** and **anon public key**
-3. In the SQL editor, create the following tables:
+3. In the SQL editor, paste and run the contents of [`supabase/schema.sql`](supabase/schema.sql) — this creates all tables, constraints, and RLS policies in one shot.
 
-| Table | Purpose |
-|-------|---------|
-| `books` | Main book records (`title`, `genre[]`, `year_read_start`, `year_read_end`, `pages`, `fiction`, `format`, `series`, `notes`, `cover_url`, `user_id`) |
-| `authors` | Author lookup (`name`, `country`) |
-| `book_authors` | Book↔author join (`book_id`, `author_id`, `author_order`) |
-| `genres` | Genre list with colour codes (`name`, `color`) |
-| `recs_cache` | Cached recommendation results — single row `id=1` |
-| `analysis_cache` | Cached analysis panel results — single row `id=1` |
-| `panel_prompts` | Per-user customised analysis prompts — single row `id=1` |
-
-> **Note:** A full SQL schema file is not yet in the repo. Contact the maintainer for the DDL, or inspect the Supabase table editor to replicate the structure.
-
-4. Enable **Row Level Security** on all tables:
-   - `books`, `book_authors`: authenticated users only, scoped to `auth.uid() = user_id`
-   - `authors`, `genres`: public SELECT, authenticated write
-   - `recs_cache`, `analysis_cache`, `panel_prompts`: public SELECT, authenticated write
+4. In `supabase/schema.sql`, replace the two occurrences of `<YOUR_USER_ID>` with your Supabase `auth.uid()` (find it under **Authentication → Users** after signing up). This allows unauthenticated visitors to browse your reading list publicly.
 
 5. Enable **Email auth** under **Authentication → Providers**
 
@@ -167,13 +152,7 @@ Supabase RLS enforces row-level ownership on all tables — unauthenticated requ
 
 ## Database Schema
 
-Books are stored in a `books` table with a `book_authors` join table linking to an `authors` table. Key fields:
-
-- `title`, `genre` (array), `year_read_start`, `year_read_end`
-- `authors` → `name`, `country` (via join)
-- `series`, `pages`, `fiction`, `format`, `notes`
-
-Additional tables: `genres` (colour codes), `recs_cache`, `analysis_cache`, `panel_prompts`.
+Full DDL including all tables, constraints, and RLS policies is in [`supabase/schema.sql`](supabase/schema.sql).
 
 ## Analysis Panels
 
