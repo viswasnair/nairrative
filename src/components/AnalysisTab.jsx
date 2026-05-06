@@ -176,6 +176,34 @@ export default function AnalysisTab({
           {renderInsight("contextual")}
         </div>
 
+        {/* 5 · COMPLEXITY & CHALLENGE */}
+        <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ background: `${G.red}18`, color: G.red, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Complexity & Challenge</span>
+            {renderEditIcon("complexity")}
+          </div>
+          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 12px" }}>Stretching vs. Comfort</div>
+          <div style={{ display: "flex", gap: 20, marginBottom: 14 }}>
+            <div>
+              <div style={{ color: G.red, fontSize: 26, fontFamily: "'Playfair Display', serif", fontWeight: 700 }}>{analysisInsights.challengePct}%</div>
+              <div style={{ color: G.muted, fontSize: 10 }}>literary / challenging</div>
+            </div>
+            <div>
+              <div style={{ color: G.gold, fontSize: 26, fontFamily: "'Playfair Display', serif", fontWeight: 700 }}>{100 - analysisInsights.challengePct}%</div>
+              <div style={{ color: G.muted, fontSize: 10 }}>commercial / accessible</div>
+            </div>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 6 }}>Notable stretches</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {analysisInsights.challengingAuthorsFromData.map(a => (
+                <span key={a} style={{ background: `${G.red}15`, color: G.red, fontSize: 10, padding: "3px 8px", borderRadius: 4 }}>{a}</span>
+              ))}
+            </div>
+          </div>
+          {renderInsight("complexity")}
+        </div>
+
         {/* 6 · EMOTIONAL FINGERPRINT */}
         <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>

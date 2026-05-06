@@ -62,7 +62,7 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
     }
     setAnalysisAILoading(true);
     const { data: { session } } = await supabase.auth.getSession();
-    const dimensions = ["temporal", "genre", "thematic", "contextual", "emotional", "blindspots", "recent"];
+    const dimensions = ["temporal", "genre", "thematic", "contextual", "complexity", "emotional", "blindspots", "recent"];
     const ctx = buildBookContext(books);
     const currentYear = new Date().getFullYear();
     const recentBooks = books.filter(b => (b.year_read_end || b.year) >= currentYear - 1);
