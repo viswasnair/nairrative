@@ -1,5 +1,6 @@
 import { useState } from "react";
 import G from "../constants/theme";
+import { stripMd } from "../lib/bookUtils";
 import SeriesTab from "./SeriesTab";
 import NewReleasesTab from "./NewReleasesTab";
 
@@ -18,7 +19,7 @@ const RecList = ({ results, loading }) => {
     <div style={{ marginTop: 12, borderTop: `1px solid ${G.border}`, paddingTop: 10 }}>
       <div style={{ fontSize: 13, fontWeight: 600, color: G.text, lineHeight: 1.4, marginBottom: 3 }}>{r.title}</div>
       <div style={{ fontSize: 11, color: G.gold, marginBottom: 6 }}>{r.author}{r.year ? ` · ${r.year}` : ""}</div>
-      {r.reason && <div style={{ fontSize: 11, color: G.muted, lineHeight: 1.6 }}>{r.reason}</div>}
+      {r.reason && <div style={{ fontSize: 11, color: G.muted, lineHeight: 1.6 }}>{stripMd(r.reason)}</div>}
     </div>
   );
 };

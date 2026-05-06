@@ -1,3 +1,11 @@
+export const stripMd = str => str
+  .replace(/\*\*(.+?)\*\*/gs, '$1')
+  .replace(/\*(.+?)\*/gs, '$1')
+  .replace(/_{1,2}(.+?)_{1,2}/gs, '$1')
+  .replace(/#{1,6} /g, '')
+  .replace(/`([^`]+)`/g, '$1')
+  .replace(/^\s*[-*+] /gm, '');
+
 // ── normalizeBook ─────────────────────────────────────────────────────────
 // Flattens the Supabase nested book_authors join into a clean book object.
 export function normalizeBook(b) {

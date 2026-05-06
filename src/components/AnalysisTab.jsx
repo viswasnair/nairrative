@@ -1,5 +1,6 @@
 import G from "../constants/theme";
 import { DEFAULT_PANEL_PROMPTS } from "../constants/config";
+import { stripMd } from "../lib/bookUtils";
 
 const MOOD_COLORS = { "Dark & Tense": "#e06c75", "Imaginative": "#4a9eff", "Reflective": "#c3a6ff", "Informative": "#ffd166" };
 
@@ -85,7 +86,7 @@ export default function AnalysisTab({
           : analysisAILoading
             ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div>
             : analysisAI?.[dimension]
-              ? <div style={textStyle}>{analysisAI[dimension]}</div>
+              ? <div style={textStyle}>{stripMd(analysisAI[dimension])}</div>
               : null
         }
       </div>
