@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import G from "../constants/theme";
 import MultiSelect from "./MultiSelect";
 import { downloadCSV, downloadJSON } from "../lib/bookUtils";
@@ -36,13 +36,13 @@ export default function LibraryTab({
       {/* Subtab nav */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, marginBottom: 24 }}>
         {LIB_SUBTABS.map((t, i) => (
-          <>
-            {i > 0 && <span key={`sep-${i}`} style={{ color: G.dimmed, fontSize: 12, userSelect: "none" }}>·</span>}
-            <button key={t.id} className="subtab-btn" onClick={() => setSubTab(t.id)}
+          <Fragment key={t.id}>
+            {i > 0 && <span style={{ color: G.dimmed, fontSize: 12, userSelect: "none" }}>·</span>}
+            <button className="subtab-btn" onClick={() => setSubTab(t.id)}
               style={{ background: "none", border: "none", padding: "4px 8px", cursor: "pointer", fontSize: 13, fontWeight: subTab === t.id ? 600 : 400, color: subTab === t.id ? G.gold : G.muted, fontFamily: "'DM Sans', sans-serif" }}>
               {t.label}
             </button>
-          </>
+          </Fragment>
         ))}
       </div>
 
