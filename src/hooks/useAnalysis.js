@@ -87,8 +87,8 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
         const res = await fetch(CLAUDE_URL, {
           method: "POST", headers: claudeHeaders(session),
           body: JSON.stringify({
-            model: "claude-sonnet-4-6", max_tokens: 350,
-            system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". Write 3-4 concise sentences focused on patterns and arc — not catalogues of titles or authors. Mention at most 1-2 specific examples to ground the observation. Do not use markdown formatting. Do not invent facts.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.${noYearsNote}`,
+            model: "claude-sonnet-4-6", max_tokens: 400,
+            system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". The value must be a JSON object with two fields: "insight" (3-4 concise sentences on patterns and arc — not catalogues, at most 1-2 illustrative mentions) and "evidence" (array of up to 3 exact book titles verbatim from the provided list that most directly support this insight). Do not use markdown. Do not invent facts or titles.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.${noYearsNote}`,
             messages: [{ role: "user", content: `${ctx}\n\n--- ${listLabel} ---\n${listContent}\n\nGenerate insight for the "${dimension}" dimension only.` }]
           })
         });
@@ -97,7 +97,12 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);
-          if (parsed[dimension]) result[dimension] = parsed[dimension];
+          if (parsed[dimension]) {
+            const val = parsed[dimension];
+            const insight = typeof val === "string" ? val : (val.insight || "");
+            const evidence = typeof val === "string" ? [] : (Array.isArray(val.evidence) ? val.evidence : []);
+            result[dimension] = { insight, evidence, generatedAt: new Date().toISOString(), bookCount: isRecent ? recentBooks.length : books.length };
+          }
         }
         setAnalysisAI(prev => ({ ...prev, [dimension]: result[dimension] }));
       } catch (e) { console.error(`Analysis AI error (${dimension}):`, e); }
@@ -154,8 +159,8 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
       const res = await fetch(CLAUDE_URL, {
         method: "POST", headers: claudeHeaders(session),
         body: JSON.stringify({
-          model: "claude-opus-4-6", max_tokens: 400,
-          system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". Write 3-4 concise sentences — surface a non-obvious pattern or insight. Mention at most 1-2 specific authors or titles as illustrative examples; do not catalogue books. Do not use markdown formatting. Do not invent facts.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.${noYearsNote}`,
+          model: "claude-opus-4-6", max_tokens: 450,
+          system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". The value must be a JSON object with two fields: "insight" (3-4 concise sentences — surface a non-obvious pattern, at most 1-2 illustrative mentions) and "evidence" (array of up to 3 exact book titles verbatim from the provided list that most directly support this insight). Do not use markdown. Do not invent facts or titles.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.${noYearsNote}`,
           messages: [{ role: "user", content: `${ctx}\n\n--- ${listLabel} ---\n${fullList}\n\nGenerate insight for the "${dimension}" dimension only.` }]
         })
       });
@@ -163,9 +168,13 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
       const text = data.content?.[0]?.text || "{}";
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        const result = JSON.parse(jsonMatch[0]);
-        if (result[dimension]) {
-          const updated = { ...analysisAI, [dimension]: result[dimension] };
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed[dimension]) {
+          const val = parsed[dimension];
+          const insight = typeof val === "string" ? val : (val.insight || "");
+          const evidence = typeof val === "string" ? [] : (Array.isArray(val.evidence) ? val.evidence : []);
+          const panelData = { insight, evidence, generatedAt: new Date().toISOString(), bookCount: listSource.length };
+          const updated = { ...analysisAI, [dimension]: panelData };
           setAnalysisAI(updated);
           localStorage.setItem("nairrative_analysis_ai", JSON.stringify(updated));
           saveAnalysisToSupabase(updated);

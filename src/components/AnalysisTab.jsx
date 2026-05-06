@@ -4,6 +4,16 @@ import { stripMd } from "../lib/bookUtils";
 
 const MOOD_COLORS = { "Dark & Tense": "#e06c75", "Imaginative": "#4a9eff", "Reflective": "#c3a6ff", "Informative": "#ffd166" };
 
+function relativeTime(iso) {
+  if (!iso) return null;
+  const mins = Math.floor((Date.now() - new Date(iso)) / 60000);
+  if (mins < 2) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
 export default function AnalysisTab({
   books,
   stats,
@@ -22,6 +32,7 @@ export default function AnalysisTab({
   resetPanelPrompt,
   savePanelPromptsToSupabase,
   regeneratePanel,
+  onCiteClick,
 }) {
   const minYear = Math.min(...books.map(b => b.year_read_start));
   const maxYear = Math.max(...books.map(b => b.year_read_end));
@@ -37,8 +48,18 @@ export default function AnalysisTab({
   const recentTopGenre = Object.entries(recentGenreCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
 
   const renderEditIcon = (dimension) => {
+    const val = analysisAI?.[dimension];
+    const meta = val && typeof val === "object" ? val : null;
+    const infoTitle = meta?.generatedAt
+      ? `Generated ${relativeTime(meta.generatedAt)} · ${meta.bookCount} book${meta.bookCount !== 1 ? "s" : ""}`
+      : null;
+
     if (session) return (
       <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+        {infoTitle && (
+          <button title={infoTitle}
+            style={{ background: "none", border: "none", cursor: "default", color: G.dimmed, fontSize: 11, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>ⓘ</button>
+        )}
         <button onClick={() => regeneratePanel(dimension)} title="Refresh with Opus"
           style={{ background: "none", border: "none", cursor: "pointer", color: G.muted, fontSize: 13, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>↻</button>
         <button onClick={() => { setEditingPanel(editingPanel === dimension ? null : dimension); setViewingPanel(null); }} title="Edit prompt"
@@ -46,8 +67,14 @@ export default function AnalysisTab({
       </div>
     );
     return (
-      <button onClick={() => setViewingPanel(viewingPanel === dimension ? null : dimension)} title="View prompt"
-        style={{ background: "none", border: "none", cursor: "pointer", color: G.muted, fontSize: 13, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>⊙</button>
+      <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+        {infoTitle && (
+          <button title={infoTitle}
+            style={{ background: "none", border: "none", cursor: "default", color: G.dimmed, fontSize: 11, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>ⓘ</button>
+        )}
+        <button onClick={() => setViewingPanel(viewingPanel === dimension ? null : dimension)} title="View prompt"
+          style={{ background: "none", border: "none", cursor: "pointer", color: G.muted, fontSize: 13, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>⊙</button>
+      </div>
     );
   };
 
@@ -55,6 +82,13 @@ export default function AnalysisTab({
     const isEditing = editingPanel === dimension;
     const isLoading = panelLoading[dimension];
     const textStyle = { fontSize: 12, color: G.muted, lineHeight: 1.75, ...(borderTop ? { borderTop: `1px solid ${G.border}`, paddingTop: 10, marginTop: 4 } : {}) };
+
+    const raw = analysisAI?.[dimension];
+    const insight = raw ? (typeof raw === "string" ? raw : (raw.insight || "")) : null;
+    const evidence = raw && typeof raw === "object" && Array.isArray(raw.evidence) ? raw.evidence : [];
+
+    const bookTitlesLower = books.map(b => b.title.toLowerCase());
+
     return (
       <div>
         {!session && viewingPanel === dimension && (
@@ -85,8 +119,30 @@ export default function AnalysisTab({
           ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Regenerating…</div>
           : analysisAILoading
             ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div>
-            : analysisAI?.[dimension]
-              ? <div style={textStyle}>{stripMd(analysisAI[dimension])}</div>
+            : insight
+              ? (
+                <div>
+                  <div style={textStyle}>{stripMd(insight)}</div>
+                  {evidence.length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 10 }}>
+                      {evidence.map((title, i) => {
+                        const verified = bookTitlesLower.includes(title.toLowerCase());
+                        return verified ? (
+                          <button key={i} onClick={() => onCiteClick?.(title)} title={`See in library: ${title}`}
+                            style={{ background: `${G.gold}18`, border: `1px solid ${G.gold}40`, borderRadius: 4, color: G.gold, fontSize: 10, padding: "2px 8px", cursor: "pointer", fontFamily: "inherit" }}>
+                            {title}
+                          </button>
+                        ) : (
+                          <span key={i} title="Title not found in your library"
+                            style={{ background: "transparent", border: `1px solid ${G.border}`, borderRadius: 4, color: G.dimmed, fontSize: 10, padding: "2px 8px", textDecoration: "line-through" }}>
+                            {title}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
               : null
         }
       </div>

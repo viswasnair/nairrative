@@ -150,6 +150,7 @@ export default function App() {
   const deferredBooks = useDeferredValue(books);
 
   const [search, setSearch] = useState("");
+  const onCiteClick = (title) => { setSearch(title); switchTab("library"); };
   const [libGenres, setLibGenres] = useState([]);
   const [libYears, setLibYears] = useState([]);
   const [libAuthors, setLibAuthors] = useState([]);
@@ -685,6 +686,7 @@ Formatting rules: Write in clean, natural prose. Do not use markdown syntax — 
             resetPanelPrompt={resetPanelPrompt}
             savePanelPromptsToSupabase={savePanelPromptsToSupabase}
             regeneratePanel={regeneratePanel}
+            onCiteClick={onCiteClick}
           />
         )}
 
