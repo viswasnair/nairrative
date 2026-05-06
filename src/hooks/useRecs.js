@@ -18,6 +18,7 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
   const [intentLoading, setIntentLoading] = useState({});
   const [refreshCounts, setRefreshCounts] = useState({});
   const prevRecsFingerprint = useRef(null);
+  const allocatedTitlesRef = useRef({});
 
   // Load recs from cache on tab switch or when books first load
   useEffect(() => {
@@ -53,6 +54,10 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
     setIntentLoading(p => ({ ...p, [intentId]: true }));
     const rc = (refreshCounts[intentId] || 0) + 1;
     setRefreshCounts(p => ({ ...p, [intentId]: rc }));
+
+    // Free this panel's slot so it doesn't block its own retry
+    delete allocatedTitlesRef.current[intentId];
+
     const lastBook = books[books.length - 1];
     const lastAuthor = lastBook?.author || "Brandon Sanderson";
     const seriesList = [...new Set(books.filter(b => b.series?.trim()).map(b => b.series))];
@@ -77,11 +82,19 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
       "occasion": `Recommend 1 book perfect for: "${input}". Match tone, length, and engagement level to the occasion.${variationNote}`,
       "pair": `The user wants to pair a book with: "${input}" (a film, show, event, or experience). Recommend 1 ideal companion read.${variationNote}`,
     };
-    try {
+
+    const attemptFetch = async (extraExclusions = []) => {
+      const otherPanelTitles = Object.entries(allocatedTitlesRef.current)
+        .filter(([id]) => id !== intentId)
+        .map(([, { title, author }]) => `"${title}" by ${author}`);
+      const allExclusions = [...otherPanelTitles, ...extraExclusions];
+      const crossPanelNote = allExclusions.length > 0
+        ? `\nDo NOT recommend these books (already picked in other panels or previously rejected): ${allExclusions.join("; ")}.\n`
+        : "";
       const useWebSearch = intentId === "trending" || intentId === "pair";
       const body = {
         model: "claude-haiku-4-5-20251001", max_tokens: 400,
-        system: `You are a precise book recommendation engine. Today is ${today}. Reader history:\n${buildBookContext(books)}\n\nDo NOT recommend any of these already-read titles: ${readTitlesString}.\n\nOnly recommend unread books published up to ${today}.\n\n${prompts[intentId] || input}\n\nReturn ONLY a JSON array — no markdown, no explanation. Exactly 1 item. Format: [{"title": "...", "author": "...", "year": 2024, "reason": "1-2 sentences why it fits this reader"}].`,
+        system: `You are a precise book recommendation engine. Today is ${today}. Reader history:\n${buildBookContext(books)}\n\nDo NOT recommend any of these already-read titles: ${readTitlesString}.${crossPanelNote}\nOnly recommend unread books published up to ${today}.\n\n${prompts[intentId] || input}\n\nReturn ONLY a JSON array — no markdown, no explanation. Exactly 1 item. Format: [{"title": "...", "author": "...", "year": 2024, "reason": "1-2 sentences why it fits this reader"}].`,
         messages: [{ role: "user", content: "JSON array only." }],
       };
       if (useWebSearch) body.tools = [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }];
@@ -91,7 +104,29 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
       if (data.error) throw new Error(data.error.message || data.error.type || JSON.stringify(data.error));
       const txt = (data.content || []).filter(c => c.type === "text").map(c => c.text).join("");
       const m = txt.match(/\[[\s\S]*?\]/);
-      const parsed = m ? JSON.parse(m[0]) : JSON.parse(txt.replace(/```json|```/g, "").trim());
+      return m ? JSON.parse(m[0]) : JSON.parse(txt.replace(/```json|```/g, "").trim());
+    };
+
+    const isAlreadyRead = (title) =>
+      !!title && books.some(b => b.title?.toLowerCase() === title.toLowerCase());
+
+    const isAllocatedElsewhere = (title) =>
+      !!title && Object.entries(allocatedTitlesRef.current)
+        .some(([id, { title: t }]) => id !== intentId && t?.toLowerCase() === title.toLowerCase());
+
+    try {
+      let parsed = await attemptFetch();
+      const pick = parsed[0];
+
+      if (pick?.title && (isAlreadyRead(pick.title) || isAllocatedElsewhere(pick.title))) {
+        // Retry once, explicitly excluding the bad pick
+        parsed = await attemptFetch([`"${pick.title}" by ${pick.author}`]);
+      }
+
+      if (parsed[0]?.title) {
+        allocatedTitlesRef.current[intentId] = { title: parsed[0].title, author: parsed[0].author || "" };
+      }
+
       setIntentResults(prev => {
         const updated = { ...prev, [intentId]: Array.isArray(parsed) ? parsed.slice(0, 1) : [] };
         localStorage.setItem("nairrative_recs", JSON.stringify(updated));
@@ -112,6 +147,7 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
     if (prevRecsFingerprint.current === null) { prevRecsFingerprint.current = booksFingerprint; return; }
     if (prevRecsFingerprint.current === booksFingerprint) return;
     prevRecsFingerprint.current = booksFingerprint;
+    allocatedTitlesRef.current = {};
     setIntentResults({});
     localStorage.removeItem("nairrative_recs");
     localStorage.removeItem("nairrative_recs_fp");
