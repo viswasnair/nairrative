@@ -15,60 +15,6 @@ import LibraryTab from "./components/LibraryTab";
 import RatingFlashcard from "./components/RatingFlashcard";
 import { CLAUDE_URL, claudeHeaders } from "./lib/api";
 
-const css = `
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: ${G.bg}; }
-    ::-webkit-scrollbar { width: 4px; height: 4px; }
-    ::-webkit-scrollbar-track { background: ${G.bg}; }
-    ::-webkit-scrollbar-thumb { background: ${G.dimmed}; border-radius: 4px; }
-    .tab-btn { cursor: pointer; padding: 6px 14px; border: none; border-radius: 0; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 400; transition: color 0.15s; white-space: nowrap; color: #a0a8b4; background: transparent; letter-spacing: 0.2px; }
-    .tab-btn:hover { color: ${G.text}; }
-    .tab-btn.active { color: ${G.gold}; font-weight: 600; }
-    .stat-card { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 12px; padding: 20px 24px; transition: border-color 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    .stat-card:hover { border-color: ${G.goldDim}; }
-    .genre-pill { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; }
-    .recharts-wrapper svg { overflow: visible !important; }
-    .input-dark { background: ${G.card2}; border: 1px solid ${G.border}; border-radius: 8px; color: ${G.text}; padding: 10px 14px; font-family: 'DM Sans', sans-serif; font-size: 13px; width: 100%; outline: none; transition: border-color 0.2s; }
-    .input-dark:focus { border-color: ${G.goldDim}; }
-    .btn-gold { background: ${G.gold}; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-    .btn-gold:hover { background: ${G.goldLight}; }
-    .btn-ghost { background: transparent; color: ${G.muted}; border: 1px solid ${G.border}; border-radius: 8px; padding: 8px 16px; font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer; transition: all 0.2s; }
-    .btn-ghost:hover { color: ${G.text}; border-color: ${G.dimmed}; }
-    .rec-card { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 12px; padding: 18px; transition: all 0.2s; }
-    .rec-card:hover { border-color: ${G.goldDim}; transform: translateY(-1px); }
-    .chat-input-wrap { display: flex; gap: 10px; }
-    .lib-row { display: grid; grid-template-columns: 44px 2fr 150px 110px 90px 90px 50px 56px 56px 90px 32px; gap: 10px; padding: 9px 14px; border-bottom: 1px solid ${G.border}; align-items: center; transition: background 0.15s; }
-    .cell-clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .lib-row:hover { background: ${G.card2}; }
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; }
-    .modal-box { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 16px; width: 100%; max-width: 540px; max-height: 88vh; overflow: hidden; position: relative; }
-    .modal-scroll { overflow-y: auto; max-height: 88vh; padding: 28px; }
-    .modal-scroll::-webkit-scrollbar { width: 4px; } .modal-scroll::-webkit-scrollbar-track { background: transparent; } .modal-scroll::-webkit-scrollbar-thumb { background: ${G.dimmed}; border-radius: 4px; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-    @keyframes widgetFade { from { opacity: 0; } to { opacity: 1; } }
-    .fade-in { animation: fadeIn 0.3s ease; }
-    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-    .pulse { animation: pulse 1.5s infinite; }
-    .burger-btn { display: none; background: none; border: none; cursor: pointer; flex-direction: column; gap: 5px; padding: 4px; }
-    .mini-brand { cursor: pointer; padding: 0; }
-    .logo-collapse { overflow: hidden; transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease; }
-    @media (max-width: 640px) {
-      .tab-nav { display: none !important; }
-      .burger-btn { display: flex !important; }
-      .page-header { padding-left: 16px !important; padding-right: 16px !important; }
-      .page-content { padding: 16px !important; }
-      .header-logo { width: 250px !important; height: auto !important; }
-      .kpi-grid { grid-template-columns: repeat(3, 1fr) !important; }
-      .chart-grid { grid-template-columns: 1fr !important; }
-      .rec-grid { grid-template-columns: repeat(2, 1fr) !important; }
-      .analysis-grid { grid-template-columns: 1fr !important; }
-      .new-releases-grid { grid-template-columns: repeat(2, 1fr) !important; }
-      .lib-scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-      .lib-inner { min-width: 1010px; }
-      .lib-row { grid-template-columns: 44px 160px 140px 100px 80px 80px 48px 50px 50px 80px 32px; }
-    }
-  `;
-
 // ── MAIN APP ──────────────────────────────────────────────────────────────
 export default function App() {
   const [session, setSession] = useState(null);
@@ -115,13 +61,6 @@ export default function App() {
   } = useBooks({ session });
 
   const [showRatingMode, setShowRatingMode] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 70);
-    window.addEventListener("scroll", handler, { passive: true });
-    return () => window.removeEventListener("scroll", handler);
-  }, []);
 
   const {
     analysisAI,
