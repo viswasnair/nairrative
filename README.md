@@ -6,7 +6,7 @@ A personal reading dashboard that turns a book list into a living portrait of yo
 
 - **Overview** — 8 interactive charts (reading activity, genre breakdown, author origins, fiction/non-fiction split, genre evolution, avg book length, format breakdown) with filterable date ranges, and 9 KPI cards
 - **Library** — Filterable, sortable table of all books with CSV/JSON export
-- **Analysis** — 6 AI-powered insight panels (temporal, genre, thematic, contextual, complexity, emotional arc) with customisable prompts and per-panel regeneration
+- **Analysis** — 8 AI-powered insight panels with customisable prompts and per-panel regeneration (see panel list below)
 - **Recommendations** — 15 discovery lenses (more like last book, trending, challenge me, by mood, by genre, pair with a film, and more) — one curated pick each
 - **Series** — AI catch-up recaps for any series in your library
 - **Chat** — Conversational reading assistant with full access to your book database
@@ -47,7 +47,7 @@ src/
     config.js          # Tabs, prompts, defaults
     seeds.js           # Fallback data for logged-out users
   lib/
-    bookUtils.js       # Context builder, CSV/JSON export
+    bookUtils.js       # Context builder, CSV/JSON export, stripMd utility
     supabase.js        # Supabase client
     api.js             # Shared CLAUDE_URL + claudeHeaders(session)
 api/
@@ -99,6 +99,23 @@ Books are stored in a `books` table with a `book_authors` join table linking to 
 - `series`, `pages`, `fiction`, `format`, `notes`
 
 Additional tables: `genres` (colour codes), `recs_cache`, `analysis_cache`, `panel_prompts`.
+
+## Analysis Panels
+
+Eight panels arranged in a 2-column grid. Three panels allow temporal references (years); the rest are scoped to patterns and identity:
+
+| Panel | Dimension | Temporal? |
+|-------|-----------|-----------|
+| Volume & Pace | Reading rhythm — peaks, lulls, gaps | ✓ |
+| Migration Over Time | Genre arc across eras | ✓ |
+| Recurring Intellectual Preoccupations | Persistent themes across the library | — |
+| Life Shapes the List | Inferred life events behind reading clusters | ✓ |
+| Stretching vs. Comfort | Balance of challenging vs. accessible reads | — |
+| Emotional Fingerprint | Aggregate mood palette of the whole library | — |
+| What's Missing | Conspicuous absences given apparent interests | — |
+| Last 12 Months | Moving 12-month window with book/page/genre KPIs | — |
+
+Each panel has a customisable prompt (editable per-user, synced via Supabase). Markdown is stripped from all AI output before display.
 
 ## AI Caching
 

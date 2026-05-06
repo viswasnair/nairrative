@@ -31,7 +31,7 @@ Nairrative is a personal reading dashboard — a React SPA deployed on Vercel wi
 |------|-----|
 | `OverviewTab.jsx` | Charts (8 Recharts charts) + KPI cards |
 | `LibraryTab.jsx` | Filterable/sortable book table |
-| `AnalysisTab.jsx` | 6 AI analysis panels |
+| `AnalysisTab.jsx` | 8 AI analysis panels |
 | `RecsTab.jsx` | 15 recommendation lenses |
 | `SeriesTab.jsx` | Series recap generator |
 | `ChatTab.jsx` | Conversational reading assistant |
@@ -42,14 +42,35 @@ Nairrative is a personal reading dashboard — a React SPA deployed on Vercel wi
 
 ### Constants & Utilities (`src/constants/`, `src/lib/`)
 - `theme.js` — all colour tokens (`G.gold`, `G.card`, `G.muted`, etc.)
-- `config.js` — `TABS`, `INPUT_DEFAULTS`, `DEFAULT_PANEL_PROMPTS`, `AUTO_RECS`, `READING_CONTEXT`
+- `config.js` — `TABS`, `INPUT_DEFAULTS`, `DEFAULT_PANEL_PROMPTS` (8 analysis panel prompts), `AUTO_RECS`, `READING_CONTEXT`
 - `seeds.js` — `SEED_RECS`, `SEED_ANALYSIS` (fallback data for logged-out users)
-- `bookUtils.js` — `buildBookContext`, `downloadCSV`, `downloadJSON`
+- `bookUtils.js` — `buildBookContext`, `downloadCSV`, `downloadJSON`, `stripMd` (strips markdown symbols from AI text before display)
 - `supabase.js` — Supabase client
 - `api.js` — shared `CLAUDE_URL`, `AI_HEADERS`, and `claudeHeaders(session)` used by all hooks and App.jsx
 
 ### API (`api/`)
 - `claude.js` — Vercel Edge Function proxying requests to Anthropic API. Reads `ANTHROPIC_API_KEY` from environment. Enforces JWT auth (JWKS), CORS restriction, rate limiting (30 req/min per user), model allowlist, and max_tokens cap.
+
+## Analysis Panels
+
+Eight panels in a 2-column grid (`AnalysisTab.jsx`). Prompts live in `DEFAULT_PANEL_PROMPTS` (`config.js`) and are synced per-user via the `panel_prompts` Supabase table.
+
+| Key | Title | Temporal refs allowed? |
+|-----|-------|----------------------|
+| `temporal` | Volume & Pace | ✓ |
+| `genre` | Migration Over Time | ✓ |
+| `thematic` | Recurring Intellectual Preoccupations | — |
+| `contextual` | Life Shapes the List | ✓ |
+| `complexity` | Stretching vs. Comfort | — |
+| `emotional` | Emotional Fingerprint | — |
+| `blindspots` | What's Missing | — |
+| `recent` | Last 12 Months | — |
+
+**Design rules:**
+- `temporal`, `genre`, `contextual` are the only panels permitted to reference specific years — enforced via a `CRITICAL` note in the system prompt.
+- `recent` sends only books where `year_read_end >= currentYear - 1` to the model (filtered in `useAnalysis.js`).
+- All AI text (analysis + recs) passes through `stripMd()` before rendering to strip any markdown symbols.
+- Non-temporal panels instruct the model: `"Do not reference or cite any specific years."`
 
 ## Supabase Tables
 
