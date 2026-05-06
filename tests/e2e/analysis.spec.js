@@ -11,7 +11,7 @@ test.describe('Analysis Panels — loading, refresh, and prompt editing', () => 
 
   // ── PANEL RENDERING ────────────────────────────────────────────────────────
 
-  test('all 6 dimension panels are visible', async ({ page }) => {
+  test('all 8 dimension panels are visible', async ({ page }) => {
     // Use the badge spans inside the analysis grid to avoid matching AI-generated text
     const grid = page.locator('.analysis-grid');
     await expect(grid.locator('span', { hasText: 'Temporal' }).first()).toBeVisible({ timeout: 10_000 });
@@ -19,7 +19,9 @@ test.describe('Analysis Panels — loading, refresh, and prompt editing', () => 
     await expect(grid.locator('span', { hasText: 'Thematic' }).first()).toBeVisible();
     await expect(grid.locator('span', { hasText: 'Social & Contextual' }).first()).toBeVisible();
     await expect(grid.locator('span', { hasText: 'Complexity & Challenge' }).first()).toBeVisible();
-    await expect(grid.locator('span', { hasText: 'Emotional Arc' }).first()).toBeVisible();
+    await expect(grid.locator('span', { hasText: 'Emotional' }).first()).toBeVisible();
+    await expect(grid.locator('span', { hasText: 'Blindspots' }).first()).toBeVisible();
+    await expect(grid.locator('span', { hasText: 'Recent' }).first()).toBeVisible();
   });
 
   test('panels load content from seed/cache without triggering new AI calls', async ({ page }) => {

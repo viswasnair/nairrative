@@ -17,13 +17,16 @@ test.describe('Navigation — all pages render correctly', () => {
     await expect(page.locator('.recharts-wrapper').first()).toBeVisible();
   });
 
-  test('Analysis tab shows all dimension panels', async ({ page }) => {
+  test('Analysis tab shows all 8 dimension panels', async ({ page }) => {
     await clickTab(page, 'Analysis');
     await expect(page.locator('text=Volume & Pace')).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('text=Migration Over Time')).toBeVisible();
     await expect(page.locator('text=Recurring Intellectual Preoccupations')).toBeVisible();
     await expect(page.locator('text=Life Shapes the List')).toBeVisible();
     await expect(page.locator('text=Stretching vs. Comfort')).toBeVisible();
+    await expect(page.locator('text=Emotional Fingerprint')).toBeVisible();
+    await expect(page.locator("text=What's Missing")).toBeVisible();
+    await expect(page.locator('text=Last 12 Months')).toBeVisible();
   });
 
   test('Library tab shows book table and controls', async ({ page }) => {
