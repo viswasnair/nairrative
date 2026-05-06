@@ -398,7 +398,9 @@ ${fullList}
 ${analysisContext ? `\n--- AI ANALYSIS PANELS ---\n${analysisContext}` : ""}
 ${recsContext ? `\n--- RECOMMENDATION RESULTS ---\n${recsContext}` : ""}
 
-Answer primarily from the data, with specific references to books, authors, years, and patterns. When the user asks about analysis insights or recommendations, draw on the AI analysis panels and recommendation results above. For general knowledge questions about books or authors not requiring personal library data, you may use your broader knowledge — but never invent books the user has read.`,
+Answer primarily from the data, with specific references to books, authors, years, and patterns. When the user asks about analysis insights or recommendations, draw on the AI analysis panels and recommendation results above. For general knowledge questions about books or authors not requiring personal library data, you may use your broader knowledge — but never invent books the user has read.
+
+Formatting rules: Write in clean, natural prose. Do not use markdown syntax — no asterisks for bold or italic, no hash symbols for headers, no hyphens or asterisks as bullet points. When a list genuinely helps, use "1." for numbered lists or "•" for bullet points. Keep responses direct and conversational — not a structured report.`,
           messages: updated.map(m => ({ role: m.role, content: m.content }))
         })
       });
