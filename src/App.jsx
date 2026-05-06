@@ -370,18 +370,58 @@ export default function App() {
       const resolvedRecs = Object.keys(intentResults).length > 0 ? intentResults : (() => {
         try { return JSON.parse(localStorage.getItem("nairrative_recs") || "null"); } catch { return null; }
       })();
+
+      const ANALYSIS_LABELS = {
+        temporal: "Reading Pace & Volume", genre: "Genre Evolution",
+        geographic: "Geographic & Cultural Range", author: "Author Patterns",
+        thematic: "Themes & Preoccupations", contextual: "Life Context & Reading",
+        complexity: "Complexity Balance", emotional: "Emotional Arc", discovery: "Discovery Patterns",
+      };
       const analysisContext = resolvedAnalysis && typeof resolvedAnalysis === "object"
         ? Object.entries(resolvedAnalysis)
             .filter(([, v]) => v && typeof v === "string")
-            .map(([k, v]) => `[${k.toUpperCase()}]\n${v}`)
+            .map(([k, v]) => `[${ANALYSIS_LABELS[k] || k}]\n${v}`)
             .join("\n\n")
         : "";
+
+      const LENS_LABELS = {
+        "more-like": "More Like Last Book", "more-by-last": "More By Last Author",
+        "similar-author": "Books By Similar Author", "trending": "What's Trending",
+        "challenge": "Challenge Me", "quick": "Quick Reads", "gaps": "Fill My Gaps",
+        "surprise": "Surprise Me", "finish": "Finish the Series",
+        "loved": "If You Loved…", "authors-like": "Books By Authors Like…",
+        "mood": "Match My Mood", "genre-pick": "By Genre", "topic": "By Topic",
+        "occasion": "For the Occasion", "pair": "Pair It",
+      };
       const recsContext = resolvedRecs && typeof resolvedRecs === "object"
         ? Object.entries(resolvedRecs)
-            .filter(([, v]) => v && typeof v === "string")
-            .map(([k, v]) => `[${k.toUpperCase()}]\n${v}`)
+            .filter(([, v]) => Array.isArray(v) && v.length > 0 && v[0]?.title)
+            .map(([k, v]) => {
+              const b = v[0];
+              return `[${LENS_LABELS[k] || k}]\n"${b.title}" by ${b.author}${b.year ? ` (${b.year})` : ""}${b.reason ? ` — ${b.reason}` : ""}`;
+            })
             .join("\n\n")
         : "";
+
+      let newReleasesContext = "";
+      try {
+        const { data: releases } = await supabase
+          .from("new_releases").select("title, author, series, published_date")
+          .gte("published_date", `${new Date().getFullYear() - 2}-01-01`)
+          .order("published_date", { ascending: false }).limit(20);
+        if (releases?.length) {
+          const readTitles = new Set(books.map(b => b.title?.toLowerCase().trim()));
+          const unread = releases.filter(r => !readTitles.has(r.title?.toLowerCase().trim()));
+          if (unread.length) {
+            newReleasesContext = unread
+              .map(r => `• "${r.title}" by ${r.author}${r.series ? ` (${r.series})` : ""}${r.published_date ? ` — ${r.published_date}` : ""}`)
+              .join("\n");
+          }
+        }
+      } catch { /* supplementary — silent fail */ }
+
+      const seriesRecapContext = seriesRecap ? `Series: ${selectedSeries}\n${seriesRecap}` : "";
+
       const res = await fetch(CLAUDE_URL, {
         method: "POST", headers: claudeHeaders(session),
         body: JSON.stringify({
@@ -396,7 +436,9 @@ ${summary}
 --- FULL BOOK LIST (${books.length} books) ---
 ${fullList}
 ${analysisContext ? `\n--- AI ANALYSIS PANELS ---\n${analysisContext}` : ""}
-${recsContext ? `\n--- RECOMMENDATION RESULTS ---\n${recsContext}` : ""}
+${recsContext ? `\n--- CURRENT RECOMMENDATIONS (one curated pick per lens) ---\n${recsContext}` : ""}
+${newReleasesContext ? `\n--- NEW RELEASES FROM YOUR AUTHORS (unread) ---\n${newReleasesContext}` : ""}
+${seriesRecapContext ? `\n--- SERIES RECAP ---\n${seriesRecapContext}` : ""}
 
 Answer primarily from the data, with specific references to books, authors, years, and patterns. When the user asks about analysis insights or recommendations, draw on the AI analysis panels and recommendation results above. For general knowledge questions about books or authors not requiring personal library data, you may use your broader knowledge — but never invent books the user has read.
 
