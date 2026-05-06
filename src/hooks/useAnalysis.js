@@ -62,22 +62,27 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
     }
     setAnalysisAILoading(true);
     const { data: { session } } = await supabase.auth.getSession();
-    const dimensions = ["temporal", "genre", "geographic", "author", "thematic", "contextual", "complexity", "emotional", "discovery"];
+    const dimensions = ["temporal", "genre", "thematic", "contextual", "complexity", "emotional", "blindspots", "recent"];
     const ctx = buildBookContext(books);
-    const fullList = books
-      .map(b => `[${b.year_read_end || b.year}] "${b.title}" by ${b.author} | ${(b.genre || []).join("/")}${b.pages ? " | " + b.pages + "pp" : ""}${b.series ? " | series: " + b.series : ""}${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}${b.notes ? " | notes: " + b.notes : ""}`)
-      .join("\n");
+    const currentYear = new Date().getFullYear();
+    const recentBooks = books.filter(b => (b.year_read_end || b.year) >= currentYear - 1);
+    const toRow = b => `[${b.year_read_end || b.year}] "${b.title}" by ${b.author} | ${(b.genre || []).join("/")}${b.pages ? " | " + b.pages + "pp" : ""}${b.series ? " | series: " + b.series : ""}${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}${b.notes ? " | notes: " + b.notes : ""}`;
+    const fullList = books.map(toRow).join("\n");
+    const recentList = recentBooks.map(toRow).join("\n");
     const result = {};
     for (const dimension of dimensions) {
       try {
         const effectivePrompt = panelPrompts[dimension]?.trim() || DEFAULT_PANEL_PROMPTS[dimension] || "";
         const customInstruction = effectivePrompt ? `\n\nFocus: ${effectivePrompt}` : "";
+        const isRecent = dimension === "recent";
+        const listLabel = isRecent ? `RECENT BOOKS — last 12 months (${recentBooks.length} books)` : `FULL BOOK LIST (${books.length} books)`;
+        const listContent = isRecent ? recentList : fullList;
         const res = await fetch(CLAUDE_URL, {
           method: "POST", headers: claudeHeaders(session),
           body: JSON.stringify({
             model: "claude-sonnet-4-6", max_tokens: 350,
             system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". Write 3-4 concise sentences focused on patterns and arc — not catalogues of titles or authors. Mention at most 1-2 specific examples to ground the observation. Do not invent facts.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.`,
-            messages: [{ role: "user", content: `${ctx}\n\n--- FULL BOOK LIST (${books.length} books) ---\n${fullList}\n\nGenerate insight for the "${dimension}" dimension only.` }]
+            messages: [{ role: "user", content: `${ctx}\n\n--- ${listLabel} ---\n${listContent}\n\nGenerate insight for the "${dimension}" dimension only.` }]
           })
         });
         const data = await res.json();
@@ -130,9 +135,14 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
     const { data: { session } } = await supabase.auth.getSession();
     try {
       const ctx = buildBookContext(books);
-      const fullList = books
+      const currentYear = new Date().getFullYear();
+      const listSource = dimension === "recent"
+        ? books.filter(b => (b.year_read_end || b.year) >= currentYear - 1)
+        : books;
+      const fullList = listSource
         .map(b => `[${b.year_read_end || b.year}] "${b.title}" by ${b.author} | ${(b.genre || []).join("/")}${b.pages ? " | " + b.pages + "pp" : ""}${b.series ? " | series: " + b.series : ""}${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}${b.notes ? " | notes: " + b.notes : ""}`)
         .join("\n");
+      const listLabel = dimension === "recent" ? `RECENT BOOKS — last 12 months (${listSource.length} books)` : `FULL BOOK LIST (${books.length} books)`;
       const effectivePrompt = panelPrompts[dimension]?.trim() || DEFAULT_PANEL_PROMPTS[dimension] || "";
       const customInstruction = effectivePrompt ? `\n\nFocus: ${effectivePrompt}` : "";
       const res = await fetch(CLAUDE_URL, {
@@ -140,7 +150,7 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
         body: JSON.stringify({
           model: "claude-opus-4-6", max_tokens: 400,
           system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". Write 3-4 concise sentences — surface a non-obvious pattern or insight. Mention at most 1-2 specific authors or titles as illustrative examples; do not catalogue books. Do not invent facts.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.`,
-          messages: [{ role: "user", content: `${ctx}\n\n--- FULL BOOK LIST (${books.length} books) ---\n${fullList}\n\nGenerate insight for the "${dimension}" dimension only.` }]
+          messages: [{ role: "user", content: `${ctx}\n\n--- ${listLabel} ---\n${fullList}\n\nGenerate insight for the "${dimension}" dimension only.` }]
         })
       });
       const data = await res.json();

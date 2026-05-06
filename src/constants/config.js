@@ -28,12 +28,14 @@ export const AUTO_RECS = [
 ];
 
 export const DEFAULT_PANEL_PROMPTS = {
-  temporal:   "Analyse reading pace and volume over time. Note key shifts and how habits evolved. Keep it concise — 3-4 sentences, no exhaustive author lists.",
-  genre:      "Examine how genre preferences shifted across eras. Identify dominant genres and notable transitions. Keep it concise — 3-4 sentences, focus on patterns not catalogues.",
+  temporal:   "Analyse the rhythm of reading — peaks, lulls, and gaps — as a record of life intensity. What does the pattern of engagement (not what was read, but when and how much) suggest about how life shaped the habit? Do not discuss genre or taste. Keep it concise — 3-4 sentences.",
+  genre:      "Trace how taste has evolved over time — what genres and forms dominated each era, and what the migrations between them reveal about changing intellectual and emotional appetites. Do not discuss pace or volume. Keep it concise — 3-4 sentences, focus on the arc not a catalogue.",
   thematic:   "Surface the 2-3 most significant recurring themes or intellectual preoccupations across the library. Keep it concise — 3-4 sentences.",
-  contextual: "Connect reading choices to life phases and context. Keep it concise — 3-4 sentences, focus on the narrative arc not individual books.",
-  complexity: "Evaluate the balance between challenging and accessible reading over time. Keep it concise — 3-4 sentences, mention at most one or two specific examples.",
-  emotional:  "Map the emotional arc of the library across eras. Keep it concise — 3-4 sentences, describe the shift in register without listing many titles.",
+  contextual: "Infer what life events, transitions, or phases might explain shifts and clusters in the reading list. What does the data suggest about what was happening off the page? Speculate thoughtfully where the evidence implies a story. Keep it concise — 3-4 sentences.",
+  complexity: "Describe the overall intellectual appetite this library reveals as a snapshot — not through time. What does the balance of demanding vs. accessible reads say about how this person reads? Keep it concise — 3-4 sentences, mention at most one or two specific examples.",
+  emotional:  "Describe the dominant emotional palette of this library as a whole. What tones, moods, and emotional registers does this reader consistently seek out or avoid? Treat the library as a single body of work, not a timeline. Keep it concise — 3-4 sentences.",
+  blindspots: "Identify what's conspicuously absent from this library given the reader's apparent interests and patterns. What genres, cultures, perspectives, or forms would a thoughtful observer expect to find but don't? What do the gaps reveal about the reader? Keep it concise — 3-4 sentences.",
+  recent:     "Focus exclusively on the books provided (read in the last 12 months). What themes, moods, or interests define this window? Does this period mark a shift from the broader reading history? Keep it concise — 3-4 sentences.",
 };
 
 export const INPUT_DEFAULTS = {
