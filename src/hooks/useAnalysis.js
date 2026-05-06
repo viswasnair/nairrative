@@ -77,11 +77,12 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
         const isRecent = dimension === "recent";
         const listLabel = isRecent ? `RECENT BOOKS — last 12 months (${recentBooks.length} books)` : `FULL BOOK LIST (${books.length} books)`;
         const listContent = isRecent ? recentList : fullList;
+        const noYearsNote = ["temporal", "genre", "contextual"].includes(dimension) ? "" : "\n\nCRITICAL: Do not reference or cite any specific years in your response.";
         const res = await fetch(CLAUDE_URL, {
           method: "POST", headers: claudeHeaders(session),
           body: JSON.stringify({
             model: "claude-sonnet-4-6", max_tokens: 350,
-            system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". Write 3-4 concise sentences focused on patterns and arc — not catalogues of titles or authors. Mention at most 1-2 specific examples to ground the observation. Do not use markdown formatting. Do not invent facts.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.`,
+            system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". Write 3-4 concise sentences focused on patterns and arc — not catalogues of titles or authors. Mention at most 1-2 specific examples to ground the observation. Do not use markdown formatting. Do not invent facts.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.${noYearsNote}`,
             messages: [{ role: "user", content: `${ctx}\n\n--- ${listLabel} ---\n${listContent}\n\nGenerate insight for the "${dimension}" dimension only.` }]
           })
         });
@@ -145,11 +146,12 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
       const listLabel = dimension === "recent" ? `RECENT BOOKS — last 12 months (${listSource.length} books)` : `FULL BOOK LIST (${books.length} books)`;
       const effectivePrompt = panelPrompts[dimension]?.trim() || DEFAULT_PANEL_PROMPTS[dimension] || "";
       const customInstruction = effectivePrompt ? `\n\nFocus: ${effectivePrompt}` : "";
+      const noYearsNote = ["temporal", "genre", "contextual"].includes(dimension) ? "" : "\n\nCRITICAL: Do not reference or cite any specific years in your response.";
       const res = await fetch(CLAUDE_URL, {
         method: "POST", headers: claudeHeaders(session),
         body: JSON.stringify({
           model: "claude-opus-4-6", max_tokens: 400,
-          system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". Write 3-4 concise sentences — surface a non-obvious pattern or insight. Mention at most 1-2 specific authors or titles as illustrative examples; do not catalogue books. Do not use markdown formatting. Do not invent facts.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.`,
+          system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". Write 3-4 concise sentences — surface a non-obvious pattern or insight. Mention at most 1-2 specific authors or titles as illustrative examples; do not catalogue books. Do not use markdown formatting. Do not invent facts.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.${noYearsNote}`,
           messages: [{ role: "user", content: `${ctx}\n\n--- ${listLabel} ---\n${fullList}\n\nGenerate insight for the "${dimension}" dimension only.` }]
         })
       });
