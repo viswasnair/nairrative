@@ -11,6 +11,81 @@ A personal reading dashboard that turns a book list into a living portrait of yo
 - **Series** — AI catch-up recaps for any series in your library
 - **Chat** — Conversational reading assistant with full access to your book database
 
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- A [Supabase](https://supabase.com) account (free tier is sufficient)
+- A [Vercel](https://vercel.com) account (free tier is sufficient)
+- An [Anthropic API key](https://console.anthropic.com) (for AI features)
+
+### 1. Clone and install
+
+```bash
+git clone https://github.com/viswasnair/nairrative.git
+cd nairrative
+npm install
+```
+
+### 2. Create a Supabase project
+
+1. Create a new project at [supabase.com](https://supabase.com)
+2. Go to **Settings → API** and note your **Project URL** and **anon public key**
+3. In the SQL editor, create the following tables:
+
+| Table | Purpose |
+|-------|---------|
+| `books` | Main book records (`title`, `genre[]`, `year_read_start`, `year_read_end`, `pages`, `fiction`, `format`, `series`, `notes`, `cover_url`, `user_id`) |
+| `authors` | Author lookup (`name`, `country`) |
+| `book_authors` | Book↔author join (`book_id`, `author_id`, `author_order`) |
+| `genres` | Genre list with colour codes (`name`, `color`) |
+| `recs_cache` | Cached recommendation results — single row `id=1` |
+| `analysis_cache` | Cached analysis panel results — single row `id=1` |
+| `panel_prompts` | Per-user customised analysis prompts — single row `id=1` |
+
+> **Note:** A full SQL schema file is not yet in the repo. Contact the maintainer for the DDL, or inspect the Supabase table editor to replicate the structure.
+
+4. Enable **Row Level Security** on all tables:
+   - `books`, `book_authors`: authenticated users only, scoped to `auth.uid() = user_id`
+   - `authors`, `genres`: public SELECT, authenticated write
+   - `recs_cache`, `analysis_cache`, `panel_prompts`: public SELECT, authenticated write
+
+5. Enable **Email auth** under **Authentication → Providers**
+
+### 3. Set up local environment
+
+Create a `.env.local` file in the project root:
+
+```
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+### 4. Run locally
+
+```bash
+npm run dev
+```
+
+The app runs at `http://localhost:5173`. Auth, database reads/writes, and all UI features work locally. **AI features (`/api/claude`) require the Vercel Edge Function** — they will not work with `npm run dev` alone. To run AI features locally, install the [Vercel CLI](https://vercel.com/docs/cli) and use `vercel dev` instead, with `ANTHROPIC_API_KEY` set in your Vercel project environment.
+
+### 5. Deploy to Vercel
+
+1. Push your fork to GitHub
+2. Import the repo in the [Vercel dashboard](https://vercel.com/new)
+3. Add the following environment variables in **Settings → Environment Variables**:
+
+```
+VITE_SUPABASE_URL
+VITE_SUPABASE_ANON_KEY
+ANTHROPIC_API_KEY
+```
+
+4. Deploy — Vercel auto-deploys on every push to `main`
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
