@@ -364,6 +364,35 @@ export default function App() {
       const fullList = books
         .map(b => `[${b.year}] "${b.title}" by ${b.author} | ${(b.genre||[]).join("/")}${b.pages ? " | " + b.pages + "pp" : ""}${b.series ? " | series: " + b.series : ""}${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}${b.notes ? " | " + b.notes : ""}`)
         .join("\n");
+      // Overview KPIs and chart data (mirrors what the Overview tab shows)
+      const withPages = books.filter(b => b.pages);
+      const totalPages = withPages.reduce((s, b) => s + b.pages, 0);
+      const uniqueAuthors = new Set(books.map(b => b.author)).size;
+      const booksPerYear = stats.readingSpan ? Math.round(stats.total / stats.readingSpan) : null;
+      const avgPagesPerBook = withPages.length ? Math.round(totalPages / withPages.length) : null;
+      const pagesPerDay = stats.readingSpan && totalPages ? (totalPages / (stats.readingSpan * 365)).toFixed(1) : null;
+      const overviewContext = [
+        `Total: ${stats.total} books · ${uniqueAuthors} authors · ${stats.readingSpan} years reading`,
+        booksPerYear ? `Pace: ${booksPerYear} books/year` : "",
+        avgPagesPerBook ? `Pages: avg ${avgPagesPerBook} pages/book · ${pagesPerDay} pages/day` : "",
+        stats.sortedYears[0] ? `Peak year: ${stats.sortedYears[0][0]} (${stats.sortedYears[0][1]} books)` : "",
+        stats.sortedAuthors[0] ? `#1 author: ${stats.sortedAuthors[0][0]} (${stats.sortedAuthors[0][1]} books)` : "",
+        stats.sortedGenres[0] ? `Top genre: ${stats.sortedGenres[0][0]} (${stats.sortedGenres[0][1]} books)` : "",
+        `Fiction/Non-fiction split: ${analysisInsights.fictionCount} fiction (${analysisInsights.fictionPct}%) · ${analysisInsights.nonFictionCount} non-fiction`,
+        `Series books: ${analysisInsights.seriesCount} (${analysisInsights.seriesPct}%)`,
+        analysisInsights.loyaltyRatio ? `${analysisInsights.loyaltyRatio}% of books from authors read 5+ times` : "",
+        "",
+        "Books per year: " + Object.entries(stats.byYear).sort((a, b) => a[0] - b[0]).map(([y, c]) => `${y}:${c}`).join(", "),
+        "",
+        "Genre breakdown: " + stats.sortedGenres.slice(0, 15).map(([g, c]) => `${g}:${c}`).join(", "),
+        "",
+        "Top authors: " + stats.sortedAuthors.slice(0, 20).map(([a, c]) => `${a}:${c}`).join(", "),
+        "",
+        Object.keys(stats.byCountry).length
+          ? "Author origins: " + Object.entries(stats.byCountry).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([c, n]) => `${c}:${n}`).join(", ")
+          : "",
+      ].filter(Boolean).join("\n");
+
       const resolvedAnalysis = analysisAI ?? (() => {
         try { return JSON.parse(localStorage.getItem("nairrative_analysis_ai") || "null"); } catch { return null; }
       })();
@@ -432,6 +461,9 @@ IMPORTANT CONTEXT: Year 2010 is a collective placeholder for all books read betw
 
 --- DATABASE SUMMARY ---
 ${summary}
+
+--- OVERVIEW STATS & KPIs ---
+${overviewContext}
 
 --- FULL BOOK LIST (${books.length} books) ---
 ${fullList}
