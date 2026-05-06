@@ -38,11 +38,3 @@ export const DEFAULT_PANEL_PROMPTS = {
   recent:     "Focus exclusively on the books provided (read in the last 12 months). What themes, moods, or interests define this window? Does this period mark a shift from the broader reading history? Do not reference specific calendar years. Keep it concise — 3-4 sentences.",
 };
 
-export const INPUT_DEFAULTS = {
-  "loved":       ["Dune", "The Name of the Wind", "The White Tiger", "Gone Girl", "Foundation", "The Remains of the Day"],
-  "authors-like":["Brandon Sanderson", "Agatha Christie", "Yuval Noah Harari", "Arundhati Roy", "Michael Crichton", "Neil Gaiman"],
-  "mood":        ["dark and atmospheric", "light and funny", "epic and sweeping", "thought-provoking non-fiction", "cozy and comforting", "fast-paced thriller"],
-  "topic":       ["artificial intelligence", "Indian history", "climate and environment", "espionage", "philosophy of mind", "exploration and adventure"],
-  "occasion":    ["a long flight", "book club", "summer reading", "a lazy weekend", "gift for a friend who loves thrillers", "something to read before bed"],
-  "pair":        ["Oppenheimer (film)", "Shogun (TV series)", "a trip to Japan", "watching the World Cup", "Interstellar (film)", "reading about WW2"],
-};

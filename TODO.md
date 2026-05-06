@@ -7,19 +7,12 @@ Tasks are added here as they come up in chat. Completed tasks are removed.
 - [ ] Support for multiple users
 - [ ] Push content to AWS infrastructure
   - Depends on: Multi-user data model design (authors/genres ownership decision)
-  - Depends on: Fix `authors` table write RLS
-  - Depends on: Remove `script-src 'unsafe-inline'` from CSP
   - Note: Global rate limiting and security event logging should be solved in AWS (API Gateway + CloudWatch), not before
 - [ ] Support for movies
 - [ ] Relationship graph chart
-- [ ] Overview tab: limit "Recently Read" to last 5 books; limit "Hall of Fame" to 5 books and auto-rotate them every few seconds
-
 ## Security (red teaming)
 
-- [ ] Remove `script-src 'unsafe-inline'` from CSP in `vercel.json` — verify Vite production build emits no inline scripts, then drop it. Meaningful XSS protection improvement.
-- [ ] Fix `authors` table write RLS — any authenticated user can currently update/delete any author row. Low risk now (single user), becomes a gap if multi-user is added.
-- [ ] Global rate limiting via Upstash Redis — current in-memory rate limit resets on cold starts and doesn't share state across Vercel edge instances.
-- [ ] Security event logging — add structured logging to `api/claude.js` for failed auth attempts and rate limit hits so they surface in Vercel runtime logs.
+- [ ] Create a dedicated Supabase test account for Playwright tests — currently `.env.local` holds the real login credential; tests should run against a blank account that sets up and tears down its own data.
 
 ---
 

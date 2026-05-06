@@ -40,6 +40,7 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
   const alBooks = cb("al");
   const alRange = getChartRange("al");
   const alData = [];
+  // 2010 is a collective placeholder for 1998–2010 and would skew avg length; start from 2011
   for (let y = Math.max(alRange.from, 2011); y <= alRange.to; y++) { const yb=alBooks.filter(b=>b.year===y&&b.pages); alData.push({year:y,avg:yb.length?Math.round(yb.reduce((s,b)=>s+b.pages,0)/yb.length):null}); }
 
   const fmBooks = cb("fm");
@@ -68,10 +69,6 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
       {children}
     </div>
   );
-
-  const recentBooks = [...books]
-    .sort((a, b) => (b.year_read_end || 0) - (a.year_read_end || 0) || b.id - a.id)
-    .slice(0, 10);
 
   return (
     <div>

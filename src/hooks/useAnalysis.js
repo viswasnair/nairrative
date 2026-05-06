@@ -3,7 +3,14 @@ import { supabase } from "../lib/supabase";
 import { buildBookContext } from "../lib/bookUtils";
 import { SEED_ANALYSIS, } from "../constants/seeds";
 import { DEFAULT_PANEL_PROMPTS } from "../constants/config";
-import { CLAUDE_URL, claudeHeaders } from "../lib/api";
+import { CLAUDE_URL, claudeHeaders, INTER_REQUEST_DELAY_MS } from "../lib/api";
+
+const toRow = b =>
+  `[${b.year_read_end || b.year}] "${b.title}" by ${b.author} | ${(b.genre || []).join("/")}` +
+  `${b.pages ? " | " + b.pages + "pp" : ""}` +
+  `${b.series ? " | series: " + b.series : ""}` +
+  `${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}` +
+  `${b.notes ? " | notes: " + b.notes : ""}`;
 
 export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt }) {
   const [analysisAI, setAnalysisAI] = useState(null);
@@ -23,7 +30,7 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
           setPanelPrompts(data.data);
           localStorage.setItem("nairrative_panel_prompts", JSON.stringify(data.data));
         }
-      }).catch(() => {});
+      }).catch(e => console.error("Failed to load panel prompts:", e));
   }, []);
 
   // Load analysis: localStorage → Supabase → seed fallback
@@ -66,7 +73,6 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
     const ctx = buildBookContext(books);
     const currentYear = new Date().getFullYear();
     const recentBooks = books.filter(b => (b.year_read_end || b.year) >= currentYear - 1);
-    const toRow = b => `[${b.year_read_end || b.year}] "${b.title}" by ${b.author} | ${(b.genre || []).join("/")}${b.pages ? " | " + b.pages + "pp" : ""}${b.series ? " | series: " + b.series : ""}${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}${b.notes ? " | notes: " + b.notes : ""}`;
     const fullList = books.map(toRow).join("\n");
     const recentList = recentBooks.map(toRow).join("\n");
     const result = {};
@@ -95,7 +101,7 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
         }
         setAnalysisAI(prev => ({ ...prev, [dimension]: result[dimension] }));
       } catch (e) { console.error(`Analysis AI error (${dimension}):`, e); }
-      await new Promise(r => setTimeout(r, 8000));
+      await new Promise(r => setTimeout(r, INTER_REQUEST_DELAY_MS));
     }
     localStorage.setItem("nairrative_analysis_ai", JSON.stringify(result));
     localStorage.setItem("nairrative_analysis_fp", booksFingerprint);
@@ -127,7 +133,7 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
   };
 
   const savePanelPromptsToSupabase = async (prompts) => {
-    try { await supabase.from("panel_prompts").upsert({ id: 1, data: prompts }); } catch { /* silent */ }
+    try { await supabase.from("panel_prompts").upsert({ id: 1, data: prompts }); } catch (e) { console.error("Failed to save panel prompts:", e); }
   };
 
   const regeneratePanel = async (dimension) => {
@@ -140,9 +146,7 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
       const listSource = dimension === "recent"
         ? books.filter(b => (b.year_read_end || b.year) >= currentYear - 1)
         : books;
-      const fullList = listSource
-        .map(b => `[${b.year_read_end || b.year}] "${b.title}" by ${b.author} | ${(b.genre || []).join("/")}${b.pages ? " | " + b.pages + "pp" : ""}${b.series ? " | series: " + b.series : ""}${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}${b.notes ? " | notes: " + b.notes : ""}`)
-        .join("\n");
+      const fullList = listSource.map(toRow).join("\n");
       const listLabel = dimension === "recent" ? `RECENT BOOKS — last 12 months (${listSource.length} books)` : `FULL BOOK LIST (${books.length} books)`;
       const effectivePrompt = panelPrompts[dimension]?.trim() || DEFAULT_PANEL_PROMPTS[dimension] || "";
       const customInstruction = effectivePrompt ? `\n\nFocus: ${effectivePrompt}` : "";

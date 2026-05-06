@@ -32,6 +32,46 @@ function sanitizeCoverUrl(url) {
   } catch { return null; }
 }
 
+async function fetchAuthorCountry(authorName, session) {
+  try {
+    const res = await fetch(CLAUDE_URL, {
+      method: "POST", headers: claudeHeaders(session),
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001", max_tokens: 20,
+        messages: [{ role: "user", content: `What country is the author "${sanitizeShortInput(authorName)}" from? Reply with only the ISO 3166-1 short country name (e.g. "United Kingdom" not "UK", "United States" not "USA", "Czechia" not "Czech Republic"). If unknown, reply "Unknown".` }]
+      })
+    });
+    const data = await res.json();
+    return data.content?.[0]?.text?.trim() || null;
+  } catch { return null; }
+}
+
+// Resolves each author (SELECT or INSERT), backfills country, links to bookId via book_authors.
+// Returns the resolved rows in the shape expected by normalizeBook.
+async function resolveAuthorLinks(authors, bookId, session) {
+  const resolved = [];
+  for (let i = 0; i < authors.length; i++) {
+    const aName = authors[i].name.trim();
+    if (!aName) continue;
+    let { data: au } = await supabase.from("authors").select().eq("name", aName).maybeSingle();
+    if (!au) {
+      const { data: newAu, error } = await supabase.from("authors").insert([{ name: aName }]).select().single();
+      if (error || !newAu) throw new Error(`Could not create author: ${aName}`);
+      au = newAu;
+    }
+    if (!au.country) {
+      const country = await fetchAuthorCountry(aName, session);
+      if (country) {
+        await supabase.from("authors").update({ country }).eq("id", au.id);
+        au.country = country;
+      }
+    }
+    await supabase.from("book_authors").insert([{ book_id: bookId, author_id: au.id, author_order: i + 1 }]);
+    resolved.push({ author_order: i + 1, authors: au });
+  }
+  return resolved;
+}
+
 function fuzzyMatches(input, list) {
   if (!input || !list.length) return [];
   const lower = input.toLowerCase().trim();
@@ -62,7 +102,6 @@ const EMPTY_DRAFT = {
 
 export function useBooks({ session }) {
   const [books, setBooks] = useState([]);
-  const [booksLoading, setBooksLoading] = useState(true);
   const [genreList, setGenreList] = useState([]);
   const [genreMap, setGenreMap] = useState({});
 
@@ -113,14 +152,13 @@ export function useBooks({ session }) {
       .select(`${cols}, book_authors(author_order, authors(id, name, country))`)
       .order("id")
       .then(({ data, error }) => {
-        if (error) { console.error("Supabase fetch error:", error); setBooksLoading(false); return; }
+        if (error) { console.error("Supabase fetch error:", error); return; }
         if (data) {
           try { setBooks(data.map(normalizeBook)); }
           catch (e) { console.error("normalizeBook error:", e, data[0]); }
         }
-        setBooksLoading(false);
       })
-      .catch(e => { console.error("Supabase connection error:", e); setBooksLoading(false); });
+      .catch(e => { console.error("Supabase connection error:", e); });
   }, [session]);
 
   const booksFingerprint = useMemo(() =>
@@ -229,21 +267,6 @@ export function useBooks({ session }) {
     setAuthorSuggestions(prev => { const next = [...prev]; next[i] = null; return next; });
   };
 
-  const lookupAuthorCountry = async (authorName) => {
-    const safeName = sanitizeShortInput(authorName);
-    try {
-      const res = await fetch(CLAUDE_URL, {
-        method: "POST", headers: claudeHeaders(session),
-        body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001", max_tokens: 20,
-          messages: [{ role: "user", content: `What country is the author "${safeName}" from? Reply with only the ISO 3166-1 short country name (e.g. "United Kingdom" not "UK", "United States" not "USA", "Czechia" not "Czech Republic"). If unknown, reply "Unknown".` }]
-        })
-      });
-      const data = await res.json();
-      return data.content?.[0]?.text?.trim() || null;
-    } catch { return null; }
-  };
-
   const acceptGenreSuggestion = (suggestion) => {
     if (!suggestion) return;
     if (!bookDraft.genres.includes(suggestion))
@@ -327,17 +350,7 @@ export function useBooks({ session }) {
         }).eq("id", editingBook.id);
         if (error) throw error;
         await supabase.from("book_authors").delete().eq("book_id", editingBook.id);
-        for (let i = 0; i < authors.length; i++) {
-          const aName = authors[i].name.trim(); if (!aName) continue;
-          const { data: au, error: auErr } = await supabase.from("authors").upsert([{ name: aName }], { onConflict: "name", ignoreDuplicates: false }).select().single();
-          if (auErr || !au) throw new Error(`Could not resolve author: ${aName}`);
-          if (!au.country) {
-            const country = await lookupAuthorCountry(aName);
-            if (country) await supabase.from("authors").update({ country }).eq("id", au.id);
-          }
-          await supabase.from("book_authors").insert([{ book_id: editingBook.id, author_id: au.id, author_order: i + 1 }]);
-        }
-        const updatedAuthors = authors.filter(a => a.name.trim()).map((a, i) => ({ author_order: i + 1, authors: { id: 0, name: a.name, country: a.country } }));
+        const updatedAuthors = await resolveAuthorLinks(authors, editingBook.id, session);
         const normalized = normalizeBook({ ...editingBook, title: title.trim(), year_read_start: ys, year_read_end: ye, genre: genres, format, fiction, series, pages: pages ? parseInt(pages) : null, notes, cover_url: sanitizeCoverUrl(cover_url), rating: rating || null, book_authors: updatedAuthors });
         setBooks(prev => prev.map(b => b.id === editingBook.id ? normalized : b));
         const updatedNames = authors.map(a => a.name.trim()).filter(n => n && !authorList.includes(n));
@@ -355,18 +368,7 @@ export function useBooks({ session }) {
           user_added: true,
         }]).select().single();
         if (bookErr) throw bookErr;
-        const bookAuthors = [];
-        for (let i = 0; i < authors.length; i++) {
-          const aName = authors[i].name.trim(); if (!aName) continue;
-          const { data: au, error: auErr } = await supabase.from("authors").upsert([{ name: aName }], { onConflict: "name", ignoreDuplicates: false }).select().single();
-          if (auErr || !au) throw new Error(`Could not resolve author: ${aName}`);
-          if (!au.country) {
-            const country = await lookupAuthorCountry(aName);
-            if (country) { await supabase.from("authors").update({ country }).eq("id", au.id); au.country = country; }
-          }
-          await supabase.from("book_authors").insert([{ book_id: book.id, author_id: au.id, author_order: i + 1 }]);
-          bookAuthors.push({ author_order: i + 1, authors: au });
-        }
+        const bookAuthors = await resolveAuthorLinks(authors, book.id, session);
         setBooks(prev => [...prev, normalizeBook({ ...book, book_authors: bookAuthors })]);
         const addedNames = authors.map(a => a.name.trim()).filter(n => n && !authorList.includes(n));
         if (addedNames.length) setAuthorList(prev => [...new Set([...prev, ...addedNames])].sort());

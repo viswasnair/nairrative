@@ -1,10 +1,10 @@
-import { useState, Fragment } from "react";
+import { useState, Fragment, memo } from "react";
 import G from "../constants/theme";
 import { stripMd } from "../lib/bookUtils";
 import SeriesTab from "./SeriesTab";
 import NewReleasesTab from "./NewReleasesTab";
 
-const RecList = ({ results, loading }) => {
+const RecList = memo(({ results, loading }) => {
   if (loading) return (
     <div style={{ marginTop: 12 }}>
       <div className="pulse" style={{ height: 12, width: "70%", background: G.border, borderRadius: 4, marginBottom: 6 }} />
@@ -22,7 +22,7 @@ const RecList = ({ results, loading }) => {
       {r.reason && <div style={{ fontSize: 11, color: G.muted, lineHeight: 1.6 }}>{stripMd(r.reason)}</div>}
     </div>
   );
-};
+});
 
 const SUB_TABS = [
   { id: "picks",    label: "Picks" },

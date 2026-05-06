@@ -19,22 +19,23 @@ const ALLOWED_MODELS = new Set([
 ]);
 const MAX_TOKENS_HARD_LIMIT = 2000;
 
-// Rate limit: 30 requests per 60s per user
-// Module-level map persists within an edge function instance
-const rateLimitMap = new Map();
 const RATE_LIMIT = 30;
-const RATE_WINDOW_MS = 60_000;
+const RATE_WINDOW_S = 60;
 
-function checkRateLimit(sub) {
-  const now = Date.now();
-  const entry = rateLimitMap.get(sub);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(sub, { count: 1, resetAt: now + RATE_WINDOW_MS });
-    return true;
-  }
-  if (entry.count >= RATE_LIMIT) return false;
-  entry.count++;
-  return true;
+// Returns true (allow) or false (block). Fails open if Redis is unreachable.
+async function checkRateLimit(sub, redisUrl, redisToken) {
+  try {
+    const key = `rl:${sub}`;
+    const res = await fetch(`${redisUrl}/pipeline`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${redisToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify([["INCR", key], ["EXPIRE", key, RATE_WINDOW_S]]),
+    });
+    if (!res.ok) return true;
+    const data = await res.json();
+    const count = data[0]?.result;
+    return typeof count !== "number" || count <= RATE_LIMIT;
+  } catch { return true; }
 }
 
 function b64url(s) {
@@ -75,6 +76,13 @@ async function verifyJWT(token, supabaseUrl) {
   } catch { return { ok: false }; }
 }
 
+function securityLog(event, req, extra = {}) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim()
+    || req.headers.get("x-real-ip")
+    || "unknown";
+  console.warn(JSON.stringify({ event, ip, t: new Date().toISOString(), ...extra }));
+}
+
 export default async function handler(req) {
   if (req.method === "OPTIONS")
     return new Response(null, { status: 204, headers: corsHeaders(req) });
@@ -84,20 +92,31 @@ export default async function handler(req) {
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+  const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
   if (!apiKey) return new Response("API key not configured", { status: 500 });
   if (!supabaseUrl) return new Response("Server misconfigured", { status: 500 });
+  if (!redisUrl || !redisToken) return new Response("Server misconfigured", { status: 500 });
 
   const cors = corsHeaders(req);
 
   const authHeader = req.headers.get("Authorization") || "";
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) return new Response("Unauthorized", { status: 401, headers: cors });
+  if (!token) {
+    securityLog("missing_token", req);
+    return new Response("Unauthorized", { status: 401, headers: cors });
+  }
 
   const { ok, sub } = await verifyJWT(token, supabaseUrl);
-  if (!ok) return new Response("Unauthorized", { status: 401, headers: cors });
+  if (!ok) {
+    securityLog("invalid_jwt", req);
+    return new Response("Unauthorized", { status: 401, headers: cors });
+  }
 
-  if (!checkRateLimit(sub))
+  if (!await checkRateLimit(sub, redisUrl, redisToken)) {
+    securityLog("rate_limit_exceeded", req, { sub });
     return new Response("Too Many Requests", { status: 429, headers: cors });
+  }
 
   let body;
   try { body = await req.json(); }
