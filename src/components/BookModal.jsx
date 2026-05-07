@@ -38,34 +38,36 @@ export default function BookModal({
   const [pasteMode, setPasteMode] = useState(false);
   const [pasteInput, setPasteInput] = useState("");
 
-  // Reset cover search state whenever the title changes.
+  // Auto-search covers whenever the title changes, with a debounce.
   useEffect(() => {
     setCoverResults([]);
     setCoverSearched(false);
     setPasteMode(false);
     setPasteInput("");
-  }, [bookDraft.title]);
 
-  const searchCovers = async () => {
     const title = bookDraft.title?.trim();
-    const author = bookDraft.authors?.[0]?.name?.trim();
     if (!title) return;
-    setCoverSearching(true);
-    setCoverResults([]);
-    try {
-      const params = new URLSearchParams({ fields: "cover_i,title", limit: 20 });
-      params.set("title", title);
-      if (author) params.set("author", author);
-      const res = await fetch(`https://openlibrary.org/search.json?${params}`);
-      const data = await res.json();
-      const ids = [...new Set(
-        (data.docs || []).filter(d => d.cover_i).map(d => d.cover_i)
-      )].slice(0, 9);
-      setCoverResults(ids);
-    } catch { /* silently fail */ }
-    setCoverSearching(false);
-    setCoverSearched(true);
-  };
+
+    const author = bookDraft.authors?.[0]?.name?.trim();
+    const timer = setTimeout(async () => {
+      setCoverSearching(true);
+      try {
+        const params = new URLSearchParams({ fields: "cover_i,title", limit: 20 });
+        params.set("title", title);
+        if (author) params.set("author", author);
+        const res = await fetch(`https://openlibrary.org/search.json?${params}`);
+        const data = await res.json();
+        const ids = [...new Set(
+          (data.docs || []).filter(d => d.cover_i).map(d => d.cover_i)
+        )].slice(0, 9);
+        setCoverResults(ids);
+      } catch { /* silently fail */ }
+      setCoverSearching(false);
+      setCoverSearched(true);
+    }, 700);
+
+    return () => clearTimeout(timer);
+  }, [bookDraft.title]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const applyPasteUrl = () => {
     const url = pasteInput.trim();
@@ -103,7 +105,8 @@ export default function BookModal({
           {bookChatPending && (
             <div style={{ marginTop: 10, padding: "10px 12px", background: `${G.gold}12`, border: `1px solid ${G.goldDim}`, borderRadius: 8 }}>
               <div style={{ fontSize: 12, color: G.text, fontWeight: 600, marginBottom: 4 }}>"{bookChatPending.title}" by {bookChatPending.authors?.map(a => a.name).join(" & ")}</div>
-              <div style={{ fontSize: 11, color: G.muted, marginBottom: 8 }}>{bookChatPending.genres?.join(", ")} · {bookChatPending.fiction ? "Fiction" : "Non-Fiction"} · {bookChatPending.format} · {bookChatPending.year}{bookChatPending.pages ? ` · ${bookChatPending.pages}pp` : ""}</div>
+              <div style={{ fontSize: 11, color: G.muted, marginBottom: 4 }}>{bookChatPending.genres?.join(", ")} · {bookChatPending.fiction ? "Fiction" : "Non-Fiction"} · {bookChatPending.format} · {bookChatPending.year}{bookChatPending.pages ? ` · ${bookChatPending.pages}pp` : ""}</div>
+              {bookChatPending.description && <div style={{ fontSize: 11, color: G.muted, fontStyle: "italic", marginBottom: 8, lineHeight: 1.5 }}>{bookChatPending.description}</div>}
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="btn-gold" style={{ fontSize: 11, padding: "5px 12px" }} onClick={applyPending}>Apply to form</button>
                 <button className="btn-ghost" style={{ fontSize: 11, padding: "5px 12px" }} onClick={() => setBookChatPending(null)}>Dismiss</button>
@@ -220,6 +223,12 @@ export default function BookModal({
             <input className="input-dark" placeholder="Series name (optional)" value={bookDraft.series} onChange={e => setBookDraft(p => ({ ...p, series: e.target.value }))} />
           </div>
 
+          {/* Description */}
+          <div>
+            <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 5 }}>Description <span style={{ textTransform: "none", letterSpacing: 0, fontStyle: "italic" }}>(spoiler-free summary)</span></div>
+            <textarea className="input-dark" rows={3} placeholder="A brief spoiler-free summary — shown on hover in the library…" value={bookDraft.description} onChange={e => setBookDraft(p => ({ ...p, description: e.target.value }))} style={{ resize: "vertical", lineHeight: 1.5, fontSize: 12 }} />
+          </div>
+
           {/* Rating */}
           <div>
             <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 8 }}>Rating</div>
@@ -263,10 +272,8 @@ export default function BookModal({
                 }
               </div>
               <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  <button className="btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }} onClick={searchCovers} disabled={coverSearching || !bookDraft.title?.trim()}>
-                    {coverSearching ? "Searching…" : "Search covers"}
-                  </button>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                  {coverSearching && <span style={{ fontSize: 11, color: G.muted }}>Searching…</span>}
                   <button className="btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }} onClick={() => { setPasteMode(p => !p); setCoverResults([]); }}>
                     Paste URL
                   </button>

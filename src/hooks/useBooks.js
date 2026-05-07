@@ -44,7 +44,7 @@ async function resolveAuthorLinks(authors, bookId, session) {
   return resolved;
 }
 
-const EMPTY_DRAFT = {
+const makeDraft = () => ({
   title: "",
   authors: [{ name: "" }],
   genres: [],
@@ -57,7 +57,8 @@ const EMPTY_DRAFT = {
   notes: "",
   cover_url: "",
   rating: "",
-};
+  description: "",
+});
 
 export function useBooks({ session }) {
   const [books, setBooks] = useState([]);
@@ -66,7 +67,7 @@ export function useBooks({ session }) {
 
   const [showBookModal, setShowBookModal] = useState(false);
   const [editingBook, setEditingBook] = useState(null);
-  const [bookDraft, setBookDraft] = useState(EMPTY_DRAFT);
+  const [bookDraft, setBookDraft] = useState(makeDraft);
 
   const [bookChatLoading, setBookChatLoading] = useState(false);
   const [bookChatPending, setBookChatPending] = useState(null);
@@ -104,7 +105,7 @@ export function useBooks({ session }) {
   // Fetch books — depends on session so we re-fetch once auth is established
   useEffect(() => {
     if (session === undefined) return; // still initialising
-    const PUBLIC_COLS = "id, user_id, title, year_read_start, year_read_end, genre, format, fiction, series, series_number, pages, user_added, created_at, updated_at, cover_url, rating";
+    const PUBLIC_COLS = "id, user_id, title, year_read_start, year_read_end, genre, format, fiction, series, series_number, pages, user_added, created_at, updated_at, cover_url, rating, description";
     const cols = session ? "*" : PUBLIC_COLS;
     supabase
       .from("books")
@@ -126,7 +127,7 @@ export function useBooks({ session }) {
 
   const openAddModal = () => {
     setEditingBook(null);
-    setBookDraft(EMPTY_DRAFT);
+    setBookDraft(makeDraft());
     if (bookChatInputRef.current) bookChatInputRef.current.value = "";
     setBookChatPending(null);
     setBookMsg("");
@@ -150,6 +151,7 @@ export function useBooks({ session }) {
       notes: b.notes || "",
       cover_url: b.cover_url || "",
       rating: b.rating || "",
+      description: b.description || "",
     });
     if (bookChatInputRef.current) bookChatInputRef.current.value = "";
     setBookChatPending(null);
@@ -167,8 +169,8 @@ export function useBooks({ session }) {
       const res = await fetch(CLAUDE_URL, {
         method: "POST", headers: claudeHeaders(session),
         body: JSON.stringify({
-          model: "claude-sonnet-4-6", max_tokens: 400,
-          system: `You are a book database assistant. Given a natural language description of a book, use your knowledge to identify the exact book (correct title, author spelling, publication year) and return ONLY valid JSON (no markdown) with these fields: title (string), authors (array of {name, country}), genres (array, pick from: Fantasy, Sci-Fi, Thriller, Mystery, Literary Fiction, Historical Fiction, Non-Fiction, Graphic Novel, Memoir, Biography, Classic, Philosophy, Popular Science, Self-Help, Travel, Horror, History, Politics, Economics, Psychology, Business), fiction (boolean), format (MUST be exactly one of these values, no others allowed: "Novel", "Novella", "Short Stories", "Graphic Novel", "Non-Fiction", "Play"), series (string or ""), pages (number or null), year (original publication year as number).`,
+          model: "claude-sonnet-4-6", max_tokens: 600,
+          system: `You are a book database assistant. Given a natural language description of a book, use your knowledge to identify the exact book (correct title, author spelling, publication year) and return ONLY valid JSON (no markdown) with these fields: title (string), authors (array of {name, country}), genres (array, pick from: Fantasy, Sci-Fi, Thriller, Mystery, Literary Fiction, Historical Fiction, Non-Fiction, Graphic Novel, Memoir, Biography, Classic, Philosophy, Popular Science, Self-Help, Travel, Horror, History, Politics, Economics, Psychology, Business), fiction (boolean), format (MUST be exactly one of these values, no others allowed: "Novel", "Novella", "Short Stories", "Graphic Novel", "Non-Fiction", "Play"), series (string or ""), pages (number or null), year (original publication year as number), description (2-3 sentence spoiler-free summary of what the book is about and why it is notable).`,
           messages: [{ role: "user", content: bookChatValue }]
         })
       });
@@ -198,6 +200,7 @@ export function useBooks({ session }) {
       pages: bookChatPending.pages ? String(bookChatPending.pages) : p.pages,
       yearStart: bookChatPending.year || p.yearStart,
       yearEnd: bookChatPending.year || p.yearEnd,
+      description: bookChatPending.description || p.description,
     }));
     setBookChatPending(null);
     if (bookChatInputRef.current) bookChatInputRef.current.value = "";
@@ -277,7 +280,7 @@ export function useBooks({ session }) {
   };
 
   const saveBook = async () => {
-    const { title, authors, genres, yearStart, yearEnd, format, fiction, series, pages, notes, cover_url, rating } = bookDraft;
+    const { title, authors, genres, yearStart, yearEnd, format, fiction, series, pages, notes, cover_url, rating, description } = bookDraft;
     if (!title.trim() || !authors[0]?.name?.trim()) { setBookMsg("Title and at least one author are required."); return; }
 
     // Validate author names against existing authors before saving
@@ -306,11 +309,12 @@ export function useBooks({ session }) {
           pages: pages ? parseInt(pages) : null, notes: notes || "",
           cover_url: sanitizeCoverUrl(cover_url),
           rating: rating || null,
+          description: description || "",
         }).eq("id", editingBook.id);
         if (error) throw error;
         await supabase.from("book_authors").delete().eq("book_id", editingBook.id);
         const updatedAuthors = await resolveAuthorLinks(authors, editingBook.id, session);
-        const normalized = normalizeBook({ ...editingBook, title: title.trim(), year_read_start: ys, year_read_end: ye, genre: genres, format, fiction, series, pages: pages ? parseInt(pages) : null, notes, cover_url: sanitizeCoverUrl(cover_url), rating: rating || null, book_authors: updatedAuthors });
+        const normalized = normalizeBook({ ...editingBook, title: title.trim(), year_read_start: ys, year_read_end: ye, genre: genres, format, fiction, series, pages: pages ? parseInt(pages) : null, notes, cover_url: sanitizeCoverUrl(cover_url), rating: rating || null, description: description || "", book_authors: updatedAuthors });
         setBooks(prev => prev.map(b => b.id === editingBook.id ? normalized : b));
         const updatedNames = authors.map(a => a.name.trim()).filter(n => n && !authorList.includes(n));
         if (updatedNames.length) setAuthorList(prev => [...new Set([...prev, ...updatedNames])].sort());
@@ -324,6 +328,7 @@ export function useBooks({ session }) {
           pages: pages ? parseInt(pages) : null, notes: notes || "",
           cover_url: sanitizeCoverUrl(cover_url),
           rating: rating || null,
+          description: description || "",
           user_added: true,
         }]).select().single();
         if (bookErr) throw bookErr;

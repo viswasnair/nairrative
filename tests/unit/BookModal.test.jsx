@@ -138,15 +138,29 @@ describe('BookModal', () => {
     expect(chatFillBook).toHaveBeenCalledTimes(1)
   })
 
-  it('Search covers button triggers fetch to OpenLibrary', async () => {
-    const draft = { ...DRAFT, title: 'Dune' }
-    render(<BookModal {...makeProps({ bookDraft: draft })} />)
-    await act(async () => {
-      fireEvent.click(screen.getByText('Search covers'))
-    })
-    expect(fetch).toHaveBeenCalledWith(
-      expect.stringContaining('openlibrary.org/search.json')
-    )
+  it('auto-searches OpenLibrary covers when title is provided', async () => {
+    vi.useFakeTimers()
+    try {
+      const draft = { ...DRAFT, title: 'Dune' }
+      render(<BookModal {...makeProps({ bookDraft: draft })} />)
+      await act(async () => { vi.advanceTimersByTime(800) })
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining('openlibrary.org/search.json')
+      )
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not auto-search when title is empty', async () => {
+    vi.useFakeTimers()
+    try {
+      render(<BookModal {...makeProps()} />) // DRAFT has title: ''
+      await act(async () => { vi.advanceTimersByTime(800) })
+      expect(fetch).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('Paste URL toggle shows URL input; Enter applies the URL', () => {
