@@ -90,16 +90,20 @@ export default function App() {
 
   const [search, setSearch] = useState("");
   const onCiteClick = (title) => { setSearch(title); switchTab("library"); };
-  const navigateToLibrary = ({ genres = [], years = [], authors = [] } = {}) => {
+  const navigateToLibrary = ({ genres = [], years = [], authors = [], countries = [], formats = [] } = {}) => {
     setSearch("");
     setLibGenres(genres);
     setLibYears(years.map(String));
     setLibAuthors(authors);
+    setLibCountries(countries);
+    setLibFormats(formats);
     switchTab("library");
   };
   const [libGenres, setLibGenres] = useState([]);
   const [libYears, setLibYears] = useState([]);
   const [libAuthors, setLibAuthors] = useState([]);
+  const [libCountries, setLibCountries] = useState([]);
+  const [libFormats, setLibFormats] = useState([]);
   const [libSort, setLibSort] = useState("title");
   const [chartRanges, setChartRanges] = useState({});
   const [messages, setMessages] = useState([
@@ -269,6 +273,8 @@ export default function App() {
       if (libGenres.length > 0 && !(b.genre || []).some(g => libGenres.includes(g))) return false;
       if (libYears.length > 0 && !libYears.includes(String(b.year))) return false;
       if (libAuthors.length > 0 && !(b.authors || []).some(a => libAuthors.includes(a.name))) return false;
+      if (libCountries.length > 0 && !libCountries.includes(b.country)) return false;
+      if (libFormats.length > 0 && !libFormats.includes(b.format || "Unknown")) return false;
       return true;
     }).sort((a, b) => {
       if (libSort === "year") return b.year - a.year;
@@ -281,11 +287,13 @@ export default function App() {
         return ai !== bi ? ai - bi : a.title.localeCompare(b.title);
       }
       return 0;
-    }), [books, search, libGenres, libYears, libAuthors, libSort]);
+    }), [books, search, libGenres, libYears, libAuthors, libCountries, libFormats, libSort]);
 
   const allGenres = genreList;
   const allYears = useMemo(() => Object.keys(stats.byYear).sort().reverse(), [stats]);
   const allAuthors = useMemo(() => [...new Set(books.flatMap(b => (b.authors || []).map(a => a.name)))].sort(), [books]);
+  const allCountries = useMemo(() => [...new Set(books.map(b => b.country).filter(Boolean))].sort(), [books]);
+  const allFormats = useMemo(() => [...new Set(books.map(b => b.format || "Unknown"))].sort(), [books]);
   const allYearsList = useMemo(() => {
     const years = Object.keys(stats.byYearTracked).map(Number);
     if (!years.length) return [];
@@ -648,8 +656,11 @@ Formatting rules: Write in clean, natural prose. Do not use markdown syntax — 
             libGenres={libGenres} setLibGenres={setLibGenres}
             libYears={libYears} setLibYears={setLibYears}
             libAuthors={libAuthors} setLibAuthors={setLibAuthors}
+            libCountries={libCountries} setLibCountries={setLibCountries}
+            libFormats={libFormats} setLibFormats={setLibFormats}
             libSort={libSort} setLibSort={setLibSort}
             allGenres={allGenres} allYears={allYears} allAuthors={allAuthors}
+            allCountries={allCountries} allFormats={allFormats}
             openAddModal={openAddModal}
             openEditModal={openEditModal}
             openRatingMode={() => setShowRatingMode(true)}

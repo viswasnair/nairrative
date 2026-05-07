@@ -153,7 +153,7 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
                 <XAxis type="number" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="country" axisLine={false} tickLine={false} width={90} interval={0} tick={truncTick(14)} />
                 <Tooltip content={<DarkTooltip />} />
-                <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                <Bar dataKey="count" radius={[0, 4, 4, 0]} onClick={onChartClick ? (d) => onChartClick({ countries: [d.country] }) : undefined} style={onChartClick ? { cursor: "pointer" } : undefined}>
                   {coData.map((_, i) => <Cell key={i} fill={`rgba(20, 184, 166, ${Math.max(0.25, 1 - i * 0.08)})`} />)}
                 </Bar>
               </BarChart>
@@ -228,7 +228,7 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
             <ResponsiveContainer width="100%" height={200}>
               <PieChart>
-                <Pie data={fmData} dataKey="value" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3}>
+                <Pie data={fmData} dataKey="value" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3} onClick={onChartClick ? (d) => onChartClick({ formats: [d.name] }) : undefined} style={onChartClick ? { cursor: "pointer" } : undefined}>
                   {fmData.map((e, i) => <Cell key={i} fill={e.color} />)}
                 </Pie>
                 <Tooltip content={<DarkTooltip />} />

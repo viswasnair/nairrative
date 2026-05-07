@@ -25,8 +25,10 @@ export default function LibraryTab({
   libGenres, setLibGenres,
   libYears, setLibYears,
   libAuthors, setLibAuthors,
+  libCountries, setLibCountries,
+  libFormats, setLibFormats,
   libSort, setLibSort,
-  allGenres, allYears, allAuthors,
+  allGenres, allYears, allAuthors, allCountries, allFormats,
   openAddModal, openEditModal, openRatingMode,
 }) {
   const [subTab, setSubTab] = useState("list");
@@ -58,6 +60,8 @@ export default function LibraryTab({
             <MultiSelect options={allGenres} selected={libGenres} onChange={setLibGenres} placeholder="Genre" style={{ width: 130, flex: "0 0 auto" }} />
             <MultiSelect options={allYears} selected={libYears} onChange={setLibYears} placeholder="Year" style={{ width: 100, flex: "0 0 auto" }} />
             <MultiSelect options={allAuthors} selected={libAuthors} onChange={setLibAuthors} placeholder="Author" style={{ width: 160, flex: "0 0 auto" }} />
+            <MultiSelect options={allCountries} selected={libCountries} onChange={setLibCountries} placeholder="Country" style={{ width: 130, flex: "0 0 auto" }} />
+            <MultiSelect options={allFormats} selected={libFormats} onChange={setLibFormats} placeholder="Format" style={{ width: 120, flex: "0 0 auto" }} />
             <select className="input-dark" style={{ width: 130, flex: "0 0 auto" }} value={libSort} onChange={e => setLibSort(e.target.value)}>
               <option value="year">Sort: Year</option>
               <option value="title">Sort: Title</option>
