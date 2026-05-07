@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { stripMd, normalizeBook, buildBookContext } from '../../src/lib/bookUtils.js'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { stripMd, normalizeBook, buildBookContext, downloadCSV, downloadJSON } from '../../src/lib/bookUtils.js'
 
 // ── stripMd ──────────────────────────────────────────────────────────────────
 
@@ -162,5 +162,116 @@ describe('buildBookContext', () => {
   it('includes the 2010 placeholder note', () => {
     const ctx = buildBookContext(books)
     expect(ctx).toContain('Year 2010 is a collective entry')
+  })
+})
+
+// ── downloadCSV / downloadJSON ────────────────────────────────────────────────
+// jsdom doesn't implement URL.createObjectURL, so we stub it.
+// We also spy on HTMLAnchorElement.prototype.click to confirm the download fires.
+
+const DL_BOOKS = [
+  { id: 1, title: 'Dune', author: 'Frank Herbert', year_read_start: 2022, year_read_end: 2022,
+    genre: ['Science Fiction'], country: 'United States', format: 'Novel', pages: 412,
+    series: 'Dune', notes: '' },
+  { id: 2, title: 'Sapiens', author: 'Yuval Harari', year_read_start: 2023, year_read_end: 2023,
+    genre: [], country: '', format: 'Non-Fiction', pages: 443, series: '', notes: 'Great book' },
+]
+
+describe('downloadCSV', () => {
+  let blobSpy, clickSpy
+
+  beforeEach(() => {
+    // jsdom has no createObjectURL implementation
+    Object.defineProperty(URL, 'createObjectURL', {
+      value: vi.fn().mockReturnValue('blob:mock-csv'),
+      writable: true, configurable: true,
+    })
+    blobSpy  = vi.spyOn(global, 'Blob')
+    clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+  })
+
+  afterEach(() => vi.restoreAllMocks())
+
+  it('calls click() to trigger the browser download', () => {
+    downloadCSV(DL_BOOKS)
+    expect(clickSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('creates a Blob with type "text/csv"', () => {
+    downloadCSV(DL_BOOKS)
+    const [, options] = blobSpy.mock.calls[0]
+    expect(options.type).toBe('text/csv')
+  })
+
+  it('CSV content includes the header row', () => {
+    downloadCSV(DL_BOOKS)
+    const [blobParts] = blobSpy.mock.calls[0]
+    expect(blobParts[0]).toContain('Title')
+    expect(blobParts[0]).toContain('Author')
+    expect(blobParts[0]).toContain('Genre')
+  })
+
+  it('CSV content includes each book title', () => {
+    downloadCSV(DL_BOOKS)
+    const [blobParts] = blobSpy.mock.calls[0]
+    expect(blobParts[0]).toContain('Dune')
+    expect(blobParts[0]).toContain('Sapiens')
+  })
+
+  it('sets download attribute to "my_reading_list.csv"', () => {
+    // Capture the created anchor to inspect its download attribute
+    const origCreate = document.createElement.bind(document)
+    let capturedAnchor = null
+    vi.spyOn(document, 'createElement').mockImplementation(tag => {
+      const el = origCreate(tag)
+      if (tag === 'a') capturedAnchor = el
+      return el
+    })
+    downloadCSV(DL_BOOKS)
+    expect(capturedAnchor?.download).toBe('my_reading_list.csv')
+  })
+})
+
+describe('downloadJSON', () => {
+  let blobSpy, clickSpy
+
+  beforeEach(() => {
+    Object.defineProperty(URL, 'createObjectURL', {
+      value: vi.fn().mockReturnValue('blob:mock-json'),
+      writable: true, configurable: true,
+    })
+    blobSpy  = vi.spyOn(global, 'Blob')
+    clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+  })
+
+  afterEach(() => vi.restoreAllMocks())
+
+  it('calls click() to trigger the browser download', () => {
+    downloadJSON(DL_BOOKS)
+    expect(clickSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('creates a Blob with type "application/json"', () => {
+    downloadJSON(DL_BOOKS)
+    const [, options] = blobSpy.mock.calls[0]
+    expect(options.type).toBe('application/json')
+  })
+
+  it('JSON content round-trips back to the original books array', () => {
+    downloadJSON(DL_BOOKS)
+    const [blobParts] = blobSpy.mock.calls[0]
+    expect(JSON.parse(blobParts[0])).toEqual(DL_BOOKS)
+  })
+
+  it('sets download attribute to "my_reading_list.json"', () => {
+    const origCreate = document.createElement.bind(document)
+    let capturedAnchor = null
+    vi.spyOn(document, 'createElement').mockImplementation(tag => {
+      const el = origCreate(tag)
+      if (tag === 'a') capturedAnchor = el
+      return el
+    })
+    downloadJSON(DL_BOOKS)
+    expect(capturedAnchor?.download).toBe('my_reading_list.json')
   })
 })

@@ -19,7 +19,7 @@ export default defineConfig({
 
         // Utility / API helpers
         'src/lib/textUtils.js':  { statements: 90, branches: 88, functions: 80, lines: 95 },
-        'src/lib/bookUtils.js':  { statements: 75, branches: 48, functions: 78, lines: 68 },
+        'src/lib/bookUtils.js':  { statements: 90, branches: 70, functions: 90, lines: 90 },
         'api/lib/apiUtils.js':   { statements: 78, branches: 68, functions: 90, lines: 84 },
 
         // Components with active component tests
