@@ -45,11 +45,13 @@ Nairrative is a personal reading dashboard — a React SPA deployed on Vercel wi
 - `config.js` — `TABS`, `INPUT_DEFAULTS`, `DEFAULT_PANEL_PROMPTS` (8 analysis panel prompts), `AUTO_RECS`, `READING_CONTEXT`
 - `seeds.js` — `SEED_RECS`, `SEED_ANALYSIS` (fallback data for logged-out users)
 - `bookUtils.js` — `buildBookContext`, `downloadCSV`, `downloadJSON`, `stripMd` (strips markdown symbols from AI text before display)
+- `textUtils.js` — `levenshtein`, `fuzzyMatches`, `sanitizePromptInput`, `sanitizeShortInput`, `sanitizeCoverUrl` (pure helpers extracted from `useBooks.js` for testability)
 - `supabase.js` — Supabase client
 - `api.js` — shared `CLAUDE_URL`, `AI_HEADERS`, and `claudeHeaders(session)` used by all hooks and App.jsx
 
 ### API (`api/`)
 - `claude.js` — Vercel Edge Function proxying requests to Anthropic API. Reads `ANTHROPIC_API_KEY` from environment. Enforces JWT auth (JWKS), CORS restriction, rate limiting (30 req/min per user), model allowlist, and max_tokens cap.
+- `lib/apiUtils.js` — `corsHeaders`, `checkRateLimit`, `verifyJWT` extracted from `claude.js` for unit testability. Edge-runtime safe (no Node.js APIs).
 
 ## Analysis Panels
 
@@ -80,12 +82,12 @@ Eight panels in a 2-column grid (`AnalysisTab.jsx`). Prompts live in `DEFAULT_PA
 | `authors` | Author lookup table |
 | `book_authors` | Book↔author join table |
 | `genres` | Genre list with colour codes |
-| `recs_cache` | Cached recommendation results (id=1) |
-| `analysis_cache` | Cached analysis panel results (id=1) |
-| `panel_prompts` | User-customised analysis prompts (id=1) |
+| `recs_cache` | Cached recommendation results, one row per user |
+| `analysis_cache` | Cached analysis panel results, one row per user |
+| `panel_prompts` | User-customised analysis prompts, one row per user |
 
 ### RLS posture
-All tables have RLS enabled. `books`, `book_authors` — authenticated only, scoped to `auth.uid() = user_id`. `authors`, `genres` — public SELECT (shared lookup data), authenticated write. Cache tables — public SELECT, authenticated write.
+All tables have RLS enabled. `books`, `book_authors` — authenticated only, scoped to `auth.uid() = user_id`. `authors`, `genres` — public SELECT (shared lookup data), authenticated write. Cache tables (`recs_cache`, `analysis_cache`, `panel_prompts`) — public SELECT, authenticated write scoped to `auth.uid() = user_id`; upserted with `onConflict: "user_id"`.
 
 ## Development
 
@@ -178,7 +180,7 @@ A `TODO.md` file at the project root tracks pending work across sessions.
 ## Security
 
 - **API proxy** (`api/claude.js`): JWKS JWT verification, CORS restricted to `nairrative.vercel.app`, rate limit 30 req/min per user, model allowlist, max_tokens hard cap of 2000.
-- **Input sanitization** (`useBooks.js`): control characters stripped and length-capped on all prompt inputs; `cover_url` validated to http/https only before saving.
+- **Input sanitization** (`src/lib/textUtils.js`): control characters stripped and length-capped on all prompt inputs; `cover_url` validated to http/https only before saving. Helpers imported by `useBooks.js`.
 - **Security headers** (`vercel.json`): X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, CSP, HSTS (2yr + preload).
 - **Dependabot**: enabled on GitHub for automated CVE alerts.
 - **MCP**: Vercel MCP configured via `.mcp.json` for deployment management from Claude Code.

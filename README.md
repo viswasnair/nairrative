@@ -108,10 +108,18 @@ src/
     seeds.js           # Fallback data for logged-out users
   lib/
     bookUtils.js       # Context builder, CSV/JSON export, stripMd utility
+    textUtils.js       # levenshtein, fuzzyMatches, sanitize helpers
     supabase.js        # Supabase client
     api.js             # Shared CLAUDE_URL + claudeHeaders(session)
 api/
   claude.js            # Vercel Edge Function → Anthropic API proxy
+  lib/
+    apiUtils.js        # corsHeaders, checkRateLimit, verifyJWT (edge-safe)
+tests/
+  unit/                # Vitest unit + component tests (138 tests)
+  e2e/                 # Playwright end-to-end tests
+supabase/
+  tests/               # pgTAP RLS tests (run via npm run test:db)
 ```
 
 ## Development
@@ -122,10 +130,21 @@ npm run dev             # Vite dev server
 npm run build           # Production build
 npm run lint            # ESLint
 npm run audit:ci        # Dependency vulnerability check (also runs on every Vercel deploy)
-npm run test:security   # Security regression tests against deployed URL
+npm run test:unit       # Vitest unit + component tests (~5 s, no browser)
+npm run test:coverage   # Same with v8 coverage report + per-file thresholds
+npm run test:db         # pgTAP RLS tests against linked Supabase project (no Docker needed)
+npm run test:security   # Playwright security regression tests against deployed URL
 ```
 
 AI features (`/api/claude`) require the Vercel Edge Function and won't work in local dev without additional setup.
+
+### CI
+
+Every pull request to `main` runs three jobs in sequence:
+
+1. **Unit & Component Tests** — lint, build, `npm run test:coverage` (enforces per-file coverage floors)
+2. **Playwright E2E** — full browser tests against a local Vite dev server
+3. **Security Tests** — Playwright tests against the Vercel preview deployment
 
 ## Environment Variables
 
