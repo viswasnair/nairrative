@@ -90,6 +90,13 @@ export default function App() {
 
   const [search, setSearch] = useState("");
   const onCiteClick = (title) => { setSearch(title); switchTab("library"); };
+  const navigateToLibrary = ({ genres = [], years = [], authors = [] } = {}) => {
+    setSearch("");
+    setLibGenres(genres);
+    setLibYears(years.map(String));
+    setLibAuthors(authors);
+    switchTab("library");
+  };
   const [libGenres, setLibGenres] = useState([]);
   const [libYears, setLibYears] = useState([]);
   const [libAuthors, setLibAuthors] = useState([]);
@@ -602,6 +609,7 @@ Formatting rules: Write in clean, natural prose. Do not use markdown syntax — 
             setChartRange={setChartRange}
             openEditModal={openEditModal}
             session={session}
+            onChartClick={navigateToLibrary}
           />
         )}
 

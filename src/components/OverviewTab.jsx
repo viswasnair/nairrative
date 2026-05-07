@@ -5,7 +5,7 @@ import DarkTooltip from "./DarkTooltip";
 
 const FORMAT_COLORS = { "Novel": "#2d6a4f", "Graphic Novel": "#06d6a0", "Non-Fiction": "#4a9eff", "Novella": "#c9a84c", "Short Stories": "#e06c75", "Play": "#c3a6ff", "Unknown": "#b2bec3" };
 
-export default function OverviewTab({ books, stats, genreMap, allYearsList, allYearsListFull, chartRanges, getChartRange, setChartRange }) {
+export default function OverviewTab({ books, stats, genreMap, allYearsList, allYearsListFull, chartRanges, getChartRange, setChartRange, onChartClick }) {
   const cb = id => { const r = getChartRange(id); return books.filter(b => b.year >= r.from && b.year <= r.to); };
 
   const ycBooks = cb("yc");
@@ -103,7 +103,7 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
               <XAxis dataKey="year" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
               <Tooltip content={<DarkTooltip />} />
-              <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+              <Bar dataKey="count" radius={[4, 4, 0, 0]} onClick={onChartClick ? (d) => onChartClick({ years: [d.year] }) : undefined} style={onChartClick ? { cursor: "pointer" } : undefined}>
                 {ycData.map((e, i) => <Cell key={i} fill={e.count === ycMax ? G.gold : G.goldDim} />)}
               </Bar>
             </BarChart>
@@ -119,7 +119,7 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
                 <XAxis type="number" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="genre" axisLine={false} tickLine={false} width={110} interval={0} tick={truncTick(17)} />
                 <Tooltip content={<DarkTooltip />} />
-                <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                <Bar dataKey="count" radius={[0, 4, 4, 0]} onClick={onChartClick ? (d) => onChartClick({ genres: [d.genre] }) : undefined} style={onChartClick ? { cursor: "pointer" } : undefined}>
                   {gcData.map((e, i) => <Cell key={i} fill={genreMap[e.genre] || G.muted} />)}
                 </Bar>
               </BarChart>
@@ -136,7 +136,7 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
                 <XAxis type="number" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="author" axisLine={false} tickLine={false} width={130} interval={0} tick={truncTick(20)} />
                 <Tooltip content={<DarkTooltip />} />
-                <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                <Bar dataKey="count" radius={[0, 4, 4, 0]} onClick={onChartClick ? (d) => onChartClick({ authors: [d.author] }) : undefined} style={onChartClick ? { cursor: "pointer" } : undefined}>
                   {acData.map((_, i) => <Cell key={i} fill={`rgba(74, 158, 255, ${Math.max(0.25, 1 - i * 0.07)})`} />)}
                 </Bar>
               </BarChart>
@@ -164,8 +164,8 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
         {/* Fiction vs Non-Fiction */}
         {chartCard("Fiction vs Non-Fiction Over Time", "fn",
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <ResponsiveContainer width="100%" height={210}>
-              <AreaChart data={fnData}>
+            <ResponsiveContainer width="100%" height={210} style={onChartClick ? { cursor: "pointer" } : undefined}>
+              <AreaChart data={fnData} onClick={onChartClick ? (d) => { if (d?.activePayload?.[0]) onChartClick({ years: [d.activePayload[0].payload.year] }); } : undefined}>
                 <CartesianGrid stroke={G.border} strokeDasharray="3 3" />
                 <XAxis dataKey="year" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
@@ -188,8 +188,8 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
         {/* Genre Evolution */}
         {chartCard("Genre Evolution", "ge",
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <ResponsiveContainer width="100%" height={210}>
-              <AreaChart data={geData}>
+            <ResponsiveContainer width="100%" height={210} style={onChartClick ? { cursor: "pointer" } : undefined}>
+              <AreaChart data={geData} onClick={onChartClick ? (d) => { if (d?.activePayload?.[0]) onChartClick({ years: [d.activePayload[0].payload.year] }); } : undefined}>
                 <CartesianGrid stroke={G.border} strokeDasharray="3 3" />
                 <XAxis dataKey="year" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
@@ -212,8 +212,8 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
 
         {/* Avg Book Length Over Time */}
         {chartCard("Avg Book Length Over Time", "al",
-          <ResponsiveContainer width="100%" height={245}>
-            <LineChart data={alData}>
+          <ResponsiveContainer width="100%" height={245} style={onChartClick ? { cursor: "pointer" } : undefined}>
+            <LineChart data={alData} onClick={onChartClick ? (d) => { if (d?.activePayload?.[0]) onChartClick({ years: [d.activePayload[0].payload.year] }); } : undefined}>
               <CartesianGrid stroke={G.border} strokeDasharray="3 3" />
               <XAxis dataKey="year" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} unit=" pp" />
