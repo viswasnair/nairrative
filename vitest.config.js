@@ -29,6 +29,22 @@ export default defineConfig({
         // Current: RangeFilter 100/100/100/100, DarkTooltip 100/100/100/100
         'src/components/RangeFilter.jsx': { statements: 90, branches: 90, functions: 90, lines: 90 },
         'src/components/DarkTooltip.jsx': { statements: 90, branches: 90, functions: 90, lines: 90 },
+
+        // Gap-filling tests added 2026-05-06 (floors = actual − 10)
+        // Current: AnalysisTab 61/55/38/69
+        'src/components/AnalysisTab.jsx': { statements: 51, branches: 45, functions: 28, lines: 59 },
+        // Current: BookModal 44/52/24/57
+        'src/components/BookModal.jsx':   { statements: 34, branches: 42, functions: 14, lines: 47 },
+        // Current: LibraryTab 65/77/57/71
+        'src/components/LibraryTab.jsx':  { statements: 55, branches: 67, functions: 47, lines: 61 },
+        // Current: OverviewTab 86/61/83/79
+        'src/components/OverviewTab.jsx': { statements: 76, branches: 51, functions: 73, lines: 69 },
+        // Current: RecsTab 57/83/46/80
+        'src/components/RecsTab.jsx':     { statements: 47, branches: 73, functions: 36, lines: 70 },
+        // Current: SeriesTab 87/89/86/91
+        'src/components/SeriesTab.jsx':   { statements: 77, branches: 79, functions: 76, lines: 81 },
+        // Current: api/claude.js 95/96/100/97
+        'api/claude.js':                  { statements: 85, branches: 86, functions: 90, lines: 87 },
       },
     },
   },
