@@ -45,6 +45,10 @@ export default defineConfig({
         'src/components/SeriesTab.jsx':   { statements: 77, branches: 79, functions: 76, lines: 81 },
         // Current: api/claude.js 95/96/100/97
         'api/claude.js':                  { statements: 85, branches: 86, functions: 90, lines: 87 },
+        // Current: NewReleasesTab 96/93/100/96
+        'src/components/NewReleasesTab.jsx':  { statements: 86, branches: 83, functions: 90, lines: 86 },
+        // Current: RatingFlashcard 83/66/75/87
+        'src/components/RatingFlashcard.jsx': { statements: 73, branches: 56, functions: 65, lines: 77 },
       },
     },
   },
