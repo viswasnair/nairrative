@@ -177,6 +177,10 @@ A `TODO.md` file at the project root tracks pending work across sessions.
 - **When a task is completed**: remove it from `TODO.md`.
 - This applies to every Claude Code session in this project, regardless of which tab or conversation window.
 
+## Documentation
+
+Before committing, briefly consider whether `CLAUDE.md` or `README.md` has become materially inaccurate. Update only when the change is significant enough that someone reading the file would be misled or miss something important — e.g. a new architectural pattern, a removed dependency, a new required environment variable, or a meaningful user-facing feature. Do not update for minor implementation details, small refactors, or anything already self-evident from the code.
+
 ## Security
 
 - **API proxy** (`api/claude.js`): JWKS JWT verification, CORS restricted to `nairrative.vercel.app`, rate limit 30 req/min per user, model allowlist, max_tokens hard cap of 2000.
