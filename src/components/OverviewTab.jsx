@@ -5,7 +5,7 @@ import DarkTooltip from "./DarkTooltip";
 
 const FORMAT_COLORS = { "Novel": "#2d6a4f", "Graphic Novel": "#06d6a0", "Non-Fiction": "#4a9eff", "Novella": "#c9a84c", "Short Stories": "#e06c75", "Play": "#c3a6ff", "Unknown": "#b2bec3" };
 
-export default function OverviewTab({ books, stats, genreMap, allYearsList, allYearsListFull, chartRanges, getChartRange, setChartRange, openEditModal, session }) {
+export default function OverviewTab({ books, stats, genreMap, allYearsList, allYearsListFull, chartRanges, getChartRange, setChartRange }) {
   const cb = id => { const r = getChartRange(id); return books.filter(b => b.year >= r.from && b.year <= r.to); };
 
   const ycBooks = cb("yc");

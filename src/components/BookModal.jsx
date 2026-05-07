@@ -38,6 +38,7 @@ export default function BookModal({
   const [pasteMode, setPasteMode] = useState(false);
   const [pasteInput, setPasteInput] = useState("");
 
+  // Reset cover search state whenever the title changes.
   useEffect(() => {
     setCoverResults([]);
     setCoverSearched(false);

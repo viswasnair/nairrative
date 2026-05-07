@@ -39,7 +39,7 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
     const cachedFp = localStorage.getItem("nairrative_analysis_fp");
     const cachedResult = localStorage.getItem("nairrative_analysis_ai");
     if (cachedFp === booksFingerprint && cachedResult) {
-      try { setAnalysisAI(JSON.parse(cachedResult)); return; } catch {}
+      try { setAnalysisAI(JSON.parse(cachedResult)); return; } catch { /* malformed cache — fall through to fetch */ }
     }
     supabase.from("analysis_cache").select("data").maybeSingle()
       .then(({ data }) => {
@@ -70,7 +70,7 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
     const cachedFp = localStorage.getItem("nairrative_analysis_fp");
     const cachedResult = localStorage.getItem("nairrative_analysis_ai");
     if (cachedFp === booksFingerprint && cachedResult) {
-      try { setAnalysisAI(JSON.parse(cachedResult)); return; } catch {}
+      try { setAnalysisAI(JSON.parse(cachedResult)); return; } catch { /* malformed cache — regenerate */ }
     }
     setAnalysisAILoading(true);
     const { data: { session } } = await supabase.auth.getSession();

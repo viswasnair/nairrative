@@ -29,3 +29,8 @@ scripts/analysis_merged.json
 # Playwright
 playwright-report/
 test-results/
+
+# Vitest coverage output
+coverage/
+
+.vercel

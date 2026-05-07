@@ -47,7 +47,7 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
     const cachedFp = localStorage.getItem("nairrative_recs_fp");
     const cachedResult = localStorage.getItem("nairrative_recs");
     if (cachedFp === booksFingerprint && cachedResult) {
-      try { setIntentResults({ ...SEED_RECS, ...JSON.parse(cachedResult) }); return; } catch {}
+      try { setIntentResults({ ...SEED_RECS, ...JSON.parse(cachedResult) }); return; } catch { /* malformed cache — fall through */ }
     }
     supabase.from("recs_cache").select("data").maybeSingle()
       .then(({ data }) => {
