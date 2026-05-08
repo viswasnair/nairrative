@@ -27,8 +27,12 @@ export default function LibraryTab({
   libAuthors, setLibAuthors,
   libCountries, setLibCountries,
   libFormats, setLibFormats,
+  libMoods, setLibMoods,
+  libArchetypes, setLibArchetypes,
+  libThemes, setLibThemes,
   libSort, setLibSort,
   allGenres, allYears, allAuthors, allCountries, allFormats,
+  allMoods, allArchetypes, allThemes,
   openAddModal, openEditModal, openRatingMode,
 }) {
   const [subTab, setSubTab] = useState("list");
@@ -63,6 +67,9 @@ export default function LibraryTab({
             <MultiSelect options={allAuthors} selected={libAuthors} onChange={setLibAuthors} placeholder="Author" style={{ width: 160, flex: "0 0 auto" }} />
             <MultiSelect options={allCountries} selected={libCountries} onChange={setLibCountries} placeholder="Country" style={{ width: 130, flex: "0 0 auto" }} />
             <MultiSelect options={allFormats} selected={libFormats} onChange={setLibFormats} placeholder="Format" style={{ width: 120, flex: "0 0 auto" }} />
+            <MultiSelect options={allMoods} selected={libMoods} onChange={setLibMoods} placeholder="Mood" style={{ width: 120, flex: "0 0 auto" }} />
+            <MultiSelect options={allArchetypes} selected={libArchetypes} onChange={setLibArchetypes} placeholder="Archetype" style={{ width: 140, flex: "0 0 auto" }} />
+            <MultiSelect options={allThemes} selected={libThemes} onChange={setLibThemes} placeholder="Theme" style={{ width: 130, flex: "0 0 auto" }} />
             <select className="input-dark" style={{ width: 130, flex: "0 0 auto" }} value={libSort} onChange={e => setLibSort(e.target.value)}>
               <option value="year">Sort: Year</option>
               <option value="title">Sort: Title</option>

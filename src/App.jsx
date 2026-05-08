@@ -90,13 +90,16 @@ export default function App() {
 
   const [search, setSearch] = useState("");
   const onCiteClick = (title) => { setSearch(title); switchTab("library"); };
-  const navigateToLibrary = ({ genres = [], years = [], authors = [], countries = [], formats = [] } = {}) => {
+  const navigateToLibrary = ({ genres = [], years = [], authors = [], countries = [], formats = [], moods = [], archetypes = [], themes = [] } = {}) => {
     setSearch("");
     setLibGenres(genres);
     setLibYears(years.map(String));
     setLibAuthors(authors);
     setLibCountries(countries);
     setLibFormats(formats);
+    setLibMoods(moods);
+    setLibArchetypes(archetypes);
+    setLibThemes(themes);
     switchTab("library");
   };
   const [libGenres, setLibGenres] = useState([]);
@@ -104,6 +107,9 @@ export default function App() {
   const [libAuthors, setLibAuthors] = useState([]);
   const [libCountries, setLibCountries] = useState([]);
   const [libFormats, setLibFormats] = useState([]);
+  const [libMoods, setLibMoods] = useState([]);
+  const [libArchetypes, setLibArchetypes] = useState([]);
+  const [libThemes, setLibThemes] = useState([]);
   const [libSort, setLibSort] = useState("title");
   const [chartRanges, setChartRanges] = useState({});
   const [messages, setMessages] = useState([
@@ -275,6 +281,9 @@ export default function App() {
       if (libAuthors.length > 0 && !(b.authors || []).some(a => libAuthors.includes(a.name))) return false;
       if (libCountries.length > 0 && !libCountries.includes(b.country)) return false;
       if (libFormats.length > 0 && !libFormats.includes(b.format || "Unknown")) return false;
+      if (libMoods.length > 0 && !libMoods.includes(b.mood)) return false;
+      if (libArchetypes.length > 0 && !libArchetypes.includes(b.archetype)) return false;
+      if (libThemes.length > 0 && !(b.theme || []).some(t => libThemes.includes(t))) return false;
       return true;
     }).sort((a, b) => {
       if (libSort === "year") return b.year - a.year;
@@ -287,13 +296,16 @@ export default function App() {
         return ai !== bi ? ai - bi : a.title.localeCompare(b.title);
       }
       return 0;
-    }), [books, search, libGenres, libYears, libAuthors, libCountries, libFormats, libSort]);
+    }), [books, search, libGenres, libYears, libAuthors, libCountries, libFormats, libMoods, libArchetypes, libThemes, libSort]);
 
   const allGenres = genreList;
   const allYears = useMemo(() => Object.keys(stats.byYear).sort().reverse(), [stats]);
   const allAuthors = useMemo(() => [...new Set(books.flatMap(b => (b.authors || []).map(a => a.name)))].sort(), [books]);
   const allCountries = useMemo(() => [...new Set(books.map(b => b.country).filter(Boolean))].sort(), [books]);
   const allFormats = useMemo(() => [...new Set(books.map(b => b.format || "Unknown"))].sort(), [books]);
+  const allMoods = useMemo(() => [...new Set(books.map(b => b.mood).filter(Boolean))].sort(), [books]);
+  const allArchetypes = useMemo(() => [...new Set(books.map(b => b.archetype).filter(Boolean))].sort(), [books]);
+  const allThemes = useMemo(() => [...new Set(books.flatMap(b => b.theme || []))].sort(), [books]);
   const allYearsList = useMemo(() => {
     const years = Object.keys(stats.byYearTracked).map(Number);
     if (!years.length) return [];
@@ -658,9 +670,13 @@ Formatting rules: Write in clean, natural prose. Do not use markdown syntax — 
             libAuthors={libAuthors} setLibAuthors={setLibAuthors}
             libCountries={libCountries} setLibCountries={setLibCountries}
             libFormats={libFormats} setLibFormats={setLibFormats}
+            libMoods={libMoods} setLibMoods={setLibMoods}
+            libArchetypes={libArchetypes} setLibArchetypes={setLibArchetypes}
+            libThemes={libThemes} setLibThemes={setLibThemes}
             libSort={libSort} setLibSort={setLibSort}
             allGenres={allGenres} allYears={allYears} allAuthors={allAuthors}
             allCountries={allCountries} allFormats={allFormats}
+            allMoods={allMoods} allArchetypes={allArchetypes} allThemes={allThemes}
             openAddModal={openAddModal}
             openEditModal={openEditModal}
             openRatingMode={() => setShowRatingMode(true)}

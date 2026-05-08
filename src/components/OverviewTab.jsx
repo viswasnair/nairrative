@@ -304,7 +304,7 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
                 <XAxis type="number" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="mood" axisLine={false} tickLine={false} width={110} interval={0} tick={truncTick(17)} />
                 <Tooltip content={<DarkTooltip />} />
-                <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                <Bar dataKey="count" radius={[0, 4, 4, 0]} onClick={onChartClick ? (d) => onChartClick({ moods: [d.mood] }) : undefined} style={onChartClick ? { cursor: "pointer" } : undefined}>
                   {moData.map((_, i) => <Cell key={i} fill={`rgba(168, 85, 247, ${Math.max(0.25, 1 - i * 0.07)})`} />)}
                 </Bar>
               </BarChart>
@@ -317,7 +317,7 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
             <ResponsiveContainer width="100%" height={200}>
               <PieChart>
-                <Pie data={arData} dataKey="value" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3}>
+                <Pie data={arData} dataKey="value" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3} onClick={onChartClick ? (d) => onChartClick({ archetypes: [d.name] }) : undefined} style={onChartClick ? { cursor: "pointer" } : undefined}>
                   {arData.map((e, i) => <Cell key={i} fill={e.color} />)}
                 </Pie>
                 <Tooltip content={<DarkTooltip />} />
@@ -344,7 +344,7 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
                 <XAxis type="number" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="theme" axisLine={false} tickLine={false} width={110} interval={0} tick={truncTick(17)} />
                 <Tooltip content={<DarkTooltip />} />
-                <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                <Bar dataKey="count" radius={[0, 4, 4, 0]} onClick={onChartClick ? (d) => onChartClick({ themes: [d.theme] }) : undefined} style={onChartClick ? { cursor: "pointer" } : undefined}>
                   {thData.map((_, i) => <Cell key={i} fill={`rgba(184, 115, 51, ${Math.max(0.25, 1 - i * 0.07)})`} />)}
                 </Bar>
               </BarChart>
@@ -355,8 +355,8 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
         {/* Mood Over Time */}
         {chartCard("Mood Over Time", "mt",
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <ResponsiveContainer width="100%" height={210}>
-              <AreaChart data={mtData}>
+            <ResponsiveContainer width="100%" height={210} style={onChartClick ? { cursor: "pointer" } : undefined}>
+              <AreaChart data={mtData} onClick={onChartClick ? (d) => { if (d?.activePayload?.[0]) onChartClick({ years: [d.activePayload[0].payload.year] }); } : undefined}>
                 <CartesianGrid stroke={G.border} strokeDasharray="3 3" />
                 <XAxis dataKey="year" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
