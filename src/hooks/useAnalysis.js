@@ -17,13 +17,16 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
 
   // Load panel prompts from Supabase for cross-device sync
   useEffect(() => {
-    supabase.from("panel_prompts").select("data").maybeSingle()
-      .then(({ data }) => {
-        if (data?.data) {
-          setPanelPrompts(data.data);
-          localStorage.setItem("nairrative_panel_prompts", JSON.stringify(data.data));
-        }
-      }).catch(e => console.error("Failed to load panel prompts:", e));
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) return;
+      supabase.from("panel_prompts").select("data").eq("user_id", session.user.id).maybeSingle()
+        .then(({ data }) => {
+          if (data?.data) {
+            setPanelPrompts(data.data);
+            localStorage.setItem("nairrative_panel_prompts", JSON.stringify(data.data));
+          }
+        }).catch(e => console.error("Failed to load panel prompts:", e));
+    });
   }, []);
 
   // Load analysis: localStorage → Supabase → seed fallback
@@ -34,17 +37,20 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
     if (cachedFp === booksFingerprint && cachedResult) {
       try { setAnalysisAI(JSON.parse(cachedResult)); return; } catch { /* malformed cache — fall through to fetch */ }
     }
-    supabase.from("analysis_cache").select("data").maybeSingle()
-      .then(({ data }) => {
-        if (data?.data) {
-          setAnalysisAI(data.data);
-          localStorage.setItem("nairrative_analysis_ai", JSON.stringify(data.data));
-          localStorage.setItem("nairrative_analysis_fp", booksFingerprint);
-        } else {
-          setAnalysisAI(SEED_ANALYSIS);
-        }
-      })
-      .catch(() => setAnalysisAI(SEED_ANALYSIS));
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const query = supabase.from("analysis_cache").select("data");
+      (session ? query.eq("user_id", session.user.id) : query).maybeSingle()
+        .then(({ data }) => {
+          if (data?.data) {
+            setAnalysisAI(data.data);
+            localStorage.setItem("nairrative_analysis_ai", JSON.stringify(data.data));
+            localStorage.setItem("nairrative_analysis_fp", booksFingerprint);
+          } else {
+            setAnalysisAI(SEED_ANALYSIS);
+          }
+        })
+        .catch(() => setAnalysisAI(SEED_ANALYSIS));
+    });
   }, [activeTab, booksFingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveAnalysisToSupabase = async (data) => {

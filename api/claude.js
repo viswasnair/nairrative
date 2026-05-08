@@ -55,6 +55,14 @@ export default async function handler(req) {
   try { body = await req.json(); }
   catch { return new Response("Invalid JSON", { status: 400, headers: cors }); }
 
+  if (!Array.isArray(body.messages) || body.messages.length === 0)
+    return new Response("Invalid request: messages must be a non-empty array", { status: 400, headers: cors });
+  if (body.max_tokens !== undefined) {
+    if (!Number.isInteger(body.max_tokens) || body.max_tokens <= 0)
+      return new Response("Invalid request: max_tokens must be a positive integer", { status: 400, headers: cors });
+  }
+  if (body.model !== undefined && typeof body.model !== "string")
+    return new Response("Invalid request: model must be a string", { status: 400, headers: cors });
   if (body.model && !ALLOWED_MODELS.has(body.model))
     return new Response("Model not allowed", { status: 400, headers: cors });
   if (body.max_tokens > MAX_TOKENS_HARD_LIMIT)
@@ -76,9 +84,10 @@ export default async function handler(req) {
       headers: { ...cors, "Content-Type": "application/json" },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
+    console.error("claude proxy error:", err);
+    return new Response("AI service temporarily unavailable", {
       status: 500,
-      headers: { ...cors, "Content-Type": "application/json" },
+      headers: cors,
     });
   }
 }

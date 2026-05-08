@@ -110,6 +110,50 @@ describe('api/claude.js handler', () => {
     expect(res.status).toBe(400)
   })
 
+  it('missing messages → 400', async () => {
+    const res = await handler(makePost({ ...GOOD_BODY, messages: undefined }))
+    expect(res.status).toBe(400)
+  })
+
+  it('empty messages array → 400', async () => {
+    const res = await handler(makePost({ ...GOOD_BODY, messages: [] }))
+    expect(res.status).toBe(400)
+  })
+
+  it('messages not an array → 400', async () => {
+    const res = await handler(makePost({ ...GOOD_BODY, messages: 'not an array' }))
+    expect(res.status).toBe(400)
+  })
+
+  it('max_tokens as string → 400', async () => {
+    const res = await handler(makePost({ ...GOOD_BODY, max_tokens: '100' }))
+    expect(res.status).toBe(400)
+  })
+
+  it('max_tokens as negative integer → 400', async () => {
+    const res = await handler(makePost({ ...GOOD_BODY, max_tokens: -1 }))
+    expect(res.status).toBe(400)
+  })
+
+  it('max_tokens as float → 400', async () => {
+    const res = await handler(makePost({ ...GOOD_BODY, max_tokens: 1.5 }))
+    expect(res.status).toBe(400)
+  })
+
+  it('model as non-string → 400', async () => {
+    const res = await handler(makePost({ ...GOOD_BODY, model: 42 }))
+    expect(res.status).toBe(400)
+  })
+
+  it('fetch error returns generic 500 without leaking details', async () => {
+    fetch.mockRejectedValueOnce(new Error('Connection refused to secret-internal-host'))
+    const res = await handler(makePost(GOOD_BODY))
+    expect(res.status).toBe(500)
+    const body = await res.text()
+    expect(body).not.toContain('Connection refused')
+    expect(body).not.toContain('secret-internal-host')
+  })
+
   it('max_tokens > 2000 is capped to 2000 before forwarding', async () => {
     await handler(makePost({ ...GOOD_BODY, max_tokens: 9999 }))
     const [, opts] = fetch.mock.calls[0]

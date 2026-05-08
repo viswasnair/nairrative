@@ -56,7 +56,8 @@ function makeFromMock() {
   const analysisUpsert = vi.fn().mockResolvedValue({ error: null })
   const promptsUpsert  = vi.fn().mockResolvedValue({ error: null })
   const maybeSingle    = vi.fn().mockResolvedValue({ data: null })
-  const select         = vi.fn().mockReturnValue({ maybeSingle })
+  const eq             = vi.fn().mockReturnValue({ maybeSingle })
+  const select         = vi.fn().mockReturnValue({ maybeSingle, eq })
 
   supabase.from.mockImplementation((table) => {
     if (table === 'analysis_cache') return { select, upsert: analysisUpsert }
