@@ -107,4 +107,86 @@ describe('RecsTab', () => {
     })
     expect(screen.getByText('Foundation')).toBeTruthy()
   })
+
+  it('shows recommendation author and year', () => {
+    setup({
+      intentResults: {
+        'more-like': [{ title: 'Foundation', author: 'Isaac Asimov', year: 1951, reason: 'A classic.' }],
+      },
+    })
+    expect(screen.getByText(/Isaac Asimov/)).toBeTruthy()
+    expect(screen.getByText(/1951/)).toBeTruthy()
+  })
+
+  it('shows recommendation reason text via RecList', () => {
+    setup({
+      intentResults: {
+        'more-like': [{ title: 'Foundation', author: 'Asimov', year: 1951, reason: 'Epic scope and ideas.' }],
+      },
+    })
+    expect(screen.getByText('Epic scope and ideas.')).toBeTruthy()
+  })
+
+  it('shows loading skeleton when a lens is loading', () => {
+    const { container } = setup({ intentLoading: { 'more-like': true } })
+    // The pulse placeholder divs are rendered inside the card
+    const pulses = container.querySelectorAll('.pulse')
+    expect(pulses.length).toBeGreaterThan(0)
+  })
+
+  it('refresh button appears when session present and results exist, and calls fetchIntentRecs', () => {
+    const fetchIntentRecs = vi.fn()
+    const setIntentResults = vi.fn()
+    setup({
+      session: SESSION,
+      fetchIntentRecs,
+      setIntentResults,
+      intentResults: {
+        'more-like': [{ title: 'Foundation', author: 'Asimov', year: 1951, reason: '' }],
+      },
+    })
+    const refreshBtn = screen.getByTitle('Refresh')
+    fireEvent.click(refreshBtn)
+    expect(fetchIntentRecs).toHaveBeenCalledWith('more-like', '')
+  })
+
+  it('"Load picks" button appears for auto lens when session is set and no results', () => {
+    const fetchIntentRecs = vi.fn()
+    setup({ session: SESSION, fetchIntentRecs })
+    // "Load picks" buttons appear for each auto lens with no result
+    const loadBtns = screen.getAllByText('Load picks')
+    expect(loadBtns.length).toBeGreaterThan(0)
+    fireEvent.click(loadBtns[0])
+    expect(fetchIntentRecs).toHaveBeenCalledTimes(1)
+  })
+
+  it('"Load picks" button is absent when session is null', () => {
+    setup({ session: null })
+    expect(screen.queryByText('Load picks')).toBeNull()
+  })
+
+  it('→ arrow button in non-auto lens calls fetchIntentRecs when input is filled', () => {
+    const fetchIntentRecs = vi.fn()
+    setup({ session: SESSION, fetchIntentRecs, intentInputs: { loved: 'Dune' } })
+    const arrowBtns = screen.getAllByTitle('Get pick')
+    fireEvent.click(arrowBtns[0])
+    expect(fetchIntentRecs).toHaveBeenCalledWith('loved', 'Dune')
+  })
+
+  it('genre dropdown onChange calls fetchIntentRecs when a genre is selected', () => {
+    const fetchIntentRecs = vi.fn()
+    setup({ session: SESSION, fetchIntentRecs })
+    // The genre-pick select contains "— pick a genre —" as its first option
+    const genreDropdown = screen.getByDisplayValue('— pick a genre —')
+    fireEvent.change(genreDropdown, { target: { value: 'Science Fiction' } })
+    expect(fetchIntentRecs).toHaveBeenCalledWith('genre-pick', 'Science Fiction')
+  })
+
+  it('non-auto input onChange calls setIntentInputs', () => {
+    const setIntentInputs = vi.fn()
+    setup({ session: SESSION, setIntentInputs })
+    const input = screen.getByPlaceholderText('A book title…')
+    fireEvent.change(input, { target: { value: 'Dune' } })
+    expect(setIntentInputs).toHaveBeenCalledTimes(1)
+  })
 })

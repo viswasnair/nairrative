@@ -117,8 +117,108 @@ describe('OverviewTab', () => {
       total: 0, readingSpan: 0,
       sortedYears: [], sortedAuthors: [], sortedGenres: [],
     }
-    // Should not throw
     setup({ books: [], stats: emptyStats })
+    expect(screen.getByText('Books Read')).toBeTruthy()
+  })
+
+  it('renders Authors Read KPI with correct unique author count', () => {
+    setup()
+    expect(screen.getByText('Authors Read')).toBeTruthy()
+    // BOOKS has 4 unique authors — getAllByText handles duplicates
+    expect(screen.getAllByText('4').length).toBeGreaterThan(0)
+  })
+
+  it('renders Dominant Mood KPI with actual mood when books have mood', () => {
+    const booksWithMood = BOOKS.map((b, i) => ({ ...b, mood: i < 3 ? 'Reflective' : 'Hopeful' }))
+    setup({ books: booksWithMood })
+    expect(screen.getByText('Dominant Mood')).toBeTruthy()
+    // Reflective may appear in both the KPI card and chart data
+    expect(screen.getAllByText('Reflective').length).toBeGreaterThan(0)
+  })
+
+  it('renders Dominant Mood KPI as "—" when no books have mood', () => {
+    setup() // BOOKS have no mood field
+    expect(screen.getByText('Dominant Mood')).toBeTruthy()
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0)
+  })
+
+  it('renders Top Theme KPI with actual theme when books have themes', () => {
+    const booksWithTheme = BOOKS.map((b, i) => ({ ...b, theme: i < 3 ? ['Power', 'Identity'] : ['Loss'] }))
+    setup({ books: booksWithTheme })
+    expect(screen.getByText('Top Theme')).toBeTruthy()
+    expect(screen.getByText('Power')).toBeTruthy()
+  })
+
+  it('renders Top Archetype KPI with actual archetype', () => {
+    const booksWithArchetype = BOOKS.map((b, i) => ({ ...b, archetype: i < 4 ? "Hero's Journey" : 'Quest' }))
+    setup({ books: booksWithArchetype })
+    expect(screen.getByText('Top Archetype')).toBeTruthy()
+    expect(screen.getAllByText("Hero's Journey").length).toBeGreaterThan(0)
+  })
+
+  it('Pages/Book shows "—" when no books have pages', () => {
+    const noPagesBooks = BOOKS.map(b => ({ ...b, pages: undefined }))
+    const s = { ...STATS }
+    setup({ books: noPagesBooks, stats: s })
+    // "—" appears at least once for Pages/Book
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0)
+  })
+
+  it('Pages/Day shows "—" when readingSpan is 0', () => {
+    const zeroSpan = { ...STATS, readingSpan: 0 }
+    setup({ stats: zeroSpan })
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0)
+  })
+
+  it('Books/Year shows "—" when readingSpan is 0', () => {
+    const zeroSpan = { ...STATS, readingSpan: 0 }
+    setup({ stats: zeroSpan })
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0)
+  })
+
+  it('renders the Mood Breakdown chart section', () => {
+    setup()
+    expect(screen.getByText('Mood Breakdown')).toBeTruthy()
+  })
+
+  it('renders the Top Themes chart section', () => {
+    setup()
+    expect(screen.getByText('Top Themes')).toBeTruthy()
+  })
+
+  it('renders the Archetype Distribution chart section', () => {
+    setup()
+    expect(screen.getByText('Archetype Distribution')).toBeTruthy()
+  })
+
+  it('renders the Mood Over Time chart section', () => {
+    setup()
+    expect(screen.getByText('Mood Over Time')).toBeTruthy()
+  })
+
+  it('renders the Top Authors chart section', () => {
+    setup()
+    expect(screen.getByText('Top Authors')).toBeTruthy()
+  })
+
+  it('renders the Author Origins chart section', () => {
+    setup()
+    expect(screen.getByText('Author Origins')).toBeTruthy()
+  })
+
+  it('renders the Avg Book Length Over Time chart section', () => {
+    setup()
+    expect(screen.getByText('Avg Book Length Over Time')).toBeTruthy()
+  })
+
+  it('renders the Format Breakdown chart section', () => {
+    setup()
+    expect(screen.getByText('Format Breakdown')).toBeTruthy()
+  })
+
+  it('onChartClick prop is accepted without crashing', () => {
+    const onChartClick = vi.fn()
+    setup({ onChartClick })
     expect(screen.getByText('Books Read')).toBeTruthy()
   })
 })

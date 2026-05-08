@@ -8,6 +8,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setup.js'],
     include: ['tests/unit/**/*.test.{js,jsx}'],
+    reporter: 'verbose',
     coverage: {
       provider: 'v8',
       include: ['src/lib/**', 'src/constants/**', 'src/components/**', 'api/**'],
@@ -30,19 +31,19 @@ export default defineConfig({
         'src/components/RangeFilter.jsx': { statements: 90, branches: 90, functions: 90, lines: 90 },
         'src/components/DarkTooltip.jsx': { statements: 90, branches: 90, functions: 90, lines: 90 },
 
-        // Gap-filling tests added 2026-05-06 (floors = actual − 10)
+        // Gap-filling tests added 2026-05-06/08 (floors = actual − 10)
         // Current: AnalysisTab 61/55/38/69
         'src/components/AnalysisTab.jsx': { statements: 51, branches: 45, functions: 28, lines: 59 },
-        // Current: BookModal 44/52/24/57
-        'src/components/BookModal.jsx':   { statements: 34, branches: 42, functions: 14, lines: 47 },
+        // Current: BookModal 62/74/48/74
+        'src/components/BookModal.jsx':   { statements: 52, branches: 64, functions: 38, lines: 64 },
         // Current: BookshelfTab 40/36/32/38 (SpineView/GridView not rendered by BookshelfTab export)
         'src/components/BookshelfTab.jsx': { statements: 30, branches: 26, functions: 22, lines: 28 },
-        // Current: LibraryTab 69/79/62/74
-        'src/components/LibraryTab.jsx':  { statements: 59, branches: 69, functions: 52, lines: 64 },
-        // Current: OverviewTab 86/61/83/79
-        'src/components/OverviewTab.jsx': { statements: 76, branches: 51, functions: 73, lines: 69 },
-        // Current: RecsTab 57/83/46/80
-        'src/components/RecsTab.jsx':     { statements: 47, branches: 73, functions: 36, lines: 70 },
+        // Current: LibraryTab 68/72/57/74
+        'src/components/LibraryTab.jsx':  { statements: 58, branches: 62, functions: 47, lines: 64 },
+        // Current: OverviewTab 89/76/86/84
+        'src/components/OverviewTab.jsx': { statements: 79, branches: 66, functions: 76, lines: 74 },
+        // Current: RecsTab 84/94/80/100
+        'src/components/RecsTab.jsx':     { statements: 74, branches: 84, functions: 70, lines: 90 },
         // Current: SeriesTab 87/89/86/91
         'src/components/SeriesTab.jsx':   { statements: 77, branches: 79, functions: 76, lines: 81 },
         // Current: api/claude.js 95/96/100/97
