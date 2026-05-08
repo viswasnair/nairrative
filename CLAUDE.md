@@ -188,3 +188,64 @@ Before committing, briefly consider whether `CLAUDE.md` or `README.md` has becom
 - **Security headers** (`vercel.json`): X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, CSP, HSTS (2yr + preload).
 - **Dependabot**: enabled on GitHub for automated CVE alerts.
 - **MCP**: Vercel MCP configured via `.mcp.json` for deployment management from Claude Code.
+
+## Coding Rules — Do Not Break These
+
+These rules exist because vibecoded patterns introduced each of them as subtle bugs. Treat them as hard constraints, not style suggestions.
+
+### Error handling
+
+**In API route handlers (`api/`):**
+- Never return `err.message`, `err.stack`, or any raw exception property in an HTTP response body.
+- The catch block in `api/claude.js` must return a generic message: `"AI service temporarily unavailable"`.
+- Log real errors server-side with `console.error` or `securityLog`. The client must not learn why the server failed.
+- Good: `return new Response("AI service temporarily unavailable", { status: 500, headers: cors });`
+- Bad: `return new Response(JSON.stringify({ error: err.message }), { status: 500 ... })`
+
+**In frontend hooks (`src/hooks/`):**
+- Never pass `e.message` or `JSON.stringify(e)` into user-visible state (e.g. `setBookMsg`).
+- Raw Supabase errors contain constraint names, table names, and query fragments — these must not reach the UI.
+- Show users a generic message: `"Something went wrong. Please try again."` Log details with `console.error`.
+- Good: `setBookMsg("Something went wrong. Please try again."); console.error("saveBook error:", e);`
+- Bad: `setBookMsg(\`Error: ${e?.message || JSON.stringify(e)}\`);`
+
+**Propagating API errors through the UI:**
+- If an API response contains `data.error`, do not expose `data.error.message` or `data.error.type` in any user-visible field (including recommendation "reason" strings).
+- Log details to console; show a generic placeholder to the user.
+
+### API input validation (`api/claude.js`)
+
+Before forwarding any request body to the Anthropic API, validate:
+- `body.messages` is a non-empty array.
+- `body.max_tokens`, if present, is a positive integer (not a string, not negative, not a float).
+- `body.model`, if present, is a string before calling `.has()` on it.
+
+Malformed payloads that pass through unvalidated reach Anthropic and can cause confusing failures. Validate at the boundary; reject early with a 400.
+
+### Supabase data access — defense-in-depth
+
+All reads from user-scoped tables (`books`, `analysis_cache`, `recs_cache`, `panel_prompts`) **must** include an explicit `.eq("user_id", session.user.id)` filter in addition to relying on RLS.
+
+RLS is the primary enforcement layer, but it is a single point of failure: a migration that accidentally disables or misconfigures a policy would silently expose all users' data if there is no application-layer filter. The `.eq()` filter is cheap and makes isolation redundant.
+
+- **Never** query a user-scoped table without an explicit user_id filter when a session exists.
+- Writes already set `user_id: session.user.id` on insert and use `onConflict: "user_id"` on upsert — reads must follow the same pattern.
+
+Example:
+```js
+// Good
+supabase.from("books").select("...").eq("user_id", session.user.id)
+
+// Bad — relies on RLS alone
+supabase.from("books").select("...")
+```
+
+### Rate limiting
+
+The rate limiter (`api/lib/apiUtils.js`) uses Upstash Redis — this is correct for a serverless environment. **Do not replace it with an in-memory `Map`**. In-memory state is reset on every Vercel function invocation; an in-memory rate limiter accepts every request regardless of frequency because it never sees more than one request per process lifetime.
+
+If Redis is unreachable, the current implementation fails open (allows the request). This is a deliberate trade-off. Do not change it without understanding the implications.
+
+### File size discipline
+
+`useBooks.js` currently holds book CRUD, author resolution, genre management, and AI chat fill in one file. Monitor its size. If it grows beyond ~500 lines, extract the AI fill logic (`chatFillBook`, `applyPending`, `fetchAuthorCountry`) into a separate hook before adding more code.
