@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__supabase__get_publishable_keys",
+      "Bash(done)",
+      "Bash(npm install:*)",
+      "Bash(python3:*)",
+      "Bash(python:*)",
+      "Bash(npx supabase:*)",
+      "Bash(echo:*)",
+      "Bash(cmd /c \"dir /s /b %APPDATA%\\\\supabase 2>nul\")",
+      "Bash(vercel env ls:*)",
+      "mcp__vercel__web_fetch_vercel_url",
+      "mcp__vercel__get_runtime_logs",
+      "Bash(npx vercel env:*)",
+      "Bash(npx vercel:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(ls:*)",
+      "Bash(npx vitest run:*)",
+      "Bash(node --version:*)",
+      "Bash(node --env-file=.env.local scripts/backfill-descriptions.mjs:*)",
+      "mcp__claude_ai_Excalidraw__read_me",
+      "mcp__claude_ai_Excalidraw__create_view",
+      "Bash(git restore *)"
+    ]
+  }
+}
