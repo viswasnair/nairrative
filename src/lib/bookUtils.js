@@ -19,6 +19,7 @@ export function normalizeBook(b) {
     country: sortedAuthors[0]?.country || "",
     year: b.year_read_end,
     genre: Array.isArray(b.genre) ? b.genre : (b.genre ? [b.genre] : []),
+    description: b.description || "",
   };
 }
 
@@ -26,17 +27,24 @@ export function normalizeBook(b) {
 // Builds a compact text summary of the reading database for AI prompts.
 export function buildBookContext(books) {
   const byYear = {}, byGenre = {}, byAuthor = {}, byCountry = {};
+  const byTheme = {}, byMood = {}, byStyle = {}, byEra = {}, byArchetype = {};
   books.forEach(b => {
     const yr = b.year_read_end || b.year;
     byYear[yr] = (byYear[yr] || 0) + 1;
     (b.genre || []).forEach(g => { byGenre[g] = (byGenre[g] || 0) + 1; });
     byAuthor[b.author] = (byAuthor[b.author] || 0) + 1;
     if (b.country) byCountry[b.country] = (byCountry[b.country] || 0) + 1;
+    (b.theme || []).forEach(t => { byTheme[t] = (byTheme[t] || 0) + 1; });
+    if (b.mood) byMood[b.mood] = (byMood[b.mood] || 0) + 1;
+    if (b.narrative_style) byStyle[b.narrative_style] = (byStyle[b.narrative_style] || 0) + 1;
+    if (b.setting_era) byEra[b.setting_era] = (byEra[b.setting_era] || 0) + 1;
+    if (b.archetype) byArchetype[b.archetype] = (byArchetype[b.archetype] || 0) + 1;
   });
-  const topAuthors = Object.entries(byAuthor).sort((a, b) => b[1] - a[1]).slice(0, 25).map(([a, c]) => `${a}(${c})`).join(", ");
+  const topN = (obj, n) => Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, c]) => `${k}(${c})`).join(", ");
+  const topAuthors = topN(byAuthor, 25);
   const genres = Object.entries(byGenre).sort((a, b) => b[1] - a[1]).map(([g, c]) => `${g}(${c})`).join(", ");
   const years = Object.entries(byYear).sort((a, b) => parseInt(a[0]) - parseInt(b[0])).map(([y, c]) => `${y}:${c}`).join(", ");
-  const countries = Object.entries(byCountry).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([c, n]) => `${c}(${n})`).join(", ");
+  const countries = topN(byCountry, 10);
   const seriesList = [...new Set(books.filter(b => b.series?.trim()).map(b => b.series))].join(", ");
   const minYear = Math.min(...books.map(b => b.year_read_start || b.year).filter(Boolean));
   const maxYear = Math.max(...books.map(b => b.year_read_end || b.year).filter(Boolean));
@@ -48,7 +56,12 @@ TOP AUTHORS (name, count): ${topAuthors}
 GENRES (name, count): ${genres}
 COUNTRIES: ${countries}
 SERIES READ: ${seriesList}
-FICTION: ${fictionCount} (${Math.round(fictionCount / books.length * 100)}%) | NON-FICTION: ${books.length - fictionCount}`;
+FICTION: ${fictionCount} (${Math.round(fictionCount / books.length * 100)}%) | NON-FICTION: ${books.length - fictionCount}
+TOP THEMES (theme, count): ${topN(byTheme, 15)}
+MOODS (mood, count): ${topN(byMood, 15)}
+NARRATIVE STYLES (style, count): ${topN(byStyle, 15)}
+SETTING ERAS (era, count): ${topN(byEra, 15)}
+ARCHETYPES (archetype, count): ${topN(byArchetype, 15)}`;
 }
 
 // ── Download helpers ──────────────────────────────────────────────────────

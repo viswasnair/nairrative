@@ -58,6 +58,11 @@ const makeDraft = () => ({
   cover_url: "",
   rating: "",
   description: "",
+  mood: "",
+  narrative_style: "",
+  setting_era: "",
+  archetype: "",
+  theme: [],
 });
 
 export function useBooks({ session }) {
@@ -152,6 +157,11 @@ export function useBooks({ session }) {
       cover_url: b.cover_url || "",
       rating: b.rating || "",
       description: b.description || "",
+      mood: b.mood || "",
+      narrative_style: b.narrative_style || "",
+      setting_era: b.setting_era || "",
+      archetype: b.archetype || "",
+      theme: b.theme || [],
     });
     if (bookChatInputRef.current) bookChatInputRef.current.value = "";
     setBookChatPending(null);
@@ -170,7 +180,7 @@ export function useBooks({ session }) {
         method: "POST", headers: claudeHeaders(session),
         body: JSON.stringify({
           model: "claude-sonnet-4-6", max_tokens: 600,
-          system: `You are a book database assistant. Given a natural language description of a book, use your knowledge to identify the exact book (correct title, author spelling, publication year) and return ONLY valid JSON (no markdown) with these fields: title (string), authors (array of {name, country}), genres (array, pick from: Fantasy, Sci-Fi, Thriller, Mystery, Literary Fiction, Historical Fiction, Non-Fiction, Graphic Novel, Memoir, Biography, Classic, Philosophy, Popular Science, Self-Help, Travel, Horror, History, Politics, Economics, Psychology, Business), fiction (boolean), format (MUST be exactly one of these values, no others allowed: "Novel", "Novella", "Short Stories", "Graphic Novel", "Non-Fiction", "Play"), series (string or ""), pages (number or null), year (original publication year as number), description (2-3 sentence spoiler-free summary of what the book is about and why it is notable).`,
+          system: `You are a book database assistant. Given a natural language description of a book, use your knowledge to identify the exact book (correct title, author spelling, publication year) and return ONLY valid JSON (no markdown) with these fields: title (string), authors (array of {name, country}), genres (array, pick from: Fantasy, Sci-Fi, Thriller, Mystery, Literary Fiction, Historical Fiction, Non-Fiction, Graphic Novel, Memoir, Biography, Classic, Philosophy, Popular Science, Self-Help, Travel, Horror, History, Politics, Economics, Psychology, Business), fiction (boolean), format (MUST be exactly one of these values, no others allowed: "Novel", "Novella", "Short Stories", "Graphic Novel", "Non-Fiction", "Play"), series (string or ""), pages (number or null), year (original publication year as number), description (2-3 sentence spoiler-free summary of what the book is about and why it is notable), mood (single word or short phrase for the dominant emotional register, e.g. "tense", "contemplative", "epic", "witty"), narrative_style (how the story is told, e.g. "linear third-person", "omniscient third-person", "first-person", "expository", "multiple perspectives"), setting_era (time and place context, e.g. "contemporary", "far future", "WWII Britain", "ancient Rome", "fantasy world"), archetype (dominant story structure — one of: "Hero's Journey", "Overcoming the Monster", "Quest", "Voyage and Return", "Rebirth", "Rags to Riches", "Tragedy", "Comedy", "Ensemble Drama"), theme (array of 2-5 short lowercase strings for the main intellectual/emotional themes, e.g. ["survival", "identity", "power"]).`,
           messages: [{ role: "user", content: bookChatValue }]
         })
       });
@@ -201,6 +211,11 @@ export function useBooks({ session }) {
       yearStart: bookChatPending.year || p.yearStart,
       yearEnd: bookChatPending.year || p.yearEnd,
       description: bookChatPending.description || p.description,
+      mood: bookChatPending.mood || p.mood,
+      narrative_style: bookChatPending.narrative_style || p.narrative_style,
+      setting_era: bookChatPending.setting_era || p.setting_era,
+      archetype: bookChatPending.archetype || p.archetype,
+      theme: bookChatPending.theme?.length ? bookChatPending.theme : p.theme,
     }));
     setBookChatPending(null);
     if (bookChatInputRef.current) bookChatInputRef.current.value = "";
@@ -280,7 +295,7 @@ export function useBooks({ session }) {
   };
 
   const saveBook = async () => {
-    const { title, authors, genres, yearStart, yearEnd, format, fiction, series, pages, notes, cover_url, rating, description } = bookDraft;
+    const { title, authors, genres, yearStart, yearEnd, format, fiction, series, pages, notes, cover_url, rating, description, mood, narrative_style, setting_era, archetype, theme } = bookDraft;
     if (!title.trim() || !authors[0]?.name?.trim()) { setBookMsg("Title and at least one author are required."); return; }
 
     // Validate author names against existing authors before saving
@@ -310,6 +325,11 @@ export function useBooks({ session }) {
           cover_url: sanitizeCoverUrl(cover_url),
           rating: rating || null,
           description: description || "",
+          mood: mood || null,
+          narrative_style: narrative_style || null,
+          setting_era: setting_era || null,
+          archetype: archetype || null,
+          theme: theme?.length ? theme : null,
         }).eq("id", editingBook.id);
         if (error) throw error;
         await supabase.from("book_authors").delete().eq("book_id", editingBook.id);
@@ -329,6 +349,11 @@ export function useBooks({ session }) {
           cover_url: sanitizeCoverUrl(cover_url),
           rating: rating || null,
           description: description || "",
+          mood: mood || null,
+          narrative_style: narrative_style || null,
+          setting_era: setting_era || null,
+          archetype: archetype || null,
+          theme: theme?.length ? theme : null,
           user_added: true,
         }]).select().single();
         if (bookErr) throw bookErr;

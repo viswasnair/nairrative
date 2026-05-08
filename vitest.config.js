@@ -35,8 +35,10 @@ export default defineConfig({
         'src/components/AnalysisTab.jsx': { statements: 51, branches: 45, functions: 28, lines: 59 },
         // Current: BookModal 44/52/24/57
         'src/components/BookModal.jsx':   { statements: 34, branches: 42, functions: 14, lines: 47 },
-        // Current: LibraryTab 65/77/57/71
-        'src/components/LibraryTab.jsx':  { statements: 55, branches: 67, functions: 47, lines: 61 },
+        // Current: BookshelfTab 40/36/32/38 (SpineView/GridView not rendered by BookshelfTab export)
+        'src/components/BookshelfTab.jsx': { statements: 30, branches: 26, functions: 22, lines: 28 },
+        // Current: LibraryTab 69/79/62/74
+        'src/components/LibraryTab.jsx':  { statements: 59, branches: 69, functions: 52, lines: 64 },
         // Current: OverviewTab 86/61/83/79
         'src/components/OverviewTab.jsx': { statements: 76, branches: 51, functions: 73, lines: 69 },
         // Current: RecsTab 57/83/46/80

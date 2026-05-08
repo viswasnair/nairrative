@@ -141,4 +141,36 @@ describe('LibraryTab', () => {
     fireEvent.click(editButtons[0])
     expect(openEditModal).toHaveBeenCalledWith(BOOKS[0])
   })
+
+  it('description hover strip shows book description on mouse enter', () => {
+    const books = [
+      { ...BOOKS[0], description: 'An epic desert saga.' },
+    ]
+    setup({ filteredBooks: books, books })
+    const row = screen.getByText('Dune').closest('.lib-row')
+    fireEvent.mouseEnter(row)
+    expect(screen.getByText('An epic desert saga.')).toBeTruthy()
+  })
+
+  it('description hover strip shows "No description yet." when book has no description', () => {
+    const books = [
+      { ...BOOKS[0], description: '' },
+    ]
+    setup({ filteredBooks: books, books })
+    const row = screen.getByText('Dune').closest('.lib-row')
+    fireEvent.mouseEnter(row)
+    expect(screen.getByText('No description yet.')).toBeTruthy()
+  })
+
+  it('description hover strip clears on mouse leave', () => {
+    const books = [
+      { ...BOOKS[0], description: 'An epic desert saga.' },
+    ]
+    setup({ filteredBooks: books, books })
+    const row = screen.getByText('Dune').closest('.lib-row')
+    fireEvent.mouseEnter(row)
+    expect(screen.getByText('An epic desert saga.')).toBeTruthy()
+    fireEvent.mouseLeave(row)
+    expect(screen.queryByText('An epic desert saga.')).toBeNull()
+  })
 })

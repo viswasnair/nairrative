@@ -229,6 +229,47 @@ export default function BookModal({
             <textarea className="input-dark" rows={3} placeholder="A brief spoiler-free summary — shown on hover in the library…" value={bookDraft.description} onChange={e => setBookDraft(p => ({ ...p, description: e.target.value }))} style={{ resize: "vertical", lineHeight: 1.5, fontSize: 12 }} />
           </div>
 
+          {/* AI Attributes — read-only */}
+          {(bookDraft.mood || bookDraft.narrative_style || bookDraft.setting_era || bookDraft.archetype || bookDraft.theme?.length > 0) && (
+            <div style={{ background: G.card2, border: `1px solid ${G.border}`, borderRadius: 8, padding: "10px 12px" }}>
+              <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 8 }}>
+                ✦ AI Attributes <span style={{ textTransform: "none", letterSpacing: 0, fontStyle: "italic", fontWeight: 400 }}>· read-only</span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                {bookDraft.mood && (
+                  <div style={{ display: "flex", gap: 8, fontSize: 11 }}>
+                    <span style={{ color: G.muted, minWidth: 100 }}>Mood</span>
+                    <span style={{ color: G.text }}>{bookDraft.mood}</span>
+                  </div>
+                )}
+                {bookDraft.narrative_style && (
+                  <div style={{ display: "flex", gap: 8, fontSize: 11 }}>
+                    <span style={{ color: G.muted, minWidth: 100 }}>Narrative style</span>
+                    <span style={{ color: G.text }}>{bookDraft.narrative_style}</span>
+                  </div>
+                )}
+                {bookDraft.setting_era && (
+                  <div style={{ display: "flex", gap: 8, fontSize: 11 }}>
+                    <span style={{ color: G.muted, minWidth: 100 }}>Setting / era</span>
+                    <span style={{ color: G.text }}>{bookDraft.setting_era}</span>
+                  </div>
+                )}
+                {bookDraft.archetype && (
+                  <div style={{ display: "flex", gap: 8, fontSize: 11 }}>
+                    <span style={{ color: G.muted, minWidth: 100 }}>Archetype</span>
+                    <span style={{ color: G.text }}>{bookDraft.archetype}</span>
+                  </div>
+                )}
+                {bookDraft.theme?.length > 0 && (
+                  <div style={{ display: "flex", gap: 8, fontSize: 11 }}>
+                    <span style={{ color: G.muted, minWidth: 100 }}>Themes</span>
+                    <span style={{ color: G.text }}>{bookDraft.theme.join(", ")}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Rating */}
           <div>
             <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 8 }}>Rating</div>

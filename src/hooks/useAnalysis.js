@@ -10,6 +10,11 @@ const toRow = b =>
   `${b.pages ? " | " + b.pages + "pp" : ""}` +
   `${b.series ? " | series: " + b.series : ""}` +
   `${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}` +
+  `${b.mood ? " | mood: " + b.mood : ""}` +
+  `${b.narrative_style ? " | style: " + b.narrative_style : ""}` +
+  `${b.setting_era ? " | era: " + b.setting_era : ""}` +
+  `${b.archetype ? " | archetype: " + b.archetype : ""}` +
+  `${(b.theme || []).length ? " | themes: " + b.theme.join(", ") : ""}` +
   `${b.notes ? " | notes: " + b.notes : ""}`;
 
 export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt }) {

@@ -32,6 +32,7 @@ export default function LibraryTab({
   openAddModal, openEditModal, openRatingMode,
 }) {
   const [subTab, setSubTab] = useState("list");
+  const [hoveredBook, setHoveredBook] = useState(null);
 
   return (
     <div>
@@ -92,7 +93,7 @@ export default function LibraryTab({
             {filteredBooks.map(b => {
               const rm = b.rating ? RATING_META[b.rating] : null;
               return (
-                <div key={b.id} className="lib-row">
+                <div key={b.id} className="lib-row" onMouseEnter={() => setHoveredBook(b)} onMouseLeave={() => setHoveredBook(null)}>
                   <div style={{ width: 34, height: 48, borderRadius: 3, overflow: "hidden", background: G.card2, border: `1px solid ${G.border}`, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     {b.cover_url
                       ? <img src={b.cover_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} onError={e => { e.target.style.display = "none"; }} />
@@ -136,6 +137,17 @@ export default function LibraryTab({
           </div>
           </div>{/* end lib-inner */}
           </div>{/* end lib-scroll-wrap */}
+
+          {/* Description hover strip */}
+          <div style={{ minHeight: 36, marginTop: 8, padding: "8px 12px", background: G.card, border: `1px solid ${G.border}`, borderRadius: 6, fontSize: 12, display: "flex", gap: 10, alignItems: "center", transition: "opacity 0.15s", opacity: hoveredBook ? 1 : 0 }}>
+            {hoveredBook && <>
+              <span style={{ fontWeight: 600, color: G.text, flexShrink: 0 }}>{hoveredBook.title}</span>
+              {hoveredBook.description
+                ? <span style={{ color: G.muted, fontStyle: "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{hoveredBook.description}</span>
+                : <span style={{ color: G.dimmed, fontStyle: "italic" }}>No description yet.</span>
+              }
+            </>}
+          </div>
         </div>
       )}
     </div>

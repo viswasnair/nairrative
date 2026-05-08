@@ -115,15 +115,30 @@ describe('normalizeBook', () => {
     const b = normalizeBook(raw)
     expect(b.genre).toEqual([])
   })
+
+  it('maps description from raw book', () => {
+    const raw = { id: 7, title: 'Test', year_read_end: 2023, genre: [], book_authors: [], description: 'A great read.' }
+    const b = normalizeBook(raw)
+    expect(b.description).toBe('A great read.')
+  })
+
+  it('defaults description to empty string when absent', () => {
+    const raw = { id: 8, title: 'Test', year_read_end: 2023, genre: [], book_authors: [] }
+    const b = normalizeBook(raw)
+    expect(b.description).toBe('')
+  })
 })
 
 // ── buildBookContext ──────────────────────────────────────────────────────────
 
 describe('buildBookContext', () => {
   const books = [
-    { id: 1, title: 'Dune', author: 'Frank Herbert', year_read_start: 2022, year_read_end: 2022, genre: ['Sci-Fi'], fiction: true, country: 'United States', series: 'Dune' },
-    { id: 2, title: 'Neuromancer', author: 'William Gibson', year_read_start: 2022, year_read_end: 2022, genre: ['Sci-Fi'], fiction: true, country: 'Canada', series: '' },
-    { id: 3, title: 'Sapiens', author: 'Yuval Noah Harari', year_read_start: 2021, year_read_end: 2021, genre: ['History'], fiction: false, country: 'Israel', series: '' },
+    { id: 1, title: 'Dune', author: 'Frank Herbert', year_read_start: 2022, year_read_end: 2022, genre: ['Sci-Fi'], fiction: true, country: 'United States', series: 'Dune',
+      mood: 'epic', narrative_style: 'omniscient third-person', setting_era: 'far future', archetype: 'Hero\'s Journey', theme: ['survival', 'power', 'religion'] },
+    { id: 2, title: 'Neuromancer', author: 'William Gibson', year_read_start: 2022, year_read_end: 2022, genre: ['Sci-Fi'], fiction: true, country: 'Canada', series: '',
+      mood: 'tense', narrative_style: 'linear third-person', setting_era: 'near future', archetype: 'Overcoming the Monster', theme: ['identity', 'technology', 'survival'] },
+    { id: 3, title: 'Sapiens', author: 'Yuval Noah Harari', year_read_start: 2021, year_read_end: 2021, genre: ['History'], fiction: false, country: 'Israel', series: '',
+      mood: 'analytical', narrative_style: 'expository', setting_era: 'contemporary', archetype: 'Comedy', theme: ['power', 'human nature'] },
   ]
 
   it('includes total book count', () => {
@@ -162,6 +177,57 @@ describe('buildBookContext', () => {
   it('includes the 2010 placeholder note', () => {
     const ctx = buildBookContext(books)
     expect(ctx).toContain('Year 2010 is a collective entry')
+  })
+
+  it('includes top themes aggregated across all books', () => {
+    const ctx = buildBookContext(books)
+    expect(ctx).toContain('TOP THEMES')
+    // 'survival' and 'power' each appear in 2 books
+    expect(ctx).toContain('survival(2)')
+    expect(ctx).toContain('power(2)')
+    // 'religion' appears in only 1 book
+    expect(ctx).toContain('religion(1)')
+  })
+
+  it('includes mood counts', () => {
+    const ctx = buildBookContext(books)
+    expect(ctx).toContain('MOODS')
+    expect(ctx).toContain('epic(1)')
+    expect(ctx).toContain('tense(1)')
+    expect(ctx).toContain('analytical(1)')
+  })
+
+  it('includes narrative style counts', () => {
+    const ctx = buildBookContext(books)
+    expect(ctx).toContain('NARRATIVE STYLES')
+    expect(ctx).toContain('omniscient third-person(1)')
+    expect(ctx).toContain('linear third-person(1)')
+    expect(ctx).toContain('expository(1)')
+  })
+
+  it('includes setting era counts', () => {
+    const ctx = buildBookContext(books)
+    expect(ctx).toContain('SETTING ERAS')
+    expect(ctx).toContain('far future(1)')
+    expect(ctx).toContain('near future(1)')
+    expect(ctx).toContain('contemporary(1)')
+  })
+
+  it('includes archetype counts', () => {
+    const ctx = buildBookContext(books)
+    expect(ctx).toContain('ARCHETYPES')
+    expect(ctx).toContain("Hero's Journey(1)")
+    expect(ctx).toContain('Overcoming the Monster(1)')
+  })
+
+  it('silently skips books with null theme/mood/style/era/archetype', () => {
+    const sparse = [
+      { id: 1, title: 'Bare', author: 'A', year_read_start: 2023, year_read_end: 2023, genre: [], fiction: true, country: '', series: '',
+        mood: null, narrative_style: null, setting_era: null, archetype: null, theme: null },
+    ]
+    expect(() => buildBookContext(sparse)).not.toThrow()
+    const ctx = buildBookContext(sparse)
+    expect(ctx).toContain('TOP THEMES')
   })
 })
 

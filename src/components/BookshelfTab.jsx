@@ -46,8 +46,9 @@ function CoverRow({ label, books, genreMap, openEditModal, session }) {
                   </div>
               }
               {isHovered && (
-                <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "flex-end", padding: "5px 4px" }}>
-                  <div style={{ fontSize: 9, color: "#fff", lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical" }}>{b.title}</div>
+                <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", flexDirection: "column", justifyContent: "flex-end", padding: "5px 4px" }}>
+                  <div style={{ fontSize: 9, color: "#fff", lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", fontWeight: 600 }}>{b.title}</div>
+                  {b.description && <div style={{ fontSize: 8, color: "rgba(255,255,255,0.75)", lineHeight: 1.3, marginTop: 2, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{b.description}</div>}
                 </div>
               )}
             </div>
@@ -285,11 +286,12 @@ function SpineView({ filtered, genreMap, session, openEditModal }) {
       {/* Hover info strip */}
       <div style={{ minHeight: 32, padding: "8px 12px", background: G.card, border: `1px solid ${G.border}`, borderRadius: 6, fontSize: 12, display: "flex", gap: 10, alignItems: "center", transition: "opacity 0.15s", opacity: hovered ? 1 : 0 }}>
         {hovered && <>
-          <span style={{ fontWeight: 600, color: G.text }}>{hovered.title}</span>
-          <span style={{ color: G.muted }}>by {hovered.author}</span>
-          {hovered.year_read_end && <span style={{ color: G.dimmed }}>· {hovered.year_read_end}</span>}
-          {hovered.genre?.[0] && <span style={{ color: genreMap[hovered.genre[0]] || G.dimmed }}>· {hovered.genre[0]}</span>}
-          {hovered.pages && <span style={{ color: G.dimmed }}>· {hovered.pages}pp</span>}
+          <span style={{ fontWeight: 600, color: G.text, flexShrink: 0 }}>{hovered.title}</span>
+          <span style={{ color: G.muted, flexShrink: 0 }}>by {hovered.author}</span>
+          {hovered.year_read_end && <span style={{ color: G.dimmed, flexShrink: 0 }}>· {hovered.year_read_end}</span>}
+          {hovered.genre?.[0] && <span style={{ color: genreMap[hovered.genre[0]] || G.dimmed, flexShrink: 0 }}>· {hovered.genre[0]}</span>}
+          {hovered.pages && <span style={{ color: G.dimmed, flexShrink: 0 }}>· {hovered.pages}pp</span>}
+          {hovered.description && <span style={{ color: G.muted, fontStyle: "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>· {hovered.description}</span>}
         </>}
       </div>
     </div>
@@ -299,6 +301,7 @@ function SpineView({ filtered, genreMap, session, openEditModal }) {
 // ── Timeline mosaic view ──────────────────────────────────────────────────────
 function MosaicView({ filtered, genreMap, session, openEditModal }) {
   const [hoveredId, setHoveredId] = useState(null);
+  const hovered = hoveredId ? filtered.find(b => b.id === hoveredId) : null;
 
   const byYear = useMemo(() => {
     const map = {};
@@ -356,6 +359,17 @@ function MosaicView({ filtered, genreMap, session, openEditModal }) {
           </div>
         </div>
       ))}
+      {/* Hover info strip */}
+      <div style={{ minHeight: 32, marginTop: 12, padding: "8px 12px", background: G.card, border: `1px solid ${G.border}`, borderRadius: 6, fontSize: 12, display: "flex", gap: 10, alignItems: "center", transition: "opacity 0.15s", opacity: hovered ? 1 : 0 }}>
+        {hovered && <>
+          <span style={{ fontWeight: 600, color: G.text, flexShrink: 0 }}>{hovered.title}</span>
+          <span style={{ color: G.muted, flexShrink: 0 }}>by {hovered.author}</span>
+          {hovered.description
+            ? <span style={{ color: G.muted, fontStyle: "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>— {hovered.description}</span>
+            : <span style={{ color: G.dimmed }}>· {hovered.year_read_end || ""}</span>
+          }
+        </>}
+      </div>
     </div>
   );
 }
