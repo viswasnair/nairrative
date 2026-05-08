@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import { buildBookContext } from "../lib/bookUtils";
+import { buildBookContext, toRow } from "../lib/bookUtils";
 import { SEED_RECS, } from "../constants/seeds";
 import { AUTO_RECS } from "../constants/config";
 import { CLAUDE_URL, claudeHeaders, INTER_REQUEST_DELAY_MS } from "../lib/api";
@@ -100,9 +100,10 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
         ? `\nDo NOT recommend these books (already picked in other panels or previously rejected): ${allExclusions.join("; ")}.\n`
         : "";
       const useWebSearch = intentId === "trending" || intentId === "pair";
+      const fullList = books.map(toRow).join("\n");
       const body = {
         model: "claude-haiku-4-5-20251001", max_tokens: 400,
-        system: `You are a precise book recommendation engine. Today is ${today}. Reader history:\n${buildBookContext(books)}\n\nDo NOT recommend any of these already-read titles: ${readTitlesString}.${crossPanelNote}\nOnly recommend unread books published up to ${today}.\n\n${prompts[intentId] || input}\n\nReturn ONLY a JSON array — no markdown, no explanation. Exactly 1 item. Format: [{"title": "...", "author": "...", "year": 2024, "reason": "1-2 sentences why it fits this reader"}].`,
+        system: `You are a precise book recommendation engine. Today is ${today}. Reader history:\n${buildBookContext(books)}\n\nFULL BOOK LIST (${books.length} books):\n${fullList}\n\nDo NOT recommend any of these already-read titles: ${readTitlesString}.${crossPanelNote}\nOnly recommend unread books published up to ${today}.\n\n${prompts[intentId] || input}\n\nReturn ONLY a JSON array — no markdown, no explanation. Exactly 1 item. Format: [{"title": "...", "author": "...", "year": 2024, "reason": "1-2 sentences why it fits this reader"}].`,
         messages: [{ role: "user", content: "JSON array only." }],
       };
       if (useWebSearch) body.tools = [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }];

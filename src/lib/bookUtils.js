@@ -23,11 +23,27 @@ export function normalizeBook(b) {
   };
 }
 
+// ── toRow ─────────────────────────────────────────────────────────────────
+// Serialises a single book into a compact pipe-delimited string for AI prompts.
+export const toRow = b =>
+  `[${b.year_read_end || b.year}] "${b.title}" by ${b.author} | ${(b.genre || []).join("/")}` +
+  `${b.pages ? " | " + b.pages + "pp" : ""}` +
+  `${b.series ? " | series: " + b.series : ""}` +
+  `${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}` +
+  `${b.mood ? " | mood: " + b.mood : ""}` +
+  `${b.narrative_style ? " | style: " + b.narrative_style : ""}` +
+  `${b.setting_era ? " | era: " + b.setting_era : ""}` +
+  `${b.archetype ? " | archetype: " + b.archetype : ""}` +
+  `${(b.theme || []).length ? " | themes: " + b.theme.join(", ") : ""}` +
+  `${b.rating ? " | rating: " + b.rating : ""}` +
+  `${b.description ? " | desc: " + b.description : ""}` +
+  `${b.notes ? " | notes: " + b.notes : ""}`;
+
 // ── buildBookContext ──────────────────────────────────────────────────────
 // Builds a compact text summary of the reading database for AI prompts.
 export function buildBookContext(books) {
   const byYear = {}, byGenre = {}, byAuthor = {}, byCountry = {};
-  const byTheme = {}, byMood = {}, byStyle = {}, byEra = {}, byArchetype = {};
+  const byTheme = {}, byMood = {}, byStyle = {}, byEra = {}, byArchetype = {}, byRating = {};
   books.forEach(b => {
     const yr = b.year_read_end || b.year;
     byYear[yr] = (byYear[yr] || 0) + 1;
@@ -39,6 +55,7 @@ export function buildBookContext(books) {
     if (b.narrative_style) byStyle[b.narrative_style] = (byStyle[b.narrative_style] || 0) + 1;
     if (b.setting_era) byEra[b.setting_era] = (byEra[b.setting_era] || 0) + 1;
     if (b.archetype) byArchetype[b.archetype] = (byArchetype[b.archetype] || 0) + 1;
+    if (b.rating) byRating[b.rating] = (byRating[b.rating] || 0) + 1;
   });
   const topN = (obj, n) => Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, c]) => `${k}(${c})`).join(", ");
   const topAuthors = topN(byAuthor, 25);
@@ -49,6 +66,8 @@ export function buildBookContext(books) {
   const minYear = Math.min(...books.map(b => b.year_read_start || b.year).filter(Boolean));
   const maxYear = Math.max(...books.map(b => b.year_read_end || b.year).filter(Boolean));
   const fictionCount = books.filter(b => b.fiction).length;
+  const RATING_ORDER = ["transformative", "loved", "enjoyed", "meh", "dont_remember", "dropped", "didnt_like"];
+  const ratingsStr = RATING_ORDER.filter(r => byRating[r]).map(r => `${r}(${byRating[r]})`).join(", ");
   return `READING DATABASE: ${books.length} books, ${minYear}–${maxYear}.
 NOTE: Year 2010 is a collective entry representing all books read from 1998–2010. Not a single-year anomaly.
 BOOKS BY YEAR: ${years}
@@ -57,6 +76,7 @@ GENRES (name, count): ${genres}
 COUNTRIES: ${countries}
 SERIES READ: ${seriesList}
 FICTION: ${fictionCount} (${Math.round(fictionCount / books.length * 100)}%) | NON-FICTION: ${books.length - fictionCount}
+RATINGS: ${ratingsStr}
 TOP THEMES (theme, count): ${topN(byTheme, 15)}
 MOODS (mood, count): ${topN(byMood, 15)}
 NARRATIVE STYLES (style, count): ${topN(byStyle, 15)}

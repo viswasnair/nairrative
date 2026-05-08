@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { stripMd, normalizeBook, buildBookContext, downloadCSV, downloadJSON } from '../../src/lib/bookUtils.js'
+import { stripMd, normalizeBook, buildBookContext, toRow, downloadCSV, downloadJSON } from '../../src/lib/bookUtils.js'
 
 // ── stripMd ──────────────────────────────────────────────────────────────────
 
@@ -228,6 +228,94 @@ describe('buildBookContext', () => {
     expect(() => buildBookContext(sparse)).not.toThrow()
     const ctx = buildBookContext(sparse)
     expect(ctx).toContain('TOP THEMES')
+  })
+
+  it('includes RATINGS line with counts in canonical order', () => {
+    const rated = [
+      { id: 1, title: 'A', author: 'X', year_read_start: 2023, year_read_end: 2023, genre: [], fiction: true, country: '', series: '', rating: 'loved' },
+      { id: 2, title: 'B', author: 'Y', year_read_start: 2023, year_read_end: 2023, genre: [], fiction: true, country: '', series: '', rating: 'loved' },
+      { id: 3, title: 'C', author: 'Z', year_read_start: 2023, year_read_end: 2023, genre: [], fiction: false, country: '', series: '', rating: 'enjoyed' },
+    ]
+    const ctx = buildBookContext(rated)
+    expect(ctx).toContain('RATINGS')
+    expect(ctx).toContain('loved(2)')
+    expect(ctx).toContain('enjoyed(1)')
+    // 'loved' should appear before 'enjoyed' in the RATINGS line
+    expect(ctx.indexOf('loved(2)')).toBeLessThan(ctx.indexOf('enjoyed(1)'))
+  })
+
+  it('omits RATINGS line content when no books have a rating', () => {
+    const unrated = [
+      { id: 1, title: 'A', author: 'X', year_read_start: 2023, year_read_end: 2023, genre: [], fiction: true, country: '', series: '' },
+    ]
+    const ctx = buildBookContext(unrated)
+    expect(ctx).toContain('RATINGS:')
+    // value after colon should be empty
+    const ratingsLine = ctx.split('\n').find(l => l.startsWith('RATINGS:'))
+    expect(ratingsLine).toBe('RATINGS: ')
+  })
+})
+
+// ── toRow ─────────────────────────────────────────────────────────────────────
+
+describe('toRow', () => {
+  const fullBook = {
+    title: 'Dune', author: 'Frank Herbert', year_read_end: 2022, year: 2022,
+    genre: ['Sci-Fi', 'Classic'], pages: 412, series: 'Dune', fiction: true,
+    mood: 'epic', narrative_style: 'omniscient third-person', setting_era: 'far future',
+    archetype: "Hero's Journey", theme: ['survival', 'power'],
+    rating: 'loved', description: 'A desert planet epic.', notes: 'Re-read',
+  }
+
+  it('includes year, title, author, and genre', () => {
+    const row = toRow(fullBook)
+    expect(row).toContain('[2022]')
+    expect(row).toContain('"Dune"')
+    expect(row).toContain('Frank Herbert')
+    expect(row).toContain('Sci-Fi/Classic')
+  })
+
+  it('includes pages, series, and fiction flag', () => {
+    const row = toRow(fullBook)
+    expect(row).toContain('412pp')
+    expect(row).toContain('series: Dune')
+    expect(row).toContain('fiction')
+  })
+
+  it('includes mood, narrative_style, setting_era, archetype, and themes', () => {
+    const row = toRow(fullBook)
+    expect(row).toContain('mood: epic')
+    expect(row).toContain('style: omniscient third-person')
+    expect(row).toContain('era: far future')
+    expect(row).toContain("archetype: Hero's Journey")
+    expect(row).toContain('themes: survival, power')
+  })
+
+  it('includes rating and description', () => {
+    const row = toRow(fullBook)
+    expect(row).toContain('rating: loved')
+    expect(row).toContain('desc: A desert planet epic.')
+  })
+
+  it('includes notes', () => {
+    const row = toRow(fullBook)
+    expect(row).toContain('notes: Re-read')
+  })
+
+  it('omits optional fields when absent', () => {
+    const minimal = { title: 'X', author: 'A', year_read_end: 2020, genre: [], fiction: true }
+    const row = toRow(minimal)
+    expect(row).not.toContain('pp')
+    expect(row).not.toContain('series:')
+    expect(row).not.toContain('mood:')
+    expect(row).not.toContain('rating:')
+    expect(row).not.toContain('desc:')
+    expect(row).not.toContain('notes:')
+  })
+
+  it('falls back to b.year when year_read_end is absent', () => {
+    const b = { title: 'X', author: 'A', year: 2019, genre: [], fiction: false }
+    expect(toRow(b)).toContain('[2019]')
   })
 })
 

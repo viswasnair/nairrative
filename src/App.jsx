@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect, useTransition, useDeferredValue }
 import { supabase } from "./lib/supabase";
 import G from "./constants/theme";
 import { TABS } from "./constants/config";
-import { buildBookContext } from "./lib/bookUtils";
+import { buildBookContext, toRow } from "./lib/bookUtils";
 import { useBooks } from "./hooks/useBooks";
 import { useAnalysis } from "./hooks/useAnalysis";
 import { useRecs } from "./hooks/useRecs";
@@ -328,9 +328,7 @@ export default function App() {
     setChatLoading(true);
     try {
       const summary = buildBookContext(books);
-      const fullList = books
-        .map(b => `[${b.year}] "${b.title}" by ${b.author} | ${(b.genre||[]).join("/")}${b.pages ? " | " + b.pages + "pp" : ""}${b.series ? " | series: " + b.series : ""}${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}${b.notes ? " | " + b.notes : ""}`)
-        .join("\n");
+      const fullList = books.map(toRow).join("\n");
       // Overview KPIs and chart data (mirrors what the Overview tab shows)
       const withPages = books.filter(b => b.pages);
       const totalPages = withPages.reduce((s, b) => s + b.pages, 0);

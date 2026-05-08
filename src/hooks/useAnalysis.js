@@ -1,21 +1,9 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import { buildBookContext } from "../lib/bookUtils";
+import { buildBookContext, toRow } from "../lib/bookUtils";
 import { SEED_ANALYSIS, } from "../constants/seeds";
 import { DEFAULT_PANEL_PROMPTS } from "../constants/config";
 import { CLAUDE_URL, claudeHeaders, INTER_REQUEST_DELAY_MS } from "../lib/api";
-
-const toRow = b =>
-  `[${b.year_read_end || b.year}] "${b.title}" by ${b.author} | ${(b.genre || []).join("/")}` +
-  `${b.pages ? " | " + b.pages + "pp" : ""}` +
-  `${b.series ? " | series: " + b.series : ""}` +
-  `${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}` +
-  `${b.mood ? " | mood: " + b.mood : ""}` +
-  `${b.narrative_style ? " | style: " + b.narrative_style : ""}` +
-  `${b.setting_era ? " | era: " + b.setting_era : ""}` +
-  `${b.archetype ? " | archetype: " + b.archetype : ""}` +
-  `${(b.theme || []).length ? " | themes: " + b.theme.join(", ") : ""}` +
-  `${b.notes ? " | notes: " + b.notes : ""}`;
 
 export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt }) {
   const [analysisAI, setAnalysisAI] = useState(null);
