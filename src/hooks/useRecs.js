@@ -49,18 +49,21 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
     if (cachedFp === booksFingerprint && cachedResult) {
       try { setIntentResults({ ...SEED_RECS, ...JSON.parse(cachedResult) }); return; } catch { /* malformed cache — fall through */ }
     }
-    supabase.from("recs_cache").select("data").maybeSingle()
-      .then(({ data }) => {
-        if (data?.data) {
-          const merged = { ...SEED_RECS, ...data.data };
-          setIntentResults(merged);
-          localStorage.setItem("nairrative_recs", JSON.stringify(merged));
-          localStorage.setItem("nairrative_recs_fp", booksFingerprint);
-        } else {
-          setIntentResults(SEED_RECS);
-        }
-      })
-      .catch(() => setIntentResults(SEED_RECS));
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const query = supabase.from("recs_cache").select("data");
+      (session ? query.eq("user_id", session.user.id) : query).maybeSingle()
+        .then(({ data }) => {
+          if (data?.data) {
+            const merged = { ...SEED_RECS, ...data.data };
+            setIntentResults(merged);
+            localStorage.setItem("nairrative_recs", JSON.stringify(merged));
+            localStorage.setItem("nairrative_recs_fp", booksFingerprint);
+          } else {
+            setIntentResults(SEED_RECS);
+          }
+        })
+        .catch(() => setIntentResults(SEED_RECS));
+    });
   }, [activeTab, booksFingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveRecsToSupabase = async (data) => {
@@ -110,7 +113,7 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(CLAUDE_URL, { method: "POST", headers: claudeHeaders(session), body: JSON.stringify(body) });
       const data = await res.json();
-      if (data.error) throw new Error(data.error.message || data.error.type || JSON.stringify(data.error));
+      if (data.error) { console.error("claude api error:", data.error); throw new Error("api_error"); }
       const txt = (data.content || []).filter(c => c.type === "text").map(c => c.text).join("");
       const m = txt.match(/\[[\s\S]*?\]/);
       return m ? JSON.parse(m[0]) : JSON.parse(txt.replace(/```json|```/g, "").trim());
@@ -145,7 +148,7 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
       });
     } catch (e) {
       console.error("fetchIntentRecs error:", e);
-      setIntentResults(p => ({ ...p, [intentId]: [{ title: "Could not load", author: "", reason: e?.message || "Unknown error — check console for details." }] }));
+      setIntentResults(p => ({ ...p, [intentId]: [{ title: "Could not load", author: "", reason: "Recommendation unavailable. Please try again." }] }));
     }
     setIntentLoading(p => { const n = { ...p }; delete n[intentId]; return n; });
   };

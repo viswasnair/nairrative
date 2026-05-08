@@ -112,10 +112,11 @@ export function useBooks({ session }) {
     if (session === undefined) return; // still initialising
     const PUBLIC_COLS = "id, user_id, title, year_read_start, year_read_end, genre, format, fiction, series, series_number, pages, user_added, created_at, updated_at, cover_url, rating, description";
     const cols = session ? "*" : PUBLIC_COLS;
-    supabase
+    let query = supabase
       .from("books")
-      .select(`${cols}, book_authors(author_order, authors(id, name, country))`)
-      .order("id")
+      .select(`${cols}, book_authors(author_order, authors(id, name, country))`);
+    if (session) query = query.eq("user_id", session.user.id);
+    query.order("id")
       .then(({ data, error }) => {
         if (error) { console.error("Supabase fetch error:", error); return; }
         if (data) {
@@ -365,7 +366,7 @@ export function useBooks({ session }) {
         setLastAddedAt(Date.now());
       }
       setTimeout(() => { setShowBookModal(false); setBookMsg(""); }, 1200);
-    } catch (e) { console.error("saveBook error:", e); setBookMsg(`Error: ${e?.message || JSON.stringify(e)}`); }
+    } catch (e) { console.error("saveBook error:", e); setBookMsg("Something went wrong. Please try again."); }
     setBookSaving(false);
   };
 
@@ -407,7 +408,7 @@ export function useBooks({ session }) {
 
       setBooks(prev => prev.filter(b => b.id !== editingBook.id));
       setShowBookModal(false);
-    } catch (e) { console.error("deleteBook error:", e); setBookMsg(`Error: ${e?.message || JSON.stringify(e)}`); }
+    } catch (e) { console.error("deleteBook error:", e); setBookMsg("Something went wrong. Please try again."); }
     setBookSaving(false);
   };
 
