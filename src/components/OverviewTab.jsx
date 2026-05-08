@@ -71,7 +71,7 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
   const mtBooks = cb("mt");
   const mtRange = getChartRange("mt");
   const mtYrs = [];
-  for (let y = mtRange.from; y <= mtRange.to; y++) mtYrs.push(y);
+  for (let y = Math.max(mtRange.from, 2011); y <= mtRange.to; y++) mtYrs.push(y);
   const mtMoodCount = mtBooks.filter(b=>b.mood).reduce((a,b)=>{a[b.mood]=(a[b.mood]||0)+1;return a;},{});
   const mtTopMoods = Object.entries(mtMoodCount).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([m])=>m);
   const mtData = mtYrs.map(year=>{const e={year};mtTopMoods.forEach(m=>{e[m]=mtBooks.filter(b=>b.year===year&&b.mood===m).length;});return e;});
