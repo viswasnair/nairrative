@@ -92,12 +92,12 @@ export default function LibraryTab({
             >
               {secondaryCount > 0 ? `▼ Filters · ${secondaryCount}` : (showMoreFilters ? "▲ Less" : "▼ More")}
             </button>
+            <button className="btn-gold" style={{ padding: "7px 16px", fontSize: 12, opacity: session ? 1 : 0.35, cursor: session ? "pointer" : "not-allowed" }} onClick={() => session && openAddModal()}>+ Book</button>
             <span style={{ color: G.muted, fontSize: 12, whiteSpace: "nowrap" }}>{filteredBooks.length} books</span>
             <div style={{ flex: 1 }} />
             <button className="btn-ghost" onClick={() => downloadCSV(books)}>↓ CSV</button>
             <button className="btn-ghost" onClick={() => downloadJSON(books)}>↓ JSON</button>
             <button className="btn-ghost" style={{ opacity: session ? 1 : 0.35, cursor: session ? "pointer" : "not-allowed" }} onClick={() => session && openRatingMode()}>⚡ Rate Library</button>
-            <button className="btn-gold" style={{ padding: "7px 16px", fontSize: 12, opacity: session ? 1 : 0.35, cursor: session ? "pointer" : "not-allowed" }} onClick={() => session && openAddModal()}>+ Add Book</button>
           </div>
 
           {/* Secondary filter panel — Author, Country, Format, Mood, Archetype, Theme */}
