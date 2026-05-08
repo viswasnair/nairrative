@@ -37,6 +37,13 @@ export default function LibraryTab({
 }) {
   const [subTab, setSubTab] = useState("list");
   const [hoveredBook, setHoveredBook] = useState(null);
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
+
+  // Count active secondary filters — drives the badge and auto-expand
+  const secondaryCount = libAuthors.length + libCountries.length + libFormats.length
+    + libMoods.length + libArchetypes.length + libThemes.length;
+  // Panel auto-opens when a chart click fires a secondary filter
+  const panelOpen = showMoreFilters || secondaryCount > 0;
 
   return (
     <div>
@@ -59,23 +66,32 @@ export default function LibraryTab({
 
       {subTab === "list" && (
         <div>
-          {/* Filter row */}
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 16 }}>
+          {/* Primary filter row */}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: panelOpen ? 6 : 16 }}>
             <input className="input-dark" style={{ width: 190, flex: "0 0 auto" }} placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} />
             <MultiSelect options={allGenres} selected={libGenres} onChange={setLibGenres} placeholder="Genre" style={{ width: 130, flex: "0 0 auto" }} />
             <MultiSelect options={allYears} selected={libYears} onChange={setLibYears} placeholder="Year" style={{ width: 100, flex: "0 0 auto" }} />
-            <MultiSelect options={allAuthors} selected={libAuthors} onChange={setLibAuthors} placeholder="Author" style={{ width: 160, flex: "0 0 auto" }} />
-            <MultiSelect options={allCountries} selected={libCountries} onChange={setLibCountries} placeholder="Country" style={{ width: 130, flex: "0 0 auto" }} />
-            <MultiSelect options={allFormats} selected={libFormats} onChange={setLibFormats} placeholder="Format" style={{ width: 120, flex: "0 0 auto" }} />
-            <MultiSelect options={allMoods} selected={libMoods} onChange={setLibMoods} placeholder="Mood" style={{ width: 120, flex: "0 0 auto" }} />
-            <MultiSelect options={allArchetypes} selected={libArchetypes} onChange={setLibArchetypes} placeholder="Archetype" style={{ width: 140, flex: "0 0 auto" }} />
-            <MultiSelect options={allThemes} selected={libThemes} onChange={setLibThemes} placeholder="Theme" style={{ width: 130, flex: "0 0 auto" }} />
             <select className="input-dark" style={{ width: 130, flex: "0 0 auto" }} value={libSort} onChange={e => setLibSort(e.target.value)}>
               <option value="year">Sort: Year</option>
               <option value="title">Sort: Title</option>
               <option value="author">Sort: Author</option>
               <option value="rating">Sort: Rating</option>
             </select>
+            {/* More / Less toggle — amber when secondary filters are active */}
+            <button
+              onClick={secondaryCount === 0 ? () => setShowMoreFilters(v => !v) : undefined}
+              title={secondaryCount > 0 ? "Clear secondary filters to collapse" : ""}
+              style={{
+                flex: "0 0 auto", background: secondaryCount > 0 ? `${G.gold}18` : "none",
+                border: `1px solid ${secondaryCount > 0 ? G.gold : G.border}`,
+                color: secondaryCount > 0 ? G.gold : G.muted,
+                borderRadius: 6, padding: "5px 10px",
+                cursor: secondaryCount === 0 ? "pointer" : "default",
+                fontSize: 12, fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap",
+              }}
+            >
+              {secondaryCount > 0 ? `▼ Filters · ${secondaryCount}` : (showMoreFilters ? "▲ Less" : "▼ More")}
+            </button>
             <span style={{ color: G.muted, fontSize: 12, whiteSpace: "nowrap" }}>{filteredBooks.length} books</span>
             <div style={{ flex: 1 }} />
             <button className="btn-ghost" onClick={() => downloadCSV(books)}>↓ CSV</button>
@@ -83,6 +99,18 @@ export default function LibraryTab({
             <button className="btn-ghost" style={{ opacity: session ? 1 : 0.35, cursor: session ? "pointer" : "not-allowed" }} onClick={() => session && openRatingMode()}>⚡ Rate Library</button>
             <button className="btn-gold" style={{ padding: "7px 16px", fontSize: 12, opacity: session ? 1 : 0.35, cursor: session ? "pointer" : "not-allowed" }} onClick={() => session && openAddModal()}>+ Add Book</button>
           </div>
+
+          {/* Secondary filter panel — Author, Country, Format, Mood, Archetype, Theme */}
+          {panelOpen && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 16, paddingTop: 8, borderTop: `1px solid ${G.border}` }}>
+              <MultiSelect options={allAuthors} selected={libAuthors} onChange={setLibAuthors} placeholder="Author" style={{ width: 160, flex: "0 0 auto" }} />
+              <MultiSelect options={allCountries} selected={libCountries} onChange={setLibCountries} placeholder="Country" style={{ width: 130, flex: "0 0 auto" }} />
+              <MultiSelect options={allFormats} selected={libFormats} onChange={setLibFormats} placeholder="Format" style={{ width: 120, flex: "0 0 auto" }} />
+              <MultiSelect options={allMoods} selected={libMoods} onChange={setLibMoods} placeholder="Mood" style={{ width: 120, flex: "0 0 auto" }} />
+              <MultiSelect options={allArchetypes} selected={libArchetypes} onChange={setLibArchetypes} placeholder="Archetype" style={{ width: 140, flex: "0 0 auto" }} />
+              <MultiSelect options={allThemes} selected={libThemes} onChange={setLibThemes} placeholder="Theme" style={{ width: 130, flex: "0 0 auto" }} />
+            </div>
+          )}
 
           {/* Scrollable table wrapper */}
           <div className="lib-scroll-wrap" style={{ borderRadius: 8, border: `1px solid ${G.border}` }}>
