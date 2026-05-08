@@ -162,6 +162,37 @@ describe('useRecs — saveRecsToSupabase (via fetchIntentRecs)', () => {
     })
   })
 
+  it('sets an error result when fetch rejects', async () => {
+    supabase.auth.getSession.mockResolvedValue({ data: { session: null } })
+    makeFromMock()
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network failure')))
+
+    const { result } = renderHook(() => useRecs(DEFAULT_PROPS))
+
+    await act(async () => { await result.current.fetchIntentRecs('loved', 'Dune') })
+    await flushPromises()
+
+    const rec = result.current.intentResults['loved']?.[0]
+    expect(rec).toBeDefined()
+    expect(rec.title).toBe('Could not load')
+    expect(rec.reason).toContain('Network failure')
+  })
+
+  it('loads intentResults from localStorage when fingerprint matches', async () => {
+    supabase.auth.getSession.mockResolvedValue({ data: { session: null } })
+    makeFromMock()
+    const cached = { 'more-like': [{ title: 'Cached Book', author: 'Author', reason: 'From cache.' }] }
+    localStorage.setItem('nairrative_recs_fp', 'fp-recs')
+    localStorage.setItem('nairrative_recs', JSON.stringify(cached))
+
+    // Switch to the recs tab — triggers the cache-load effect
+    const { result } = renderHook(() => useRecs({ ...DEFAULT_PROPS, activeTab: 'recs' }))
+    await act(async () => { await flushPromises() })
+
+    // Seed is merged in; cached result should appear for 'more-like'
+    expect(result.current.intentResults['more-like']?.[0].title).toBe('Cached Book')
+  })
+
   it('targets the recs_cache table (not a different cache table)', async () => {
     supabase.auth.getSession.mockResolvedValue({
       data: { session: { user: { id: 'user-recs' } } },

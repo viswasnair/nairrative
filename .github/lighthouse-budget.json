@@ -1,0 +1,21 @@
+[
+  {
+    "path": "/*",
+    "timings": [
+      { "metric": "first-contentful-paint",  "budget": 3000 },
+      { "metric": "largest-contentful-paint", "budget": 5000 },
+      { "metric": "interactive",              "budget": 5000 },
+      { "metric": "total-blocking-time",      "budget": 500  }
+    ],
+    "resourceSizes": [
+      { "resourceType": "script",   "budget": 500 },
+      { "resourceType": "total",    "budget": 1000 }
+    ],
+    "scores": [
+      { "category": "performance",   "minScore": 0.70 },
+      { "category": "accessibility", "minScore": 0.80 },
+      { "category": "best-practices","minScore": 0.90 },
+      { "category": "seo",           "minScore": 0.80 }
+    ]
+  }
+]

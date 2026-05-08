@@ -10,6 +10,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { supabase } from '../../src/lib/supabase'
 import { useAnalysis } from '../../src/hooks/useAnalysis'
+import { DEFAULT_PANEL_PROMPTS } from '../../src/constants/config'
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
 
@@ -139,6 +140,84 @@ describe('useAnalysis — savePanelPromptsToSupabase', () => {
     })
 
     expect(supabase.from).toHaveBeenCalledWith('panel_prompts')
+  })
+})
+
+// ── Tests: updatePanelPrompt / resetPanelPrompt ───────────────────────────────
+
+describe('useAnalysis — updatePanelPrompt and resetPanelPrompt', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+    makeFromMock()
+  })
+
+  it('updatePanelPrompt updates panelPrompts state and persists to localStorage', async () => {
+    supabase.auth.getSession.mockResolvedValue({ data: { session: null } })
+    const { result } = renderHook(() => useAnalysis(DEFAULT_PROPS))
+    await act(async () => { await flushPromises() })
+
+    await act(async () => { result.current.updatePanelPrompt('temporal', 'Focus on gaps.') })
+
+    expect(result.current.panelPrompts.temporal).toBe('Focus on gaps.')
+    const stored = JSON.parse(localStorage.getItem('nairrative_panel_prompts') || '{}')
+    expect(stored.temporal).toBe('Focus on gaps.')
+  })
+
+  it('resetPanelPrompt restores the DEFAULT_PANEL_PROMPTS value for that dimension', async () => {
+    supabase.auth.getSession.mockResolvedValue({ data: { session: null } })
+    const { result } = renderHook(() => useAnalysis(DEFAULT_PROPS))
+    await act(async () => { await flushPromises() })
+
+    // First set a custom prompt
+    await act(async () => { result.current.updatePanelPrompt('temporal', 'Custom prompt.') })
+    expect(result.current.panelPrompts.temporal).toBe('Custom prompt.')
+
+    // Then reset it — should restore the real default
+    await act(async () => { result.current.resetPanelPrompt('temporal') })
+    expect(result.current.panelPrompts.temporal).toBe(DEFAULT_PANEL_PROMPTS.temporal)
+  })
+})
+
+// ── Tests: cache load paths ───────────────────────────────────────────────────
+
+describe('useAnalysis — cache load paths', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+  })
+
+  it('loads analysisAI from localStorage when fingerprint matches (skips Supabase)', async () => {
+    supabase.auth.getSession.mockResolvedValue({ data: { session: null } })
+    const { analysisUpsert } = makeFromMock()
+    // Pre-populate localStorage with a matching fingerprint and cached result
+    const cached = { temporal: { insight: 'Cached insight.', evidence: [] } }
+    localStorage.setItem('nairrative_analysis_fp', 'fp-test')
+    localStorage.setItem('nairrative_analysis_ai', JSON.stringify(cached))
+
+    const { result } = renderHook(() => useAnalysis({ ...DEFAULT_PROPS, activeTab: 'analysis' }))
+    await act(async () => { await flushPromises() })
+
+    expect(result.current.analysisAI?.temporal?.insight).toBe('Cached insight.')
+    // Supabase should NOT have been queried since the cache hit
+    expect(analysisUpsert).not.toHaveBeenCalled()
+  })
+
+  it('loads panel prompts from Supabase on mount and updates state', async () => {
+    const customPrompts = { temporal: 'From DB prompt.' }
+    // Mock panel_prompts select to return data
+    const maybeSingle = vi.fn().mockResolvedValue({ data: { data: customPrompts } })
+    const select      = vi.fn().mockReturnValue({ maybeSingle })
+    supabase.from.mockImplementation((table) => {
+      if (table === 'panel_prompts')  return { select, upsert: vi.fn().mockResolvedValue({ error: null }) }
+      if (table === 'analysis_cache') return { select: vi.fn().mockReturnValue({ maybeSingle: vi.fn().mockResolvedValue({ data: null }) }), upsert: vi.fn().mockResolvedValue({ error: null }) }
+      return { select: vi.fn().mockReturnValue({ maybeSingle: vi.fn().mockResolvedValue({ data: null }) }), upsert: vi.fn().mockResolvedValue({ error: null }) }
+    })
+
+    const { result } = renderHook(() => useAnalysis(DEFAULT_PROPS))
+    await act(async () => { await flushPromises() })
+
+    expect(result.current.panelPrompts.temporal).toBe('From DB prompt.')
   })
 })
 

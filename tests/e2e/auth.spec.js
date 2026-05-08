@@ -13,9 +13,9 @@ test.describe('Authentication — login and logout lock', () => {
     await expect(page.locator('button[title="Sign out"]')).not.toBeVisible();
   });
 
-  test('+ Add Book button is disabled when not authenticated', async ({ page }) => {
+  test('+ Book button is disabled when not authenticated', async ({ page }) => {
     await clickTab(page, 'Library');
-    const addBtn = page.locator('button.btn-gold', { hasText: '+ Add Book' });
+    const addBtn = page.locator('button.btn-gold', { hasText: '+ Book' });
     await expect(addBtn).toBeVisible();
     // The button has opacity 0.35 and cursor: not-allowed — clicking should not open modal
     await addBtn.click();
@@ -71,7 +71,7 @@ test.describe('Authentication — login and logout lock', () => {
     await login(page);
     await clickTab(page, 'Library');
     // The Add Book button should now open a modal when clicked
-    await page.locator('button.btn-gold', { hasText: '+ Add Book' }).click();
+    await page.locator('button.btn-gold', { hasText: '+ Book' }).click();
     await expect(page.locator('.modal-box')).toBeVisible();
     await page.locator('.modal-box button', { hasText: '×' }).click();
     await logout(page);
