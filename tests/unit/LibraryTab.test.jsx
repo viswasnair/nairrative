@@ -179,4 +179,43 @@ describe('LibraryTab', () => {
     fireEvent.mouseLeave(row)
     expect(screen.queryByText('An epic desert saga.')).toBeNull()
   })
+
+  it('secondary filter panel is hidden by default', () => {
+    setup()
+    expect(screen.queryByTestId('multiselect-Author')).toBeNull()
+  })
+
+  it('clicking "▼ More" shows the secondary filter panel', () => {
+    setup()
+    fireEvent.click(screen.getByText('▼ More'))
+    expect(screen.getByTestId('multiselect-Author')).toBeTruthy()
+    expect(screen.getByTestId('multiselect-Mood')).toBeTruthy()
+    expect(screen.getByTestId('multiselect-Theme')).toBeTruthy()
+  })
+
+  it('clicking "▲ Less" collapses the secondary filter panel', () => {
+    setup()
+    fireEvent.click(screen.getByText('▼ More'))
+    expect(screen.getByTestId('multiselect-Author')).toBeTruthy()
+    fireEvent.click(screen.getByText('▲ Less'))
+    expect(screen.queryByTestId('multiselect-Author')).toBeNull()
+  })
+
+  it('secondary panel auto-opens when secondary filters are active', () => {
+    setup({ libAuthors: ['Frank Herbert'] })
+    // secondaryCount > 0 → panelOpen = true without user clicking
+    expect(screen.getByTestId('multiselect-Author')).toBeTruthy()
+  })
+
+  it('filter count badge shows active secondary filter count', () => {
+    setup({ libAuthors: ['Frank Herbert'], libMoods: ['tense'] })
+    // secondaryCount = 2 → label "▼ Filters · 2"
+    expect(screen.getByText('▼ Filters · 2')).toBeTruthy()
+  })
+
+  it('toggle button has cursor:default when secondary filters are active', () => {
+    setup({ libAuthors: ['Frank Herbert'] })
+    const badge = screen.getByText('▼ Filters · 1').closest('button')
+    expect(badge.style.cursor).toBe('default')
+  })
 })

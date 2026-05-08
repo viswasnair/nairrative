@@ -153,4 +153,46 @@ describe('RatingFlashcard', () => {
     expect(screen.getByText(/Science Fiction/)).toBeTruthy()
     expect(screen.getByText(/412pp/)).toBeTruthy()
   })
+
+  it('book with cover_url renders an img element instead of first-letter placeholder', () => {
+    const booksWithCover = [
+      { id: 1, title: 'Dune', author: 'Frank Herbert', year_read_end: 2023, rating: null, cover_url: 'https://example.com/cover.jpg' },
+    ]
+    const { container } = setup({ books: booksWithCover })
+    expect(container.querySelector('img')).toBeTruthy()
+  })
+
+  it('book without pages shows no page count', () => {
+    const booksNoPages = [
+      { id: 1, title: 'Dune', author: 'Frank Herbert', year_read_end: 2023, rating: null, genre: [] },
+    ]
+    setup({ books: booksNoPages })
+    expect(screen.queryByText(/\d+pp/)).toBeNull()
+  })
+
+  it('book without year_read_end shows no year', () => {
+    const booksNoYear = [
+      { id: 1, title: 'Dune', author: 'Frank Herbert', rating: null, genre: [] },
+    ]
+    setup({ books: booksNoYear })
+    // No year rendered in the card info area
+    expect(screen.queryByText(/202/)).toBeNull()
+  })
+
+  it('done state shows "still unrated" count when queue was not fully rated', () => {
+    // 2-book queue: rate one, skip one — total - rated = 1 still unrated
+    setup({ books: UNRATED.slice(0, 2) })
+    fireEvent.click(screen.getByText('Loved').closest('button'))  // rate book 1
+    fireEvent.click(screen.getByText(/Skip/))                     // skip book 2
+    expect(screen.getByText(/1 still unrated/)).toBeTruthy()
+  })
+
+  it('clicking the modal overlay calls onClose', () => {
+    const onClose = vi.fn()
+    const { container } = setup({ onClose })
+    const overlay = container.querySelector('.modal-overlay')
+    // Simulate a click where target === currentTarget (clicking the overlay itself)
+    fireEvent.click(overlay, { bubbles: true })
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
 })

@@ -32,16 +32,16 @@ export default defineConfig({
         'src/components/DarkTooltip.jsx': { statements: 90, branches: 90, functions: 90, lines: 90 },
 
         // Gap-filling tests added 2026-05-06/08 (floors = actual − 10)
-        // Current: AnalysisTab 61/55/38/69
-        'src/components/AnalysisTab.jsx': { statements: 51, branches: 45, functions: 28, lines: 59 },
-        // Current: BookModal 62/74/48/74
-        'src/components/BookModal.jsx':   { statements: 52, branches: 64, functions: 38, lines: 64 },
-        // Current: BookshelfTab 40/36/32/38 (SpineView/GridView not rendered by BookshelfTab export)
-        'src/components/BookshelfTab.jsx': { statements: 30, branches: 26, functions: 22, lines: 28 },
-        // Current: LibraryTab 68/72/57/74
-        'src/components/LibraryTab.jsx':  { statements: 58, branches: 62, functions: 47, lines: 64 },
-        // Current: OverviewTab 89/76/86/84
-        'src/components/OverviewTab.jsx': { statements: 79, branches: 66, functions: 76, lines: 74 },
+        // Current: AnalysisTab 86/75/90/89
+        'src/components/AnalysisTab.jsx': { statements: 76, branches: 65, functions: 80, lines: 79 },
+        // Current: BookModal 62/74/47/74
+        'src/components/BookModal.jsx':   { statements: 52, branches: 64, functions: 37, lines: 64 },
+        // Current: BookshelfTab 39/35/32/37 (SpineView/GridView not rendered by BookshelfTab export)
+        'src/components/BookshelfTab.jsx': { statements: 29, branches: 25, functions: 22, lines: 27 },
+        // Current: LibraryTab 74/83/65/77
+        'src/components/LibraryTab.jsx':  { statements: 64, branches: 73, functions: 55, lines: 67 },
+        // Current: OverviewTab 88/76/85/83
+        'src/components/OverviewTab.jsx': { statements: 78, branches: 66, functions: 75, lines: 73 },
         // Current: RecsTab 84/94/80/100
         'src/components/RecsTab.jsx':     { statements: 74, branches: 84, functions: 70, lines: 90 },
         // Current: SeriesTab 87/89/86/91
@@ -50,8 +50,8 @@ export default defineConfig({
         'api/claude.js':                  { statements: 85, branches: 86, functions: 90, lines: 87 },
         // Current: NewReleasesTab 96/93/100/96
         'src/components/NewReleasesTab.jsx':  { statements: 86, branches: 83, functions: 90, lines: 86 },
-        // Current: RatingFlashcard 83/66/75/87
-        'src/components/RatingFlashcard.jsx': { statements: 73, branches: 56, functions: 65, lines: 77 },
+        // Current: RatingFlashcard 84/73/75/87
+        'src/components/RatingFlashcard.jsx': { statements: 74, branches: 63, functions: 65, lines: 77 },
       },
     },
   },
