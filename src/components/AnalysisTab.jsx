@@ -1,7 +1,18 @@
 import G from "../constants/theme";
 import { DEFAULT_PANEL_PROMPTS } from "../constants/config";
+import { stripMd } from "../lib/bookUtils";
 
 const MOOD_COLORS = { "Dark & Tense": "#e06c75", "Imaginative": "#4a9eff", "Reflective": "#c3a6ff", "Informative": "#ffd166" };
+
+function relativeTime(iso) {
+  if (!iso) return null;
+  const mins = Math.floor((Date.now() - new Date(iso)) / 60000);
+  if (mins < 2) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
 
 export default function AnalysisTab({
   books,
@@ -21,14 +32,34 @@ export default function AnalysisTab({
   resetPanelPrompt,
   savePanelPromptsToSupabase,
   regeneratePanel,
+  onCiteClick,
 }) {
   const minYear = Math.min(...books.map(b => b.year_read_start));
   const maxYear = Math.max(...books.map(b => b.year_read_end));
   const span = maxYear - minYear + 1;
 
+  const currentYear = new Date().getFullYear();
+  const recentBooksList = books.filter(b => (b.year_read_end || b.year) >= currentYear - 1);
+  const recentCount = recentBooksList.length;
+  const recentPages = recentBooksList.reduce((s, b) => s + (b.pages || 0), 0);
+  const recentFictionPct = recentCount ? Math.round(recentBooksList.filter(b => b.fiction).length / recentCount * 100) : 0;
+  const recentGenreCounts = {};
+  recentBooksList.forEach(b => (b.genre || []).forEach(g => { recentGenreCounts[g] = (recentGenreCounts[g] || 0) + 1; }));
+  const recentTopGenre = Object.entries(recentGenreCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+
   const renderEditIcon = (dimension) => {
+    const val = analysisAI?.[dimension];
+    const meta = val && typeof val === "object" ? val : null;
+    const infoTitle = meta?.generatedAt
+      ? `Generated ${relativeTime(meta.generatedAt)} · ${meta.bookCount} book${meta.bookCount !== 1 ? "s" : ""}`
+      : null;
+
     if (session) return (
       <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+        {infoTitle && (
+          <button title={infoTitle}
+            style={{ background: "none", border: "none", cursor: "default", color: G.dimmed, fontSize: 11, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>ⓘ</button>
+        )}
         <button onClick={() => regeneratePanel(dimension)} title="Refresh with Opus"
           style={{ background: "none", border: "none", cursor: "pointer", color: G.muted, fontSize: 13, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>↻</button>
         <button onClick={() => { setEditingPanel(editingPanel === dimension ? null : dimension); setViewingPanel(null); }} title="Edit prompt"
@@ -36,8 +67,14 @@ export default function AnalysisTab({
       </div>
     );
     return (
-      <button onClick={() => setViewingPanel(viewingPanel === dimension ? null : dimension)} title="View prompt"
-        style={{ background: "none", border: "none", cursor: "pointer", color: G.muted, fontSize: 13, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>⊙</button>
+      <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+        {infoTitle && (
+          <button title={infoTitle}
+            style={{ background: "none", border: "none", cursor: "default", color: G.dimmed, fontSize: 11, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>ⓘ</button>
+        )}
+        <button onClick={() => setViewingPanel(viewingPanel === dimension ? null : dimension)} title="View prompt"
+          style={{ background: "none", border: "none", cursor: "pointer", color: G.muted, fontSize: 13, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}>⊙</button>
+      </div>
     );
   };
 
@@ -45,6 +82,13 @@ export default function AnalysisTab({
     const isEditing = editingPanel === dimension;
     const isLoading = panelLoading[dimension];
     const textStyle = { fontSize: 12, color: G.muted, lineHeight: 1.75, ...(borderTop ? { borderTop: `1px solid ${G.border}`, paddingTop: 10, marginTop: 4 } : {}) };
+
+    const raw = analysisAI?.[dimension];
+    const insight = raw ? (typeof raw === "string" ? raw : (raw.insight || "")) : null;
+    const evidence = raw && typeof raw === "object" && Array.isArray(raw.evidence) ? raw.evidence : [];
+
+    const bookTitlesLower = books.map(b => b.title.toLowerCase());
+
     return (
       <div>
         {!session && viewingPanel === dimension && (
@@ -75,8 +119,30 @@ export default function AnalysisTab({
           ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Regenerating…</div>
           : analysisAILoading
             ? <div style={{ fontSize: 11, color: G.dimmed }} className="pulse">Generating insight…</div>
-            : analysisAI?.[dimension]
-              ? <div style={textStyle}>{analysisAI[dimension]}</div>
+            : insight
+              ? (
+                <div>
+                  <div style={textStyle}>{stripMd(insight)}</div>
+                  {evidence.length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 10 }}>
+                      {evidence.map((title, i) => {
+                        const verified = bookTitlesLower.includes(title.toLowerCase());
+                        return verified ? (
+                          <button key={i} onClick={() => onCiteClick?.(title)} title={`See in library: ${title}`}
+                            style={{ background: `${G.gold}18`, border: `1px solid ${G.gold}40`, borderRadius: 4, color: G.gold, fontSize: 10, padding: "2px 8px", cursor: "pointer", fontFamily: "inherit" }}>
+                            {title}
+                          </button>
+                        ) : (
+                          <span key={i} title="Title not found in your library"
+                            style={{ background: "transparent", border: `1px solid ${G.border}`, borderRadius: 4, color: G.dimmed, fontSize: 10, padding: "2px 8px", textDecoration: "line-through" }}>
+                            {title}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
               : null
         }
       </div>
@@ -166,7 +232,7 @@ export default function AnalysisTab({
           {renderInsight("contextual")}
         </div>
 
-        {/* 7 · COMPLEXITY & CHALLENGE */}
+        {/* 5 · COMPLEXITY & CHALLENGE */}
         <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ background: `${G.red}18`, color: G.red, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Complexity & Challenge</span>
@@ -194,30 +260,82 @@ export default function AnalysisTab({
           {renderInsight("complexity")}
         </div>
 
-        {/* 9 · EMOTIONAL ARC */}
+        {/* 6 · EMOTIONAL FINGERPRINT */}
         <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ background: `${G.purple}18`, color: G.purple, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Emotional Arc</span>
+            <span style={{ background: `${G.purple}18`, color: G.purple, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Emotional</span>
             {renderEditIcon("emotional")}
           </div>
-          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 14px" }}>Mood Mapping by Era</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 14 }}>
-            {analysisInsights.fictionByEra.map(({ era, dominant, counts, total }) => (
-              <div key={era}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                  <span style={{ fontSize: 11, color: G.text, fontWeight: 600 }}>{era}</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: MOOD_COLORS[dominant] }}>{dominant}</span>
-                </div>
-                <div style={{ display: "flex", height: 6, borderRadius: 3, overflow: "hidden", gap: 1 }}>
-                  {Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([mood, c]) => (
+          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 14px" }}>Emotional Fingerprint</div>
+          {(() => {
+            const moodTotals = {};
+            (analysisInsights.fictionByEra || []).forEach(({ counts }) => {
+              Object.entries(counts || {}).forEach(([mood, c]) => { moodTotals[mood] = (moodTotals[mood] || 0) + c; });
+            });
+            const total = Object.values(moodTotals).reduce((a, b) => a + b, 0);
+            if (!total) return null;
+            const sorted = Object.entries(moodTotals).sort((a, b) => b[1] - a[1]);
+            return (
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ display: "flex", height: 10, borderRadius: 5, overflow: "hidden", marginBottom: 10 }}>
+                  {sorted.map(([mood, c]) => (
                     <div key={mood} title={`${mood}: ${c}`}
-                      style={{ width: `${Math.round(c / total * 100)}%`, background: MOOD_COLORS[mood], borderRadius: 2 }} />
+                      style={{ width: `${Math.round(c / total * 100)}%`, background: MOOD_COLORS[mood] || G.muted }} />
+                  ))}
+                </div>
+                <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+                  {sorted.map(([mood, c]) => (
+                    <div key={mood} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: 2, background: MOOD_COLORS[mood] || G.muted, flexShrink: 0 }} />
+                      <span style={{ fontSize: 10, color: G.muted }}>{mood}</span>
+                      <span style={{ fontSize: 10, color: G.text, fontWeight: 600 }}>{Math.round(c / total * 100)}%</span>
+                    </div>
                   ))}
                 </div>
               </div>
-            ))}
-          </div>
+            );
+          })()}
           {renderInsight("emotional")}
+        </div>
+
+        {/* 7 · BLINDSPOTS */}
+        <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ background: `${G.gold}18`, color: G.gold, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Blindspots</span>
+            {renderEditIcon("blindspots")}
+          </div>
+          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 14px" }}>What's Missing</div>
+          {renderInsight("blindspots", false)}
+        </div>
+
+        {/* 8 · RECENT — LAST 12 MONTHS */}
+        <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ background: `${G.green}18`, color: G.green, fontSize: 9, fontWeight: 700, letterSpacing: "1.5px", padding: "3px 8px", borderRadius: 4, textTransform: "uppercase" }}>Recent</span>
+            {renderEditIcon("recent")}
+          </div>
+          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text, margin: "10px 0 12px" }}>Last 12 Months</div>
+          <div style={{ display: "flex", gap: 20, marginBottom: 14, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ color: G.green, fontSize: 26, fontFamily: "'Playfair Display', serif", fontWeight: 700 }}>{recentCount}</div>
+              <div style={{ color: G.muted, fontSize: 10 }}>books read</div>
+            </div>
+            <div>
+              <div style={{ color: G.gold, fontSize: 26, fontFamily: "'Playfair Display', serif", fontWeight: 700 }}>{recentPages.toLocaleString()}</div>
+              <div style={{ color: G.muted, fontSize: 10 }}>pages read</div>
+            </div>
+            <div>
+              <div style={{ color: G.blue, fontSize: 26, fontFamily: "'Playfair Display', serif", fontWeight: 700 }}>{recentFictionPct}%</div>
+              <div style={{ color: G.muted, fontSize: 10 }}>fiction</div>
+            </div>
+            {recentTopGenre && (
+              <div>
+                <div style={{ color: genreMap[recentTopGenre] || G.purple, fontSize: 16, fontFamily: "'Playfair Display', serif", fontWeight: 700, marginTop: 5 }}>{recentTopGenre}</div>
+                <div style={{ color: G.muted, fontSize: 10 }}>top genre</div>
+              </div>
+            )}
+          </div>
+          {renderInsight("recent")}
         </div>
 
       </div>

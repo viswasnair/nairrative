@@ -1,5 +1,6 @@
 export const CLAUDE_URL = "/api/claude";
-export const AI_HEADERS = { "Content-Type": "application/json" };
+// Delay between sequential AI calls to stay within the API rate limit
+export const INTER_REQUEST_DELAY_MS = 8000;
 
 export function claudeHeaders(session) {
   const headers = { "Content-Type": "application/json" };

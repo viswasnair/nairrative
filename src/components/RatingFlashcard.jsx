@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import G from "../constants/theme";
 
 const TIERS = [
@@ -14,10 +14,11 @@ const TIERS = [
 const RATING_ORDER = ["transformative", "loved", "enjoyed", "meh", "dont_remember", "dropped", "didnt_like"];
 
 export default function RatingFlashcard({ books, updateBookRating, onClose }) {
-  const queueRef = useRef(
+  // Computed once on mount — stable reference, not reactive to `books` changes
+  // (avoids queue shuffling as books are rated during the session)
+  const [queue] = useState(() =>
     books.filter(b => !b.rating).sort((a, b) => (b.year_read_end || 0) - (a.year_read_end || 0) || b.id - a.id)
   );
-  const queue = queueRef.current;
 
   const [index, setIndex] = useState(0);
   const [rated, setRated] = useState(0);

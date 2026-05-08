@@ -14,7 +14,7 @@ export async function mockClaudeAPI(page) {
     const system = body.system || '';
     const maxTokens = body.max_tokens || 400;
     const messages = body.messages || [];
-    const userContent = messages[0]?.content || '';
+    const _userContent = messages[0]?.content || '';
 
     let responseText;
 

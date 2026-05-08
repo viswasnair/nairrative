@@ -4,8 +4,10 @@ import RangeFilter from "./RangeFilter";
 import DarkTooltip from "./DarkTooltip";
 
 const FORMAT_COLORS = { "Novel": "#2d6a4f", "Graphic Novel": "#06d6a0", "Non-Fiction": "#4a9eff", "Novella": "#c9a84c", "Short Stories": "#e06c75", "Play": "#c3a6ff", "Unknown": "#b2bec3" };
+const ARCHETYPE_COLORS = { "Hero's Journey": "#d97706", "Overcoming the Monster": "#e06c75", "Quest": "#4a9eff", "Voyage and Return": "#06b6d4", "Rebirth": "#2d6a4f", "Rags to Riches": "#f59e0b", "Tragedy": "#a855f7", "Comedy": "#ec4899", "Ensemble Drama": "#b87333" };
+const MOOD_PALETTE = ["#e06c75", "#4a9eff", "#d97706", "#06b6d4", "#a855f7", "#2d6a4f"];
 
-export default function OverviewTab({ books, stats, genreMap, allYearsList, allYearsListFull, chartRanges, getChartRange, setChartRange, openEditModal, session }) {
+export default function OverviewTab({ books, stats, genreMap, allYearsList, allYearsListFull, chartRanges, getChartRange, setChartRange, onChartClick }) {
   const cb = id => { const r = getChartRange(id); return books.filter(b => b.year >= r.from && b.year <= r.to); };
 
   const ycBooks = cb("yc");
@@ -40,11 +42,56 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
   const alBooks = cb("al");
   const alRange = getChartRange("al");
   const alData = [];
+  // 2010 is a collective placeholder for 1998–2010 and would skew avg length; start from 2011
   for (let y = Math.max(alRange.from, 2011); y <= alRange.to; y++) { const yb=alBooks.filter(b=>b.year===y&&b.pages); alData.push({year:y,avg:yb.length?Math.round(yb.reduce((s,b)=>s+b.pages,0)/yb.length):null}); }
 
   const fmBooks = cb("fm");
   const fmCounts = fmBooks.reduce((a,b)=>{ const f=b.format||"Unknown"; a[f]=(a[f]||0)+1; return a; },{});
   const fmData = Object.entries(fmCounts).sort((a,b)=>b[1]-a[1]).map(([name,value])=>({name,value,color:FORMAT_COLORS[name]||G.muted}));
+
+  // ── New: Mood Breakdown ───────────────────────────────────────────────────
+  const moBooks = cb("mo");
+  const moData = Object.entries(
+    moBooks.filter(b=>b.mood).reduce((a,b)=>{a[b.mood]=(a[b.mood]||0)+1;return a;},{})
+  ).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([mood,count])=>({mood,count}));
+
+  // ── New: Archetype Distribution ───────────────────────────────────────────
+  const arBooks = cb("ar");
+  const arData = Object.entries(
+    arBooks.filter(b=>b.archetype).reduce((a,b)=>{a[b.archetype]=(a[b.archetype]||0)+1;return a;},{})
+  ).sort((a,b)=>b[1]-a[1]).map(([name,value])=>({name,value,color:ARCHETYPE_COLORS[name]||G.muted}));
+
+  // ── New: Top Themes ───────────────────────────────────────────────────────
+  const thBooks = cb("th");
+  const thData = Object.entries(
+    thBooks.reduce((a,b)=>{(b.theme||[]).forEach(t=>{a[t]=(a[t]||0)+1;});return a;},{})
+  ).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([theme,count])=>({theme,count}));
+
+  // ── New: Mood Over Time ───────────────────────────────────────────────────
+  const mtBooks = cb("mt");
+  const mtRange = getChartRange("mt");
+  const mtYrs = [];
+  for (let y = Math.max(mtRange.from, 2011); y <= mtRange.to; y++) mtYrs.push(y);
+  const mtMoodCount = mtBooks.filter(b=>b.mood).reduce((a,b)=>{a[b.mood]=(a[b.mood]||0)+1;return a;},{});
+  const mtTopMoods = Object.entries(mtMoodCount).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([m])=>m);
+  const mtData = mtYrs.map(year=>{const e={year};mtTopMoods.forEach(m=>{e[m]=mtBooks.filter(b=>b.year===year&&b.mood===m).length;});return e;});
+
+  // ── KPI: inline computations for new cards ────────────────────────────────
+  const dominantMood = (() => {
+    const counts = {};
+    books.forEach(b => { if (b.mood) counts[b.mood] = (counts[b.mood] || 0) + 1; });
+    return Object.entries(counts).sort((a,b)=>b[1]-a[1])[0]?.[0] || "—";
+  })();
+  const topTheme = (() => {
+    const counts = {};
+    books.forEach(b => (b.theme||[]).forEach(t => { counts[t] = (counts[t]||0)+1; }));
+    return Object.entries(counts).sort((a,b)=>b[1]-a[1])[0]?.[0] || "—";
+  })();
+  const topArchetype = (() => {
+    const counts = {};
+    books.forEach(b => { if (b.archetype) counts[b.archetype] = (counts[b.archetype]||0)+1; });
+    return Object.entries(counts).sort((a,b)=>b[1]-a[1])[0]?.[0] || "—";
+  })();
 
   const truncTick = (maxChars) => ({ x, y, payload, index }) => {
     if (index % 2 !== 0) return null;
@@ -58,7 +105,7 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
     );
   };
 
-  const timeChartIds = new Set(["yc", "fn", "ge", "al"]);
+  const timeChartIds = new Set(["yc", "fn", "ge", "al", "mt"]);
   const chartCard = (title, id, children) => (
     <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "18px 20px 12px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14, gap: 8, flexWrap: "wrap" }}>
@@ -69,15 +116,11 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
     </div>
   );
 
-  const recentBooks = [...books]
-    .sort((a, b) => (b.year_read_end || 0) - (a.year_read_end || 0) || b.id - a.id)
-    .slice(0, 10);
-
   return (
     <div>
 
-      {/* Stat Cards */}
-      <div className="kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(9, 1fr)", gap: 10, marginBottom: 24 }}>
+      {/* Stat Cards — 6-column grid, 2 rows */}
+      <div className="kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10, marginBottom: 24 }}>
         {[
           { label: "Books Read", value: stats.total, color: "#d97706" },
           { label: "Authors Read", value: new Set(books.map(b => b.author)).size, color: "#db2777" },
@@ -88,6 +131,9 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
           { label: "Peak Year", value: `${stats.sortedYears[0]?.[0]} (${stats.sortedYears[0]?.[1]})`, color: "#0284c7" },
           { label: "#1 Author", value: stats.sortedAuthors[0]?.[0], color: G.purple },
           { label: "Top Genre", value: stats.sortedGenres[0]?.[0], color: "#ff9f7f" },
+          { label: "Dominant Mood", value: dominantMood, color: "#a855f7" },
+          { label: "Top Theme", value: topTheme, color: "#b87333" },
+          { label: "Top Archetype", value: topArchetype, color: "#06d6a0" },
         ].map((s, i) => (
           <div key={i} className="stat-card" style={{ padding: "12px 14px" }}>
             <div style={{ color: G.muted, fontSize: 9, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 6 }}>{s.label}</div>
@@ -106,7 +152,7 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
               <XAxis dataKey="year" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
               <Tooltip content={<DarkTooltip />} />
-              <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+              <Bar dataKey="count" radius={[4, 4, 0, 0]} onClick={onChartClick ? (d) => onChartClick({ years: [d.year] }) : undefined} style={onChartClick ? { cursor: "pointer" } : undefined}>
                 {ycData.map((e, i) => <Cell key={i} fill={e.count === ycMax ? G.gold : G.goldDim} />)}
               </Bar>
             </BarChart>
@@ -122,7 +168,7 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
                 <XAxis type="number" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="genre" axisLine={false} tickLine={false} width={110} interval={0} tick={truncTick(17)} />
                 <Tooltip content={<DarkTooltip />} />
-                <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                <Bar dataKey="count" radius={[0, 4, 4, 0]} onClick={onChartClick ? (d) => onChartClick({ genres: [d.genre] }) : undefined} style={onChartClick ? { cursor: "pointer" } : undefined}>
                   {gcData.map((e, i) => <Cell key={i} fill={genreMap[e.genre] || G.muted} />)}
                 </Bar>
               </BarChart>
@@ -139,7 +185,7 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
                 <XAxis type="number" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="author" axisLine={false} tickLine={false} width={130} interval={0} tick={truncTick(20)} />
                 <Tooltip content={<DarkTooltip />} />
-                <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                <Bar dataKey="count" radius={[0, 4, 4, 0]} onClick={onChartClick ? (d) => onChartClick({ authors: [d.author] }) : undefined} style={onChartClick ? { cursor: "pointer" } : undefined}>
                   {acData.map((_, i) => <Cell key={i} fill={`rgba(74, 158, 255, ${Math.max(0.25, 1 - i * 0.07)})`} />)}
                 </Bar>
               </BarChart>
@@ -156,7 +202,7 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
                 <XAxis type="number" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="country" axisLine={false} tickLine={false} width={90} interval={0} tick={truncTick(14)} />
                 <Tooltip content={<DarkTooltip />} />
-                <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                <Bar dataKey="count" radius={[0, 4, 4, 0]} onClick={onChartClick ? (d) => onChartClick({ countries: [d.country] }) : undefined} style={onChartClick ? { cursor: "pointer" } : undefined}>
                   {coData.map((_, i) => <Cell key={i} fill={`rgba(20, 184, 166, ${Math.max(0.25, 1 - i * 0.08)})`} />)}
                 </Bar>
               </BarChart>
@@ -167,8 +213,8 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
         {/* Fiction vs Non-Fiction */}
         {chartCard("Fiction vs Non-Fiction Over Time", "fn",
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <ResponsiveContainer width="100%" height={210}>
-              <AreaChart data={fnData}>
+            <ResponsiveContainer width="100%" height={210} style={onChartClick ? { cursor: "pointer" } : undefined}>
+              <AreaChart data={fnData} onClick={onChartClick ? (d) => { if (d?.activePayload?.[0]) onChartClick({ years: [d.activePayload[0].payload.year] }); } : undefined}>
                 <CartesianGrid stroke={G.border} strokeDasharray="3 3" />
                 <XAxis dataKey="year" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
@@ -191,8 +237,8 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
         {/* Genre Evolution */}
         {chartCard("Genre Evolution", "ge",
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <ResponsiveContainer width="100%" height={210}>
-              <AreaChart data={geData}>
+            <ResponsiveContainer width="100%" height={210} style={onChartClick ? { cursor: "pointer" } : undefined}>
+              <AreaChart data={geData} onClick={onChartClick ? (d) => { if (d?.activePayload?.[0]) onChartClick({ years: [d.activePayload[0].payload.year] }); } : undefined}>
                 <CartesianGrid stroke={G.border} strokeDasharray="3 3" />
                 <XAxis dataKey="year" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
@@ -215,8 +261,8 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
 
         {/* Avg Book Length Over Time */}
         {chartCard("Avg Book Length Over Time", "al",
-          <ResponsiveContainer width="100%" height={245}>
-            <LineChart data={alData}>
+          <ResponsiveContainer width="100%" height={245} style={onChartClick ? { cursor: "pointer" } : undefined}>
+            <LineChart data={alData} onClick={onChartClick ? (d) => { if (d?.activePayload?.[0]) onChartClick({ years: [d.activePayload[0].payload.year] }); } : undefined}>
               <CartesianGrid stroke={G.border} strokeDasharray="3 3" />
               <XAxis dataKey="year" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} unit=" pp" />
@@ -231,7 +277,7 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
             <ResponsiveContainer width="100%" height={200}>
               <PieChart>
-                <Pie data={fmData} dataKey="value" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3}>
+                <Pie data={fmData} dataKey="value" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3} onClick={onChartClick ? (d) => onChartClick({ formats: [d.name] }) : undefined} style={onChartClick ? { cursor: "pointer" } : undefined}>
                   {fmData.map((e, i) => <Cell key={i} fill={e.color} />)}
                 </Pie>
                 <Tooltip content={<DarkTooltip />} />
@@ -245,6 +291,88 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
                   <span style={{ fontSize: 10, color: G.dimmed }}>{e.value}</span>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Mood Breakdown */}
+        {chartCard("Mood Breakdown", "mo",
+          <div style={{ overflow: "visible" }}>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={moData} layout="vertical" barSize={13} margin={{ top: 12, right: 10, bottom: 0, left: 0 }}>
+                <CartesianGrid stroke={G.border} strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="mood" axisLine={false} tickLine={false} width={110} interval={0} tick={truncTick(17)} />
+                <Tooltip content={<DarkTooltip />} />
+                <Bar dataKey="count" radius={[0, 4, 4, 0]} onClick={onChartClick ? (d) => onChartClick({ moods: [d.mood] }) : undefined} style={onChartClick ? { cursor: "pointer" } : undefined}>
+                  {moData.map((_, i) => <Cell key={i} fill={`rgba(168, 85, 247, ${Math.max(0.25, 1 - i * 0.07)})`} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Archetype Distribution */}
+        {chartCard("Archetype Distribution", "ar",
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <ResponsiveContainer width="100%" height={200}>
+              <PieChart>
+                <Pie data={arData} dataKey="value" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3} onClick={onChartClick ? (d) => onChartClick({ archetypes: [d.name] }) : undefined} style={onChartClick ? { cursor: "pointer" } : undefined}>
+                  {arData.map((e, i) => <Cell key={i} fill={e.color} />)}
+                </Pie>
+                <Tooltip content={<DarkTooltip />} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px", justifyContent: "center", marginTop: 8 }}>
+              {arData.map(e => (
+                <div key={e.name} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: 2, background: e.color, flexShrink: 0 }} />
+                  <span style={{ fontSize: 10, color: G.muted }}>{e.name}</span>
+                  <span style={{ fontSize: 10, color: G.dimmed }}>{e.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Top Themes */}
+        {chartCard("Top Themes", "th",
+          <div style={{ overflow: "visible" }}>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={thData} layout="vertical" barSize={13} margin={{ top: 12, right: 10, bottom: 0, left: 0 }}>
+                <CartesianGrid stroke={G.border} strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="theme" axisLine={false} tickLine={false} width={110} interval={0} tick={truncTick(17)} />
+                <Tooltip content={<DarkTooltip />} />
+                <Bar dataKey="count" radius={[0, 4, 4, 0]} onClick={onChartClick ? (d) => onChartClick({ themes: [d.theme] }) : undefined} style={onChartClick ? { cursor: "pointer" } : undefined}>
+                  {thData.map((_, i) => <Cell key={i} fill={`rgba(184, 115, 51, ${Math.max(0.25, 1 - i * 0.07)})`} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Mood Over Time */}
+        {chartCard("Mood Over Time", "mt",
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <ResponsiveContainer width="100%" height={210} style={onChartClick ? { cursor: "pointer" } : undefined}>
+              <AreaChart data={mtData} onClick={onChartClick ? (d) => { if (d?.activePayload?.[0]) onChartClick({ years: [d.activePayload[0].payload.year] }); } : undefined}>
+                <CartesianGrid stroke={G.border} strokeDasharray="3 3" />
+                <XAxis dataKey="year" tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: G.muted, fontSize: 10 }} axisLine={false} tickLine={false} />
+                <Tooltip content={<DarkTooltip />} />
+                {mtTopMoods.map((m, i) => <Area key={m} type="monotone" dataKey={m} stackId="1" stroke={MOOD_PALETTE[i]} fill={MOOD_PALETTE[i]} fillOpacity={0.5} />)}
+              </AreaChart>
+            </ResponsiveContainer>
+            <div style={{ display: "flex", justifyContent: "center", padding: "8px 0" }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 16px", justifyContent: "center" }}>
+                {mtTopMoods.map((m, i) => (
+                  <div key={m} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: 2, background: MOOD_PALETTE[i], flexShrink: 0 }} />
+                    <span style={{ fontSize: 10, color: G.muted, whiteSpace: "nowrap" }}>{m}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}

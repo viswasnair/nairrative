@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect, useTransition, useDeferredValue }
 import { supabase } from "./lib/supabase";
 import G from "./constants/theme";
 import { TABS } from "./constants/config";
-import { buildBookContext } from "./lib/bookUtils";
+import { buildBookContext, toRow } from "./lib/bookUtils";
 import { useBooks } from "./hooks/useBooks";
 import { useAnalysis } from "./hooks/useAnalysis";
 import { useRecs } from "./hooks/useRecs";
@@ -14,60 +14,6 @@ import ChatTab from "./components/ChatTab";
 import LibraryTab from "./components/LibraryTab";
 import RatingFlashcard from "./components/RatingFlashcard";
 import { CLAUDE_URL, claudeHeaders } from "./lib/api";
-
-const css = `
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: ${G.bg}; }
-    ::-webkit-scrollbar { width: 4px; height: 4px; }
-    ::-webkit-scrollbar-track { background: ${G.bg}; }
-    ::-webkit-scrollbar-thumb { background: ${G.dimmed}; border-radius: 4px; }
-    .tab-btn { cursor: pointer; padding: 6px 14px; border: none; border-radius: 0; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 400; transition: color 0.15s; white-space: nowrap; color: #a0a8b4; background: transparent; letter-spacing: 0.2px; }
-    .tab-btn:hover { color: ${G.text}; }
-    .tab-btn.active { color: ${G.gold}; font-weight: 600; }
-    .stat-card { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 12px; padding: 20px 24px; transition: border-color 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    .stat-card:hover { border-color: ${G.goldDim}; }
-    .genre-pill { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; }
-    .recharts-wrapper svg { overflow: visible !important; }
-    .input-dark { background: ${G.card2}; border: 1px solid ${G.border}; border-radius: 8px; color: ${G.text}; padding: 10px 14px; font-family: 'DM Sans', sans-serif; font-size: 13px; width: 100%; outline: none; transition: border-color 0.2s; }
-    .input-dark:focus { border-color: ${G.goldDim}; }
-    .btn-gold { background: ${G.gold}; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-    .btn-gold:hover { background: ${G.goldLight}; }
-    .btn-ghost { background: transparent; color: ${G.muted}; border: 1px solid ${G.border}; border-radius: 8px; padding: 8px 16px; font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer; transition: all 0.2s; }
-    .btn-ghost:hover { color: ${G.text}; border-color: ${G.dimmed}; }
-    .rec-card { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 12px; padding: 18px; transition: all 0.2s; }
-    .rec-card:hover { border-color: ${G.goldDim}; transform: translateY(-1px); }
-    .chat-input-wrap { display: flex; gap: 10px; }
-    .lib-row { display: grid; grid-template-columns: 44px 2fr 150px 110px 90px 90px 50px 56px 56px 90px 32px; gap: 10px; padding: 9px 14px; border-bottom: 1px solid ${G.border}; align-items: center; transition: background 0.15s; }
-    .cell-clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .lib-row:hover { background: ${G.card2}; }
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; }
-    .modal-box { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 16px; width: 100%; max-width: 540px; max-height: 88vh; overflow: hidden; position: relative; }
-    .modal-scroll { overflow-y: auto; max-height: 88vh; padding: 28px; }
-    .modal-scroll::-webkit-scrollbar { width: 4px; } .modal-scroll::-webkit-scrollbar-track { background: transparent; } .modal-scroll::-webkit-scrollbar-thumb { background: ${G.dimmed}; border-radius: 4px; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-    @keyframes widgetFade { from { opacity: 0; } to { opacity: 1; } }
-    .fade-in { animation: fadeIn 0.3s ease; }
-    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-    .pulse { animation: pulse 1.5s infinite; }
-    .burger-btn { display: none; background: none; border: none; cursor: pointer; flex-direction: column; gap: 5px; padding: 4px; }
-    .mini-brand { cursor: pointer; padding: 0; }
-    .logo-collapse { overflow: hidden; transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease; }
-    @media (max-width: 640px) {
-      .tab-nav { display: none !important; }
-      .burger-btn { display: flex !important; }
-      .page-header { padding-left: 16px !important; padding-right: 16px !important; }
-      .page-content { padding: 16px !important; }
-      .header-logo { width: 250px !important; height: auto !important; }
-      .kpi-grid { grid-template-columns: repeat(3, 1fr) !important; }
-      .chart-grid { grid-template-columns: 1fr !important; }
-      .rec-grid { grid-template-columns: repeat(2, 1fr) !important; }
-      .analysis-grid { grid-template-columns: 1fr !important; }
-      .new-releases-grid { grid-template-columns: repeat(2, 1fr) !important; }
-      .lib-scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-      .lib-inner { min-width: 1010px; }
-      .lib-row { grid-template-columns: 44px 160px 140px 100px 80px 80px 48px 50px 50px 80px 32px; }
-    }
-  `;
 
 // ── MAIN APP ──────────────────────────────────────────────────────────────
 export default function App() {
@@ -115,13 +61,6 @@ export default function App() {
   } = useBooks({ session });
 
   const [showRatingMode, setShowRatingMode] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 70);
-    window.addEventListener("scroll", handler, { passive: true });
-    return () => window.removeEventListener("scroll", handler);
-  }, []);
 
   const {
     analysisAI,
@@ -150,9 +89,27 @@ export default function App() {
   const deferredBooks = useDeferredValue(books);
 
   const [search, setSearch] = useState("");
+  const onCiteClick = (title) => { setSearch(title); switchTab("library"); };
+  const navigateToLibrary = ({ genres = [], years = [], authors = [], countries = [], formats = [], moods = [], archetypes = [], themes = [] } = {}) => {
+    setSearch("");
+    setLibGenres(genres);
+    setLibYears(years.map(String));
+    setLibAuthors(authors);
+    setLibCountries(countries);
+    setLibFormats(formats);
+    setLibMoods(moods);
+    setLibArchetypes(archetypes);
+    setLibThemes(themes);
+    switchTab("library");
+  };
   const [libGenres, setLibGenres] = useState([]);
   const [libYears, setLibYears] = useState([]);
   const [libAuthors, setLibAuthors] = useState([]);
+  const [libCountries, setLibCountries] = useState([]);
+  const [libFormats, setLibFormats] = useState([]);
+  const [libMoods, setLibMoods] = useState([]);
+  const [libArchetypes, setLibArchetypes] = useState([]);
+  const [libThemes, setLibThemes] = useState([]);
   const [libSort, setLibSort] = useState("title");
   const [chartRanges, setChartRanges] = useState({});
   const [messages, setMessages] = useState([
@@ -322,6 +279,11 @@ export default function App() {
       if (libGenres.length > 0 && !(b.genre || []).some(g => libGenres.includes(g))) return false;
       if (libYears.length > 0 && !libYears.includes(String(b.year))) return false;
       if (libAuthors.length > 0 && !(b.authors || []).some(a => libAuthors.includes(a.name))) return false;
+      if (libCountries.length > 0 && !libCountries.includes(b.country)) return false;
+      if (libFormats.length > 0 && !libFormats.includes(b.format || "Unknown")) return false;
+      if (libMoods.length > 0 && !libMoods.includes(b.mood)) return false;
+      if (libArchetypes.length > 0 && !libArchetypes.includes(b.archetype)) return false;
+      if (libThemes.length > 0 && !(b.theme || []).some(t => libThemes.includes(t))) return false;
       return true;
     }).sort((a, b) => {
       if (libSort === "year") return b.year - a.year;
@@ -334,11 +296,16 @@ export default function App() {
         return ai !== bi ? ai - bi : a.title.localeCompare(b.title);
       }
       return 0;
-    }), [books, search, libGenres, libYears, libAuthors, libSort]);
+    }), [books, search, libGenres, libYears, libAuthors, libCountries, libFormats, libMoods, libArchetypes, libThemes, libSort]);
 
   const allGenres = genreList;
   const allYears = useMemo(() => Object.keys(stats.byYear).sort().reverse(), [stats]);
   const allAuthors = useMemo(() => [...new Set(books.flatMap(b => (b.authors || []).map(a => a.name)))].sort(), [books]);
+  const allCountries = useMemo(() => [...new Set(books.map(b => b.country).filter(Boolean))].sort(), [books]);
+  const allFormats = useMemo(() => [...new Set(books.map(b => b.format || "Unknown"))].sort(), [books]);
+  const allMoods = useMemo(() => [...new Set(books.map(b => b.mood).filter(Boolean))].sort(), [books]);
+  const allArchetypes = useMemo(() => [...new Set(books.map(b => b.archetype).filter(Boolean))].sort(), [books]);
+  const allThemes = useMemo(() => [...new Set(books.flatMap(b => b.theme || []))].sort(), [books]);
   const allYearsList = useMemo(() => {
     const years = Object.keys(stats.byYearTracked).map(Number);
     if (!years.length) return [];
@@ -361,27 +328,94 @@ export default function App() {
     setChatLoading(true);
     try {
       const summary = buildBookContext(books);
-      const fullList = books
-        .map(b => `[${b.year}] "${b.title}" by ${b.author} | ${(b.genre||[]).join("/")}${b.pages ? " | " + b.pages + "pp" : ""}${b.series ? " | series: " + b.series : ""}${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}${b.notes ? " | " + b.notes : ""}`)
-        .join("\n");
+      const fullList = books.map(toRow).join("\n");
+      // Overview KPIs and chart data (mirrors what the Overview tab shows)
+      const withPages = books.filter(b => b.pages);
+      const totalPages = withPages.reduce((s, b) => s + b.pages, 0);
+      const uniqueAuthors = new Set(books.map(b => b.author)).size;
+      const booksPerYear = stats.readingSpan ? Math.round(stats.total / stats.readingSpan) : null;
+      const avgPagesPerBook = withPages.length ? Math.round(totalPages / withPages.length) : null;
+      const pagesPerDay = stats.readingSpan && totalPages ? (totalPages / (stats.readingSpan * 365)).toFixed(1) : null;
+      const overviewContext = [
+        `Total: ${stats.total} books · ${uniqueAuthors} authors · ${stats.readingSpan} years reading`,
+        booksPerYear ? `Pace: ${booksPerYear} books/year` : "",
+        avgPagesPerBook ? `Pages: avg ${avgPagesPerBook} pages/book · ${pagesPerDay} pages/day` : "",
+        stats.sortedYears[0] ? `Peak year: ${stats.sortedYears[0][0]} (${stats.sortedYears[0][1]} books)` : "",
+        stats.sortedAuthors[0] ? `#1 author: ${stats.sortedAuthors[0][0]} (${stats.sortedAuthors[0][1]} books)` : "",
+        stats.sortedGenres[0] ? `Top genre: ${stats.sortedGenres[0][0]} (${stats.sortedGenres[0][1]} books)` : "",
+        `Fiction/Non-fiction split: ${analysisInsights.fictionCount} fiction (${analysisInsights.fictionPct}%) · ${analysisInsights.nonFictionCount} non-fiction`,
+        `Series books: ${analysisInsights.seriesCount} (${analysisInsights.seriesPct}%)`,
+        analysisInsights.loyaltyRatio ? `${analysisInsights.loyaltyRatio}% of books from authors read 5+ times` : "",
+        "",
+        "Books per year: " + Object.entries(stats.byYear).sort((a, b) => a[0] - b[0]).map(([y, c]) => `${y}:${c}`).join(", "),
+        "",
+        "Genre breakdown: " + stats.sortedGenres.slice(0, 15).map(([g, c]) => `${g}:${c}`).join(", "),
+        "",
+        "Top authors: " + stats.sortedAuthors.slice(0, 20).map(([a, c]) => `${a}:${c}`).join(", "),
+        "",
+        Object.keys(stats.byCountry).length
+          ? "Author origins: " + Object.entries(stats.byCountry).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([c, n]) => `${c}:${n}`).join(", ")
+          : "",
+      ].filter(Boolean).join("\n");
+
       const resolvedAnalysis = analysisAI ?? (() => {
         try { return JSON.parse(localStorage.getItem("nairrative_analysis_ai") || "null"); } catch { return null; }
       })();
       const resolvedRecs = Object.keys(intentResults).length > 0 ? intentResults : (() => {
         try { return JSON.parse(localStorage.getItem("nairrative_recs") || "null"); } catch { return null; }
       })();
+
+      const ANALYSIS_LABELS = {
+        temporal: "Reading Pace & Volume", genre: "Genre Evolution",
+        geographic: "Geographic & Cultural Range", author: "Author Patterns",
+        thematic: "Themes & Preoccupations", contextual: "Life Context & Reading",
+        complexity: "Complexity Balance", emotional: "Emotional Arc", discovery: "Discovery Patterns",
+      };
       const analysisContext = resolvedAnalysis && typeof resolvedAnalysis === "object"
         ? Object.entries(resolvedAnalysis)
             .filter(([, v]) => v && typeof v === "string")
-            .map(([k, v]) => `[${k.toUpperCase()}]\n${v}`)
+            .map(([k, v]) => `[${ANALYSIS_LABELS[k] || k}]\n${v}`)
             .join("\n\n")
         : "";
+
+      const LENS_LABELS = {
+        "more-like": "More Like Last Book", "more-by-last": "More By Last Author",
+        "similar-author": "Books By Similar Author", "trending": "What's Trending",
+        "challenge": "Challenge Me", "quick": "Quick Reads", "gaps": "Fill My Gaps",
+        "surprise": "Surprise Me", "finish": "Finish the Series",
+        "loved": "If You Loved…", "authors-like": "Books By Authors Like…",
+        "mood": "Match My Mood", "genre-pick": "By Genre", "topic": "By Topic",
+        "occasion": "For the Occasion", "pair": "Pair It",
+      };
       const recsContext = resolvedRecs && typeof resolvedRecs === "object"
         ? Object.entries(resolvedRecs)
-            .filter(([, v]) => v && typeof v === "string")
-            .map(([k, v]) => `[${k.toUpperCase()}]\n${v}`)
+            .filter(([, v]) => Array.isArray(v) && v.length > 0 && v[0]?.title)
+            .map(([k, v]) => {
+              const b = v[0];
+              return `[${LENS_LABELS[k] || k}]\n"${b.title}" by ${b.author}${b.year ? ` (${b.year})` : ""}${b.reason ? ` — ${b.reason}` : ""}`;
+            })
             .join("\n\n")
         : "";
+
+      let newReleasesContext = "";
+      try {
+        const { data: releases } = await supabase
+          .from("new_releases").select("title, author, series, published_date")
+          .gte("published_date", `${new Date().getFullYear() - 2}-01-01`)
+          .order("published_date", { ascending: false }).limit(20);
+        if (releases?.length) {
+          const readTitles = new Set(books.map(b => b.title?.toLowerCase().trim()));
+          const unread = releases.filter(r => !readTitles.has(r.title?.toLowerCase().trim()));
+          if (unread.length) {
+            newReleasesContext = unread
+              .map(r => `• "${r.title}" by ${r.author}${r.series ? ` (${r.series})` : ""}${r.published_date ? ` — ${r.published_date}` : ""}`)
+              .join("\n");
+          }
+        }
+      } catch { /* supplementary — silent fail */ }
+
+      const seriesRecapContext = seriesRecap ? `Series: ${selectedSeries}\n${seriesRecap}` : "";
+
       const res = await fetch(CLAUDE_URL, {
         method: "POST", headers: claudeHeaders(session),
         body: JSON.stringify({
@@ -393,12 +427,19 @@ IMPORTANT CONTEXT: Year 2010 is a collective placeholder for all books read betw
 --- DATABASE SUMMARY ---
 ${summary}
 
+--- OVERVIEW STATS & KPIs ---
+${overviewContext}
+
 --- FULL BOOK LIST (${books.length} books) ---
 ${fullList}
 ${analysisContext ? `\n--- AI ANALYSIS PANELS ---\n${analysisContext}` : ""}
-${recsContext ? `\n--- RECOMMENDATION RESULTS ---\n${recsContext}` : ""}
+${recsContext ? `\n--- CURRENT RECOMMENDATIONS (one curated pick per lens) ---\n${recsContext}` : ""}
+${newReleasesContext ? `\n--- NEW RELEASES FROM YOUR AUTHORS (unread) ---\n${newReleasesContext}` : ""}
+${seriesRecapContext ? `\n--- SERIES RECAP ---\n${seriesRecapContext}` : ""}
 
-Answer primarily from the data, with specific references to books, authors, years, and patterns. When the user asks about analysis insights or recommendations, draw on the AI analysis panels and recommendation results above. For general knowledge questions about books or authors not requiring personal library data, you may use your broader knowledge — but never invent books the user has read.`,
+Answer primarily from the data, with specific references to books, authors, years, and patterns. When the user asks about analysis insights or recommendations, draw on the AI analysis panels and recommendation results above. For general knowledge questions about books or authors not requiring personal library data, you may use your broader knowledge — but never invent books the user has read.
+
+Formatting rules: Write in clean, natural prose. Do not use markdown syntax — no asterisks for bold or italic, no hash symbols for headers, no hyphens or asterisks as bullet points. When a list genuinely helps, use "1." for numbered lists or "•" for bullet points. Keep responses direct and conversational — not a structured report.`,
           messages: updated.map(m => ({ role: m.role, content: m.content }))
         })
       });
@@ -586,6 +627,7 @@ Answer primarily from the data, with specific references to books, authors, year
             setChartRange={setChartRange}
             openEditModal={openEditModal}
             session={session}
+            onChartClick={navigateToLibrary}
           />
         )}
 
@@ -609,6 +651,7 @@ Answer primarily from the data, with specific references to books, authors, year
             resetPanelPrompt={resetPanelPrompt}
             savePanelPromptsToSupabase={savePanelPromptsToSupabase}
             regeneratePanel={regeneratePanel}
+            onCiteClick={onCiteClick}
           />
         )}
 
@@ -623,8 +666,15 @@ Answer primarily from the data, with specific references to books, authors, year
             libGenres={libGenres} setLibGenres={setLibGenres}
             libYears={libYears} setLibYears={setLibYears}
             libAuthors={libAuthors} setLibAuthors={setLibAuthors}
+            libCountries={libCountries} setLibCountries={setLibCountries}
+            libFormats={libFormats} setLibFormats={setLibFormats}
+            libMoods={libMoods} setLibMoods={setLibMoods}
+            libArchetypes={libArchetypes} setLibArchetypes={setLibArchetypes}
+            libThemes={libThemes} setLibThemes={setLibThemes}
             libSort={libSort} setLibSort={setLibSort}
             allGenres={allGenres} allYears={allYears} allAuthors={allAuthors}
+            allCountries={allCountries} allFormats={allFormats}
+            allMoods={allMoods} allArchetypes={allArchetypes} allThemes={allThemes}
             openAddModal={openAddModal}
             openEditModal={openEditModal}
             openRatingMode={() => setShowRatingMode(true)}

@@ -28,19 +28,13 @@ export const AUTO_RECS = [
 ];
 
 export const DEFAULT_PANEL_PROMPTS = {
-  temporal:   "Analyse reading pace and volume over time. Note key shifts and how habits evolved. Keep it concise — 3-4 sentences, no exhaustive author lists.",
-  genre:      "Examine how genre preferences shifted across eras. Identify dominant genres and notable transitions. Keep it concise — 3-4 sentences, focus on patterns not catalogues.",
-  thematic:   "Surface the 2-3 most significant recurring themes or intellectual preoccupations across the library. Keep it concise — 3-4 sentences.",
-  contextual: "Connect reading choices to life phases and context. Keep it concise — 3-4 sentences, focus on the narrative arc not individual books.",
-  complexity: "Evaluate the balance between challenging and accessible reading over time. Keep it concise — 3-4 sentences, mention at most one or two specific examples.",
-  emotional:  "Map the emotional arc of the library across eras. Keep it concise — 3-4 sentences, describe the shift in register without listing many titles.",
+  temporal:   "Analyse the rhythm of reading — peaks, lulls, and gaps — as a record of life intensity. What does the pattern of engagement (not what was read, but when and how much) suggest about how life shaped the habit? Do not discuss genre or taste. Keep it concise — 3-4 sentences.",
+  genre:      "Trace how taste has evolved over time — what genres and forms dominated each era, and what the migrations between them reveal about changing intellectual and emotional appetites. Do not discuss pace or volume. Keep it concise — 3-4 sentences, focus on the arc not a catalogue.",
+  thematic:   "Surface the 2-3 most significant recurring themes or intellectual preoccupations across the library. Each book includes tagged themes — use these to identify the strongest recurring patterns rather than inferring from titles alone. Do not reference specific years. Keep it concise — 3-4 sentences.",
+  contextual: "Infer what life events, transitions, or phases might explain shifts and clusters in the reading list. What does the data suggest about what was happening off the page? Speculate thoughtfully where the evidence implies a story. Keep it concise — 3-4 sentences.",
+  complexity: "Describe the balance between stretching and comfort reading this library reveals. Consider both the ratio of demanding to accessible reads and the variety of narrative styles across the library. What does this say about how this person engages with books? Do not reference specific years. Keep it concise — 3-4 sentences, mention at most one or two specific examples.",
+  emotional:  "Describe the dominant emotional palette of this library as a whole. Each book has a tagged mood — use these to surface which tones this reader consistently seeks out or avoids. Treat the library as a single body of work, not a timeline. Do not reference specific years. Keep it concise — 3-4 sentences.",
+  blindspots: "Identify what's conspicuously absent from this library given the reader's apparent interests and patterns. Consider missing themes, moods, archetypes, setting eras, and cultural perspectives — not just genres. What do the gaps reveal about the reader? Do not reference specific years. Keep it concise — 3-4 sentences.",
+  recent:     "Focus exclusively on the books provided (read in the last 12 months). What themes, moods, or interests define this window? Does the mood or archetype pattern in this recent window differ from the broader reading history? Do not reference specific calendar years. Keep it concise — 3-4 sentences.",
 };
 
-export const INPUT_DEFAULTS = {
-  "loved":       ["Dune", "The Name of the Wind", "The White Tiger", "Gone Girl", "Foundation", "The Remains of the Day"],
-  "authors-like":["Brandon Sanderson", "Agatha Christie", "Yuval Noah Harari", "Arundhati Roy", "Michael Crichton", "Neil Gaiman"],
-  "mood":        ["dark and atmospheric", "light and funny", "epic and sweeping", "thought-provoking non-fiction", "cozy and comforting", "fast-paced thriller"],
-  "topic":       ["artificial intelligence", "Indian history", "climate and environment", "espionage", "philosophy of mind", "exploration and adventure"],
-  "occasion":    ["a long flight", "book club", "summer reading", "a lazy weekend", "gift for a friend who loves thrillers", "something to read before bed"],
-  "pair":        ["Oppenheimer (film)", "Shogun (TV series)", "a trip to Japan", "watching the World Cup", "Interstellar (film)", "reading about WW2"],
-};

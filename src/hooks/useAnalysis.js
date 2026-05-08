@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import { buildBookContext } from "../lib/bookUtils";
+import { buildBookContext, toRow } from "../lib/bookUtils";
 import { SEED_ANALYSIS, } from "../constants/seeds";
 import { DEFAULT_PANEL_PROMPTS } from "../constants/config";
-import { CLAUDE_URL, claudeHeaders } from "../lib/api";
+import { CLAUDE_URL, claudeHeaders, INTER_REQUEST_DELAY_MS } from "../lib/api";
 
 export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt }) {
   const [analysisAI, setAnalysisAI] = useState(null);
@@ -17,13 +17,13 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
 
   // Load panel prompts from Supabase for cross-device sync
   useEffect(() => {
-    supabase.from("panel_prompts").select("data").eq("id", 1).maybeSingle()
+    supabase.from("panel_prompts").select("data").maybeSingle()
       .then(({ data }) => {
         if (data?.data) {
           setPanelPrompts(data.data);
           localStorage.setItem("nairrative_panel_prompts", JSON.stringify(data.data));
         }
-      }).catch(() => {});
+      }).catch(e => console.error("Failed to load panel prompts:", e));
   }, []);
 
   // Load analysis: localStorage → Supabase → seed fallback
@@ -32,9 +32,9 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
     const cachedFp = localStorage.getItem("nairrative_analysis_fp");
     const cachedResult = localStorage.getItem("nairrative_analysis_ai");
     if (cachedFp === booksFingerprint && cachedResult) {
-      try { setAnalysisAI(JSON.parse(cachedResult)); return; } catch {}
+      try { setAnalysisAI(JSON.parse(cachedResult)); return; } catch { /* malformed cache — fall through to fetch */ }
     }
-    supabase.from("analysis_cache").select("data").eq("id", 1).maybeSingle()
+    supabase.from("analysis_cache").select("data").maybeSingle()
       .then(({ data }) => {
         if (data?.data) {
           setAnalysisAI(data.data);
@@ -49,7 +49,12 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
 
   const saveAnalysisToSupabase = async (data) => {
     try {
-      await supabase.from("analysis_cache").upsert({ id: 1, fingerprint: booksFingerprint, data });
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      await supabase.from("analysis_cache").upsert(
+        { user_id: session.user.id, fingerprint: booksFingerprint, data },
+        { onConflict: "user_id" }
+      );
     } catch (e) { console.error("Failed to save analysis to Supabase:", e); }
   };
 
@@ -58,26 +63,31 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
     const cachedFp = localStorage.getItem("nairrative_analysis_fp");
     const cachedResult = localStorage.getItem("nairrative_analysis_ai");
     if (cachedFp === booksFingerprint && cachedResult) {
-      try { setAnalysisAI(JSON.parse(cachedResult)); return; } catch {}
+      try { setAnalysisAI(JSON.parse(cachedResult)); return; } catch { /* malformed cache — regenerate */ }
     }
     setAnalysisAILoading(true);
     const { data: { session } } = await supabase.auth.getSession();
-    const dimensions = ["temporal", "genre", "geographic", "author", "thematic", "contextual", "complexity", "emotional", "discovery"];
+    const dimensions = ["temporal", "genre", "thematic", "contextual", "complexity", "emotional", "blindspots", "recent"];
     const ctx = buildBookContext(books);
-    const fullList = books
-      .map(b => `[${b.year_read_end || b.year}] "${b.title}" by ${b.author} | ${(b.genre || []).join("/")}${b.pages ? " | " + b.pages + "pp" : ""}${b.series ? " | series: " + b.series : ""}${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}${b.notes ? " | notes: " + b.notes : ""}`)
-      .join("\n");
+    const currentYear = new Date().getFullYear();
+    const recentBooks = books.filter(b => (b.year_read_end || b.year) >= currentYear - 1);
+    const fullList = books.map(toRow).join("\n");
+    const recentList = recentBooks.map(toRow).join("\n");
     const result = {};
     for (const dimension of dimensions) {
       try {
         const effectivePrompt = panelPrompts[dimension]?.trim() || DEFAULT_PANEL_PROMPTS[dimension] || "";
         const customInstruction = effectivePrompt ? `\n\nFocus: ${effectivePrompt}` : "";
+        const isRecent = dimension === "recent";
+        const listLabel = isRecent ? `RECENT BOOKS — last 12 months (${recentBooks.length} books)` : `FULL BOOK LIST (${books.length} books)`;
+        const listContent = isRecent ? recentList : fullList;
+        const noYearsNote = ["temporal", "genre", "contextual"].includes(dimension) ? "" : "\n\nCRITICAL: Do not reference or cite any specific years in your response.";
         const res = await fetch(CLAUDE_URL, {
           method: "POST", headers: claudeHeaders(session),
           body: JSON.stringify({
-            model: "claude-sonnet-4-6", max_tokens: 350,
-            system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". Write 3-4 concise sentences focused on patterns and arc — not catalogues of titles or authors. Mention at most 1-2 specific examples to ground the observation. Do not invent facts.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.`,
-            messages: [{ role: "user", content: `${ctx}\n\n--- FULL BOOK LIST (${books.length} books) ---\n${fullList}\n\nGenerate insight for the "${dimension}" dimension only.` }]
+            model: "claude-sonnet-4-6", max_tokens: 400,
+            system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". The value must be a JSON object with two fields: "insight" (3-4 concise sentences on patterns and arc — not catalogues, at most 1-2 illustrative mentions) and "evidence" (array of up to 3 exact book titles verbatim from the provided list that most directly support this insight). Do not use markdown. Do not invent facts or titles.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.${noYearsNote}`,
+            messages: [{ role: "user", content: `${ctx}\n\n--- ${listLabel} ---\n${listContent}\n\nGenerate insight for the "${dimension}" dimension only.` }]
           })
         });
         const data = await res.json();
@@ -85,11 +95,16 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);
-          if (parsed[dimension]) result[dimension] = parsed[dimension];
+          if (parsed[dimension]) {
+            const val = parsed[dimension];
+            const insight = typeof val === "string" ? val : (val.insight || "");
+            const evidence = typeof val === "string" ? [] : (Array.isArray(val.evidence) ? val.evidence : []);
+            result[dimension] = { insight, evidence, generatedAt: new Date().toISOString(), bookCount: isRecent ? recentBooks.length : books.length };
+          }
         }
         setAnalysisAI(prev => ({ ...prev, [dimension]: result[dimension] }));
       } catch (e) { console.error(`Analysis AI error (${dimension}):`, e); }
-      await new Promise(r => setTimeout(r, 8000));
+      await new Promise(r => setTimeout(r, INTER_REQUEST_DELAY_MS));
     }
     localStorage.setItem("nairrative_analysis_ai", JSON.stringify(result));
     localStorage.setItem("nairrative_analysis_fp", booksFingerprint);
@@ -121,7 +136,14 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
   };
 
   const savePanelPromptsToSupabase = async (prompts) => {
-    try { await supabase.from("panel_prompts").upsert({ id: 1, data: prompts }); } catch { /* silent */ }
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      await supabase.from("panel_prompts").upsert(
+        { user_id: session.user.id, data: prompts },
+        { onConflict: "user_id" }
+      );
+    } catch (e) { console.error("Failed to save panel prompts:", e); }
   };
 
   const regeneratePanel = async (dimension) => {
@@ -130,26 +152,34 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
     const { data: { session } } = await supabase.auth.getSession();
     try {
       const ctx = buildBookContext(books);
-      const fullList = books
-        .map(b => `[${b.year_read_end || b.year}] "${b.title}" by ${b.author} | ${(b.genre || []).join("/")}${b.pages ? " | " + b.pages + "pp" : ""}${b.series ? " | series: " + b.series : ""}${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}${b.notes ? " | notes: " + b.notes : ""}`)
-        .join("\n");
+      const currentYear = new Date().getFullYear();
+      const listSource = dimension === "recent"
+        ? books.filter(b => (b.year_read_end || b.year) >= currentYear - 1)
+        : books;
+      const fullList = listSource.map(toRow).join("\n");
+      const listLabel = dimension === "recent" ? `RECENT BOOKS — last 12 months (${listSource.length} books)` : `FULL BOOK LIST (${books.length} books)`;
       const effectivePrompt = panelPrompts[dimension]?.trim() || DEFAULT_PANEL_PROMPTS[dimension] || "";
       const customInstruction = effectivePrompt ? `\n\nFocus: ${effectivePrompt}` : "";
+      const noYearsNote = ["temporal", "genre", "contextual"].includes(dimension) ? "" : "\n\nCRITICAL: Do not reference or cite any specific years in your response.";
       const res = await fetch(CLAUDE_URL, {
         method: "POST", headers: claudeHeaders(session),
         body: JSON.stringify({
-          model: "claude-opus-4-6", max_tokens: 400,
-          system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". Write 3-4 concise sentences — surface a non-obvious pattern or insight. Mention at most 1-2 specific authors or titles as illustrative examples; do not catalogue books. Do not invent facts.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.`,
-          messages: [{ role: "user", content: `${ctx}\n\n--- FULL BOOK LIST (${books.length} books) ---\n${fullList}\n\nGenerate insight for the "${dimension}" dimension only.` }]
+          model: "claude-opus-4-6", max_tokens: 450,
+          system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". The value must be a JSON object with two fields: "insight" (3-4 concise sentences — surface a non-obvious pattern, at most 1-2 illustrative mentions) and "evidence" (array of up to 3 exact book titles verbatim from the provided list that most directly support this insight). Do not use markdown. Do not invent facts or titles.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.${noYearsNote}`,
+          messages: [{ role: "user", content: `${ctx}\n\n--- ${listLabel} ---\n${fullList}\n\nGenerate insight for the "${dimension}" dimension only.` }]
         })
       });
       const data = await res.json();
       const text = data.content?.[0]?.text || "{}";
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        const result = JSON.parse(jsonMatch[0]);
-        if (result[dimension]) {
-          const updated = { ...analysisAI, [dimension]: result[dimension] };
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed[dimension]) {
+          const val = parsed[dimension];
+          const insight = typeof val === "string" ? val : (val.insight || "");
+          const evidence = typeof val === "string" ? [] : (Array.isArray(val.evidence) ? val.evidence : []);
+          const panelData = { insight, evidence, generatedAt: new Date().toISOString(), bookCount: listSource.length };
+          const updated = { ...analysisAI, [dimension]: panelData };
           setAnalysisAI(updated);
           localStorage.setItem("nairrative_analysis_ai", JSON.stringify(updated));
           saveAnalysisToSupabase(updated);

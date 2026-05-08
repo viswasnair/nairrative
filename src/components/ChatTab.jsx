@@ -1,5 +1,15 @@
 import G from "../constants/theme";
 
+function cleanResponse(text) {
+  return text
+    .replace(/^#{1,6}\s+/gm, "")           // ## Heading → plain text
+    .replace(/\*\*(.*?)\*\*/g, "$1")        // **bold** → plain
+    .replace(/\*(.*?)\*/g, "$1")            // *italic* → plain
+    .replace(/^[-*]\s+/gm, "• ")            // - item / * item → • item
+    .replace(/\n{3,}/g, "\n\n")             // collapse excess blank lines
+    .trim();
+}
+
 export default function ChatTab({ session, messages, chatLoading, chatInput, setChatInput, chatEndRef, sendChat }) {
   if (!session) return (
     <div style={{ textAlign: "center", padding: "60px 20px", color: G.muted }}>
@@ -24,7 +34,7 @@ export default function ChatTab({ session, messages, chatLoading, chatInput, set
               color: G.text, fontSize: 13, lineHeight: 1.6, whiteSpace: "pre-wrap"
             }}>
               {m.role === "assistant" && <div style={{ color: G.gold, fontSize: 10, fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 6 }}>◈ Reading AI</div>}
-              {m.content}
+              {m.role === "assistant" ? cleanResponse(m.content) : m.content}
             </div>
           </div>
         ))}

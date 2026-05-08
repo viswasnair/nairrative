@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, Fragment, memo } from "react";
 import G from "../constants/theme";
+import { stripMd } from "../lib/bookUtils";
 import SeriesTab from "./SeriesTab";
 import NewReleasesTab from "./NewReleasesTab";
 
-const RecList = ({ results, loading }) => {
+const RecList = memo(({ results, loading }) => {
   if (loading) return (
     <div style={{ marginTop: 12 }}>
       <div className="pulse" style={{ height: 12, width: "70%", background: G.border, borderRadius: 4, marginBottom: 6 }} />
@@ -18,10 +19,10 @@ const RecList = ({ results, loading }) => {
     <div style={{ marginTop: 12, borderTop: `1px solid ${G.border}`, paddingTop: 10 }}>
       <div style={{ fontSize: 13, fontWeight: 600, color: G.text, lineHeight: 1.4, marginBottom: 3 }}>{r.title}</div>
       <div style={{ fontSize: 11, color: G.gold, marginBottom: 6 }}>{r.author}{r.year ? ` · ${r.year}` : ""}</div>
-      {r.reason && <div style={{ fontSize: 11, color: G.muted, lineHeight: 1.6 }}>{r.reason}</div>}
+      {r.reason && <div style={{ fontSize: 11, color: G.muted, lineHeight: 1.6 }}>{stripMd(r.reason)}</div>}
     </div>
   );
-};
+});
 
 const SUB_TABS = [
   { id: "picks",    label: "Picks" },
@@ -72,13 +73,13 @@ export default function RecsTab({
       {/* Subtab nav */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, marginBottom: 24 }}>
         {SUB_TABS.map((t, i) => (
-          <>
-            {i > 0 && <span key={`sep-${i}`} style={{ color: G.dimmed, fontSize: 12, userSelect: "none" }}>·</span>}
-            <button key={t.id} className="subtab-btn" onClick={() => setSubTab(t.id)}
+          <Fragment key={t.id}>
+            {i > 0 && <span style={{ color: G.dimmed, fontSize: 12, userSelect: "none" }}>·</span>}
+            <button className="subtab-btn" onClick={() => setSubTab(t.id)}
               style={{ background: "none", border: "none", padding: "4px 8px", cursor: "pointer", fontSize: 13, fontWeight: subTab === t.id ? 600 : 400, color: subTab === t.id ? G.gold : G.muted, fontFamily: "'DM Sans', sans-serif" }}>
               {t.label}
             </button>
-          </>
+          </Fragment>
         ))}
       </div>
 
