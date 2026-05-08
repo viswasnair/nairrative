@@ -90,10 +90,10 @@ describe('OverviewTab', () => {
     expect(screen.getAllByText('4').length).toBeGreaterThan(0)
   })
 
-  it('renders one RangeFilter per chart (8 total)', () => {
+  it('renders one RangeFilter per chart (12 total)', () => {
     setup()
     const filters = screen.getAllByTestId('range-filter')
-    expect(filters).toHaveLength(8)
+    expect(filters).toHaveLength(12)
   })
 
   it('renders the Reading Activity by Year chart section', () => {
