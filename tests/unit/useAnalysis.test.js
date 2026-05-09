@@ -21,7 +21,7 @@ vi.mock('../../src/lib/supabase', () => ({
 }))
 
 vi.mock('../../src/lib/api', () => ({
-  CLAUDE_URL: 'https://mock/claude',
+  LLM_URL: 'https://mock/claude',
   claudeHeaders: vi.fn(() => ({ 'content-type': 'application/json' })),
   INTER_REQUEST_DELAY_MS: 0,
 }))

@@ -27,6 +27,14 @@ export const AUTO_RECS = [
   "challenge", "quick", "gaps", "surprise", "finish",
 ];
 
+// Semantic model tiers — change these to switch the active LLM provider.
+// Model name prefix determines routing: "claude-*" → Anthropic, "gpt-*" → OpenAI.
+export const DEFAULT_MODELS = {
+  fast:     "claude-haiku-4-5-20251001", // country lookup, color generation, recs
+  standard: "claude-sonnet-4-6",          // book fill, analysis initial fetch
+  quality:  "claude-opus-4-6",            // analysis regenerate
+};
+
 export const DEFAULT_PANEL_PROMPTS = {
   temporal:   "Analyse the rhythm of reading — peaks, lulls, and gaps — as a record of life intensity. What does the pattern of engagement (not what was read, but when and how much) suggest about how life shaped the habit? Do not discuss genre or taste. Keep it concise — 3-4 sentences.",
   genre:      "Trace how taste has evolved over time — what genres and forms dominated each era, and what the migrations between them reveal about changing intellectual and emotional appetites. Do not discuss pace or volume. Keep it concise — 3-4 sentences, focus on the arc not a catalogue.",

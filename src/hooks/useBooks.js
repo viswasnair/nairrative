@@ -1,15 +1,16 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { normalizeBook } from "../lib/bookUtils";
-import { CLAUDE_URL, claudeHeaders } from "../lib/api";
+import { LLM_URL, claudeHeaders } from "../lib/api";
+import { DEFAULT_MODELS } from "../constants/config";
 import { sanitizePromptInput, sanitizeShortInput, sanitizeCoverUrl, fuzzyMatches } from "../lib/textUtils";
 
 async function fetchAuthorCountry(authorName, session) {
   try {
-    const res = await fetch(CLAUDE_URL, {
+    const res = await fetch(LLM_URL, {
       method: "POST", headers: claudeHeaders(session),
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001", max_tokens: 20,
+        model: DEFAULT_MODELS.fast, max_tokens: 20,
         messages: [{ role: "user", content: `What country is the author "${sanitizeShortInput(authorName)}" from? Reply with only the ISO 3166-1 short country name (e.g. "United Kingdom" not "UK", "United States" not "USA", "Czechia" not "Czech Republic"). If unknown, reply "Unknown".` }]
       })
     });
@@ -177,10 +178,10 @@ export function useBooks({ session }) {
     if (!bookChatValue || bookChatLoading) return;
     setBookChatLoading(true);
     try {
-      const res = await fetch(CLAUDE_URL, {
+      const res = await fetch(LLM_URL, {
         method: "POST", headers: claudeHeaders(session),
         body: JSON.stringify({
-          model: "claude-sonnet-4-6", max_tokens: 600,
+          model: DEFAULT_MODELS.standard, max_tokens: 600,
           system: `You are a book database assistant. Given a natural language description of a book, use your knowledge to identify the exact book (correct title, author spelling, publication year) and return ONLY valid JSON (no markdown) with these fields: title (string), authors (array of {name, country}), genres (array, pick from: Fantasy, Sci-Fi, Thriller, Mystery, Literary Fiction, Historical Fiction, Non-Fiction, Graphic Novel, Memoir, Biography, Classic, Philosophy, Popular Science, Self-Help, Travel, Horror, History, Politics, Economics, Psychology, Business), fiction (boolean), format (MUST be exactly one of these values, no others allowed: "Novel", "Novella", "Short Stories", "Graphic Novel", "Non-Fiction", "Play"), series (string or ""), pages (number or null), year (original publication year as number), description (2-3 sentence spoiler-free summary of what the book is about and why it is notable), mood (single word or short phrase for the dominant emotional register, e.g. "tense", "contemplative", "epic", "witty"), narrative_style (how the story is told, e.g. "linear third-person", "omniscient third-person", "first-person", "expository", "multiple perspectives"), setting_era (time and place context, e.g. "contemporary", "far future", "WWII Britain", "ancient Rome", "fantasy world"), archetype (dominant story structure — one of: "Hero's Journey", "Overcoming the Monster", "Quest", "Voyage and Return", "Rebirth", "Rags to Riches", "Tragedy", "Comedy", "Ensemble Drama"), theme (array of 2-5 short lowercase strings for the main intellectual/emotional themes, e.g. ["survival", "identity", "power"]).`,
           messages: [{ role: "user", content: bookChatValue }]
         })
@@ -274,10 +275,10 @@ export function useBooks({ session }) {
     setNewGenreSaving(true);
     let color = "#a0a0a0";
     try {
-      const res = await fetch(CLAUDE_URL, {
+      const res = await fetch(LLM_URL, {
         method: "POST", headers: claudeHeaders(session),
         body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001", max_tokens: 16,
+          model: DEFAULT_MODELS.fast, max_tokens: 16,
           messages: [{ role: "user", content: `Pick a single hex color code that visually represents the "${name}" book genre. Consider the mood and tone of the genre. Reply with only the hex code (e.g. #a29bfe), nothing else. Avoid colors already used for similar genres: ${Object.entries(genreMap).map(([g, c]) => g + ":" + c).join(", ")}` }]
         })
       });

@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { buildBookContext, toRow } from "../lib/bookUtils";
 import { SEED_ANALYSIS, } from "../constants/seeds";
-import { DEFAULT_PANEL_PROMPTS } from "../constants/config";
-import { CLAUDE_URL, claudeHeaders, INTER_REQUEST_DELAY_MS } from "../lib/api";
+import { DEFAULT_PANEL_PROMPTS, DEFAULT_MODELS } from "../constants/config";
+import { LLM_URL, claudeHeaders, INTER_REQUEST_DELAY_MS } from "../lib/api";
 
 export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt }) {
   const [analysisAI, setAnalysisAI] = useState(null);
@@ -88,10 +88,10 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
         const listLabel = isRecent ? `RECENT BOOKS — last 12 months (${recentBooks.length} books)` : `FULL BOOK LIST (${books.length} books)`;
         const listContent = isRecent ? recentList : fullList;
         const noYearsNote = ["temporal", "genre", "contextual"].includes(dimension) ? "" : "\n\nCRITICAL: Do not reference or cite any specific years in your response.";
-        const res = await fetch(CLAUDE_URL, {
+        const res = await fetch(LLM_URL, {
           method: "POST", headers: claudeHeaders(session),
           body: JSON.stringify({
-            model: "claude-sonnet-4-6", max_tokens: 400,
+            model: DEFAULT_MODELS.standard, max_tokens: 400,
             system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". The value must be a JSON object with two fields: "insight" (3-4 concise sentences on patterns and arc — not catalogues, at most 1-2 illustrative mentions) and "evidence" (array of up to 3 exact book titles verbatim from the provided list that most directly support this insight). Do not use markdown. Do not invent facts or titles.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.${noYearsNote}`,
             messages: [{ role: "user", content: `${ctx}\n\n--- ${listLabel} ---\n${listContent}\n\nGenerate insight for the "${dimension}" dimension only.` }]
           })
@@ -167,10 +167,10 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
       const effectivePrompt = panelPrompts[dimension]?.trim() || DEFAULT_PANEL_PROMPTS[dimension] || "";
       const customInstruction = effectivePrompt ? `\n\nFocus: ${effectivePrompt}` : "";
       const noYearsNote = ["temporal", "genre", "contextual"].includes(dimension) ? "" : "\n\nCRITICAL: Do not reference or cite any specific years in your response.";
-      const res = await fetch(CLAUDE_URL, {
+      const res = await fetch(LLM_URL, {
         method: "POST", headers: claudeHeaders(session),
         body: JSON.stringify({
-          model: "claude-opus-4-6", max_tokens: 450,
+          model: DEFAULT_MODELS.quality, max_tokens: 450,
           system: `You are analyzing a personal reading database. Return ONLY a valid JSON object with exactly one key: "${dimension}". The value must be a JSON object with two fields: "insight" (3-4 concise sentences — surface a non-obvious pattern, at most 1-2 illustrative mentions) and "evidence" (array of up to 3 exact book titles verbatim from the provided list that most directly support this insight). Do not use markdown. Do not invent facts or titles.${customInstruction}\n\nCRITICAL: Year 2010 is a placeholder for all books read 1998–2010. Never describe it as a peak or anomaly.${noYearsNote}`,
           messages: [{ role: "user", content: `${ctx}\n\n--- ${listLabel} ---\n${fullList}\n\nGenerate insight for the "${dimension}" dimension only.` }]
         })
