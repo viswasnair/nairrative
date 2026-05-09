@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { SEED_ANALYSIS } from "../constants/seeds";
 import { DEFAULT_PANEL_PROMPTS } from "../constants/config";
-import { CLAUDE_URL, claudeHeaders, INTER_REQUEST_DELAY_MS } from "../lib/api";
+import { LLM_URL, claudeHeaders, INTER_REQUEST_DELAY_MS } from "../lib/api";
 import { loadCachedData, saveCachedData } from "../lib/aiCache";
 import { buildAnalysisRequestBody, buildRegenerateRequestBody, parseAnalysisResponse } from "../lib/analysisPrompts";
 
@@ -59,7 +59,7 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
     for (const dimension of DIMENSIONS) {
       try {
         const body = buildAnalysisRequestBody({ dimension, books, panelPrompts });
-        const res = await fetch(CLAUDE_URL, { method: "POST", headers: claudeHeaders(session), body: JSON.stringify(body) });
+        const res = await fetch(LLM_URL, { method: "POST", headers: claudeHeaders(session), body: JSON.stringify(body) });
         const data = await res.json();
         const parsed = parseAnalysisResponse(data.content?.[0]?.text || "{}", dimension);
         if (parsed) {
@@ -113,7 +113,7 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
     const { data: { session } } = await supabase.auth.getSession();
     try {
       const body = buildRegenerateRequestBody({ dimension, books, panelPrompts });
-      const res = await fetch(CLAUDE_URL, { method: "POST", headers: claudeHeaders(session), body: JSON.stringify(body) });
+      const res = await fetch(LLM_URL, { method: "POST", headers: claudeHeaders(session), body: JSON.stringify(body) });
       const data = await res.json();
       const parsed = parseAnalysisResponse(data.content?.[0]?.text || "{}", dimension);
       if (parsed) {
