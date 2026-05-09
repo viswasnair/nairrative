@@ -2,13 +2,6 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import BookshelfTab from '../../src/components/BookshelfTab.jsx'
 
-// ResizeObserver used by SpineView — not available in jsdom
-global.ResizeObserver = class {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}
-
 const BOOKS = [
   {
     id: 1, title: 'Dune', author: 'Frank Herbert',
