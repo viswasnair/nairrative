@@ -22,7 +22,7 @@ export function useAuth() {
     const handler = (e) => { if (e.key === "Escape") closeLoginModal(); };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [showLoginModal]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showLoginModal]);
 
   const login = async () => {
     setLoginLoading(true); setLoginError("");

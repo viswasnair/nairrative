@@ -84,7 +84,7 @@ describe("saveCachedData", () => {
   beforeEach(() => { vi.clearAllMocks(); localStorage.clear(); });
 
   it("writes data and fingerprint to localStorage", async () => {
-    const { upsert } = makeSupabaseMock();
+    makeSupabaseMock();
     const data = { temporal: { insight: "saved" } };
     await saveCachedData({ ...OPTS, data, session: SESSION });
     expect(localStorage.getItem("ai_data")).toBe(JSON.stringify(data));

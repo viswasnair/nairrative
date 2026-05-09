@@ -135,7 +135,7 @@ describe('BookshelfTab', () => {
   })
 
   it('Hall of Fame is hidden when no books have transformative or loved rating', () => {
-    const { container } = setup({
+    setup({
       books: [BOOKS[2]], // only "enjoyed" rating
     })
     expect(screen.queryByText(/hall of fame/i)).toBeNull()

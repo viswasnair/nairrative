@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import G from "../constants/theme";
+import BookCover from "./BookCover";
 
 const TIERS = [
   { value: "transformative", label: "Transformative", desc: "Changed how I think",       key: "1", color: G.gold   },
@@ -102,10 +103,7 @@ export default function RatingFlashcard({ books, updateBookRating, onClose }) {
                   background: (() => { const c = book.genre?.[0]; return c ? `${G.muted}22` : G.card2; })(),
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
-                  {book.cover_url
-                    ? <img src={book.cover_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} onError={e => { e.target.style.display = "none"; }} />
-                    : <span style={{ fontSize: 28, fontFamily: "'Playfair Display', serif", color: G.dimmed }}>{book.title[0]}</span>
-                  }
+                  <BookCover url={book.cover_url} title={book.title} color={G.dimmed} letterSize={28} />
                 </div>
                 {/* Info */}
                 <div style={{ flex: 1, minWidth: 0 }}>

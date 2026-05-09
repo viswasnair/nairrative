@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import G from "../constants/theme";
+import BookCover from "./BookCover";
 
 const HALL_VISIBLE = 5;
 const HALL_INTERVAL = 3000;
@@ -39,12 +40,7 @@ function CoverRow({ label, books, genreMap, openEditModal, session }) {
               style={{ position: "relative", width: 56, height: 80, flexShrink: 0, borderRadius: 4, overflow: "hidden",
                 border: `1px solid ${G.border}`, background: `${color}22`, cursor: session ? "pointer" : "default",
                 transition: "transform 0.15s", transform: isHovered ? "translateY(-3px)" : "none" }}>
-              {b.cover_url
-                ? <img src={b.cover_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} onError={e => { e.target.style.display = "none"; }} />
-                : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <span style={{ fontSize: 18, fontFamily: "'Playfair Display', serif", color, opacity: 0.4 }}>{b.title[0]}</span>
-                  </div>
-              }
+              <BookCover url={b.cover_url} title={b.title} color={color} letterSize={18} />
               {isHovered && (
                 <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", flexDirection: "column", justifyContent: "flex-end", padding: "5px 4px" }}>
                   <div style={{ fontSize: 9, color: "#fff", lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", fontWeight: 600 }}>{b.title}</div>
