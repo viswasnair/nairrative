@@ -3,9 +3,12 @@ import { supabase } from "./lib/supabase";
 import G from "./constants/theme";
 import { TABS } from "./constants/config";
 import { buildBookContext, toRow } from "./lib/bookUtils";
+import { computeStats, computeAnalysisInsights } from "./lib/bookStats";
+import { useAuth } from "./hooks/useAuth";
 import { useBooks } from "./hooks/useBooks";
 import { useAnalysis } from "./hooks/useAnalysis";
 import { useRecs } from "./hooks/useRecs";
+import { useLibraryFilters } from "./hooks/useLibraryFilters";
 import BookModal from "./components/BookModal";
 import AnalysisTab from "./components/AnalysisTab";
 import RecsTab from "./components/RecsTab";
@@ -17,16 +20,20 @@ import { CLAUDE_URL, claudeHeaders } from "./lib/api";
 
 // ── MAIN APP ──────────────────────────────────────────────────────────────
 export default function App() {
-  const [session, setSession] = useState(null);
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [loginEmail, setLoginEmail] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
-  const [loginError, setLoginError] = useState("");
-  const [loginLoading, setLoginLoading] = useState(false);
+  const {
+    session,
+    showLoginModal, setShowLoginModal,
+    loginEmail, setLoginEmail,
+    loginPassword, setLoginPassword,
+    loginError, loginLoading,
+    login, logout, closeLoginModal,
+  } = useAuth();
+
   const [activeTab, setActiveTab] = useState("overview");
   const [, startTabTransition] = useTransition();
   const switchTab = (id) => startTabTransition(() => setActiveTab(id));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   const {
     books,
     genreList, genreMap,
@@ -87,30 +94,30 @@ export default function App() {
   } = useRecs({ books, booksFingerprint, activeTab, readTitlesString });
 
   const deferredBooks = useDeferredValue(books);
+  const stats = useMemo(() => computeStats(deferredBooks), [deferredBooks]);
+  const analysisInsights = useMemo(() => computeAnalysisInsights(deferredBooks, stats), [deferredBooks, stats]);
 
-  const [search, setSearch] = useState("");
+  const {
+    search, setSearch,
+    libGenres, setLibGenres,
+    libYears, setLibYears,
+    libAuthors, setLibAuthors,
+    libCountries, setLibCountries,
+    libFormats, setLibFormats,
+    libMoods, setLibMoods,
+    libArchetypes, setLibArchetypes,
+    libThemes, setLibThemes,
+    libSort, setLibSort,
+    setAllFilters,
+    filteredBooks,
+    allYears, allAuthors, allCountries, allFormats, allMoods, allArchetypes, allThemes,
+    allYearsList, allYearsListFull,
+  } = useLibraryFilters(books, stats);
+
+  const allGenres = genreList;
   const onCiteClick = (title) => { setSearch(title); switchTab("library"); };
-  const navigateToLibrary = ({ genres = [], years = [], authors = [], countries = [], formats = [], moods = [], archetypes = [], themes = [] } = {}) => {
-    setSearch("");
-    setLibGenres(genres);
-    setLibYears(years.map(String));
-    setLibAuthors(authors);
-    setLibCountries(countries);
-    setLibFormats(formats);
-    setLibMoods(moods);
-    setLibArchetypes(archetypes);
-    setLibThemes(themes);
-    switchTab("library");
-  };
-  const [libGenres, setLibGenres] = useState([]);
-  const [libYears, setLibYears] = useState([]);
-  const [libAuthors, setLibAuthors] = useState([]);
-  const [libCountries, setLibCountries] = useState([]);
-  const [libFormats, setLibFormats] = useState([]);
-  const [libMoods, setLibMoods] = useState([]);
-  const [libArchetypes, setLibArchetypes] = useState([]);
-  const [libThemes, setLibThemes] = useState([]);
-  const [libSort, setLibSort] = useState("title");
+  const navigateToLibrary = (filters = {}) => { setAllFilters(filters); switchTab("library"); };
+
   const [chartRanges, setChartRanges] = useState({});
   const [messages, setMessages] = useState([
     { role: "assistant", content: "Hello! I know your complete reading history. Ask me anything: your patterns, what to read next, your top authors, surprising stats, or anything else!" }
@@ -123,200 +130,6 @@ export default function App() {
   const chatEndRef = useRef(null);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const login = async () => {
-    setLoginLoading(true); setLoginError("");
-    const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password: loginPassword });
-    if (error) setLoginError(error.message);
-    else { setShowLoginModal(false); setLoginEmail(""); setLoginPassword(""); }
-    setLoginLoading(false);
-  };
-
-  const logout = async () => { await supabase.auth.signOut(); };
-
-  useEffect(() => {
-    if (!showLoginModal) return;
-    const handler = (e) => { if (e.key === "Escape") { setShowLoginModal(false); setLoginError(""); } };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [showLoginModal]);
-
-
-
-
-  // ── COMPUTED DATA ────────────────────────────────────────────────────────
-  const stats = useMemo(() => {
-    const byYear = {}, byYearTracked = {}, byGenre = {}, byAuthor = {}, byCountry = {};
-    deferredBooks.forEach(b => {
-      byYear[b.year] = (byYear[b.year] || 0) + 1;
-      if (b.year_read_start === b.year_read_end)
-        byYearTracked[b.year] = (byYearTracked[b.year] || 0) + 1;
-      (b.genre || []).forEach(g => { byGenre[g] = (byGenre[g] || 0) + 1; });
-      byAuthor[b.author] = (byAuthor[b.author] || 0) + 1;
-      if (b.country) byCountry[b.country] = (byCountry[b.country] || 0) + 1;
-    });
-    const sortedAuthors = Object.entries(byAuthor).sort((a, b) => b[1] - a[1]);
-    const sortedGenres = Object.entries(byGenre).sort((a, b) => b[1] - a[1]);
-    const sortedYears = Object.entries(byYearTracked).sort((a, b) => b[1] - a[1]);
-    const minYearStart = deferredBooks.length ? Math.min(...deferredBooks.map(b => b.year_read_start)) : 1998;
-    const maxYearEnd = deferredBooks.length ? Math.max(...deferredBooks.map(b => b.year_read_end)) : new Date().getFullYear();
-    const readingSpan = maxYearEnd - minYearStart + 1;
-    return { total: deferredBooks.length, byYear, byYearTracked, byGenre, byAuthor, byCountry, sortedAuthors, sortedGenres, sortedYears, readingSpan };
-  }, [deferredBooks]);
-
-
-  const analysisInsights = useMemo(() => {
-    // Temporal
-    const years = Object.keys(stats.byYearTracked).map(Number).sort();
-    const fullRange = Array.from({length: years[years.length-1] - years[0] + 1}, (_, i) => years[0] + i);
-    const trackedBooks = deferredBooks.filter(b => b.year_read_start === b.year_read_end);
-    const avgPerActive = Math.round(trackedBooks.length / years.length);
-    let maxGap = 0, curGap = 0, gapStart = null, longestGapStart = null;
-    for (const y of fullRange) {
-      if (!stats.byYear[y]) { if (!curGap) gapStart = y; curGap++; if (curGap > maxGap) { maxGap = curGap; longestGapStart = gapStart; } }
-      else curGap = 0;
-    }
-
-    // Genre & Form
-    const fictionCount = deferredBooks.filter(b => b.fiction === true).length;
-    const fictionPct = Math.round(fictionCount / deferredBooks.length * 100);
-    const graphicNovels = deferredBooks.filter(b => (b.genre || []).includes("Graphic Novel")).length;
-    const genreCount = Object.keys(stats.byGenre).length;
-    const era = (s, e) => deferredBooks.filter(b => b.year >= s && b.year <= e);
-    const topGenreIn = sub => Object.entries(sub.reduce((a, b) => { (b.genre||[]).forEach(g=>{a[g]=(a[g]||0)+1;}); return a; }, {})).sort((a,b)=>b[1]-a[1])[0]?.[0] || "—";
-    const genreEra = [
-      { era: "2010–14", top: topGenreIn(era(2010,2014)) },
-      { era: "2015–19", top: topGenreIn(era(2015,2019)) },
-      { era: "2020–24", top: topGenreIn(era(2020,2024)) },
-      { era: "2025–26", top: topGenreIn(era(2025,2026)) },
-    ];
-
-    // Geographic
-    const uniqueCountries = Object.keys(stats.byCountry).length;
-    const topCountries = Object.entries(stats.byCountry).sort((a,b)=>b[1]-a[1]).slice(0,5);
-    const indiaPct = Math.round((stats.byCountry["India"]||0) / deferredBooks.length * 100);
-
-    // Author behavior
-    const authorEntries = Object.entries(stats.byAuthor);
-    const loyal = authorEntries.filter(([,c])=>c>=5).sort((a,b)=>b[1]-a[1]);
-    const sampledCount = authorEntries.filter(([,c])=>c===1).length;
-    const booksFromLoyal = loyal.reduce((s,[,c])=>s+c,0);
-    const loyaltyRatio = Math.round(booksFromLoyal / deferredBooks.length * 100);
-
-    // Complexity — derived from genre tags only, no hardcoded authors
-    const challengingCount = deferredBooks.filter(b => (b.genre||[]).some(g => ["Classic","Philosophy","Literary Fiction"].includes(g))).length;
-    const challengePct = Math.round(challengingCount / deferredBooks.length * 100);
-    const challengingAuthorsFromData = [...new Set(deferredBooks.filter(b => (b.genre||[]).some(g => ["Classic","Philosophy"].includes(g))).map(b => b.author))].slice(0, 8);
-
-    // Series — derived from books with a series field set
-    const seriesBooks = deferredBooks.filter(b => b.series && b.series.trim() !== "");
-    const seriesCount = seriesBooks.length;
-    const seriesPct = Math.round(seriesCount / deferredBooks.length * 100);
-
-    // Mood mapping by era — derived from genre groupings
-    const MOOD_GENRES = {
-      "Dark & Tense":  ["Thriller", "Legal Thriller", "Medical Thriller", "Mystery", "Horror", "Dystopian", "Politics"],
-      "Imaginative":   ["Fantasy", "Romantasy", "Science Fiction", "Historical Fiction", "Graphic Novel", "Mythology"],
-      "Reflective":    ["Literary Fiction", "Classic", "Philosophy", "Spirituality", "Memoir", "Essays", "Poetry"],
-      "Informative":   ["Biography", "Popular Science", "History", "Non-Fiction", "Economics", "Self-Help", "Environment", "Systems", "Sociology", "Psychology", "Business"],
-    };
-    const bookMood = b => { const g = b.genre || []; for (const [m, tags] of Object.entries(MOOD_GENRES)) { if (g.some(t => tags.includes(t))) return m; } return null; };
-    const allBookYears = [...new Set(deferredBooks.map(b => b.year))].sort((a,b) => a-b);
-    const minY = allBookYears[0] ?? 2011;
-    const maxY = allBookYears[allBookYears.length - 1] ?? new Date().getFullYear();
-    const span = maxY - minY;
-    const eraBuckets = [
-      { era: `${minY}–${minY + Math.floor(span*0.25)}`, s: minY, e: minY + Math.floor(span*0.25) },
-      { era: `${minY + Math.floor(span*0.25)+1}–${minY + Math.floor(span*0.5)}`, s: minY + Math.floor(span*0.25)+1, e: minY + Math.floor(span*0.5) },
-      { era: `${minY + Math.floor(span*0.5)+1}–${minY + Math.floor(span*0.75)}`, s: minY + Math.floor(span*0.5)+1, e: minY + Math.floor(span*0.75) },
-      { era: `${minY + Math.floor(span*0.75)+1}–${maxY}`, s: minY + Math.floor(span*0.75)+1, e: maxY },
-    ];
-    const moodByEra = eraBuckets.map(({ era: e, s, e: end }) => {
-      const sub = era(s, end).filter(b => bookMood(b));
-      if (!sub.length) return null;
-      const counts = {};
-      sub.forEach(b => { const m = bookMood(b); counts[m] = (counts[m] || 0) + 1; });
-      const dominant = Object.entries(counts).sort((a,b) => b[1]-a[1])[0][0];
-      return { era: e, dominant, counts, total: sub.length };
-    }).filter(Boolean);
-    // Notable years — computed from actual volume, no hardcoded life events
-    const yearCounts = Object.entries(stats.byYear).map(([y,c]) => ({ year: parseInt(y), count: c })).filter(y => y.year >= 2011).sort((a,b) => a.year - b.year);
-    const yearAvg = yearCounts.reduce((s,y) => s+y.count, 0) / yearCounts.length;
-    const notableYears = yearCounts.map(y => ({
-      year: String(y.year),
-      books: y.count,
-      label: y.count >= yearAvg * 2 ? "Peak year" : y.count <= 3 ? "Low activity" : y.count > yearAvg * 1.3 ? "Active year" : y.count < yearAvg * 0.5 ? "Quiet year" : null,
-    })).filter(y => y.label).sort((a,b) => b.books - a.books).slice(0, 5).sort((a,b) => a.year - b.year);
-
-    // Discovery: top author concentrations from actual data
-    const topAuthorChannels = loyal.slice(0, 4).map(([author, count]) => ({
-      channel: author,
-      example: `${count} books read`,
-      color: G.gold,
-    }));
-
-    return {
-      peakYear: stats.sortedYears[0], avgPerActive, maxGap, longestGapStart,
-      fictionCount, nonFictionCount: deferredBooks.length - fictionCount, fictionPct, graphicNovels, genreCount, genreEra,
-      uniqueCountries, topCountries, indiaPct,
-      loyal, sampledCount, booksFromLoyal, loyaltyRatio,
-      challengingCount, challengePct, challengingAuthorsFromData,
-      seriesCount, seriesPct,
-      fictionByEra: moodByEra, peakFictionEra: null, lowFictionEra: null,
-      notableYears, topAuthorChannels,
-    };
-  }, [deferredBooks, stats]);
-
-  const filteredBooks = useMemo(() =>
-    books.filter(b => {
-      if (search && !b.title.toLowerCase().includes(search.toLowerCase()) && !b.author.toLowerCase().includes(search.toLowerCase())) return false;
-      if (libGenres.length > 0 && !(b.genre || []).some(g => libGenres.includes(g))) return false;
-      if (libYears.length > 0 && !libYears.includes(String(b.year))) return false;
-      if (libAuthors.length > 0 && !(b.authors || []).some(a => libAuthors.includes(a.name))) return false;
-      if (libCountries.length > 0 && !libCountries.includes(b.country)) return false;
-      if (libFormats.length > 0 && !libFormats.includes(b.format || "Unknown")) return false;
-      if (libMoods.length > 0 && !libMoods.includes(b.mood)) return false;
-      if (libArchetypes.length > 0 && !libArchetypes.includes(b.archetype)) return false;
-      if (libThemes.length > 0 && !(b.theme || []).some(t => libThemes.includes(t))) return false;
-      return true;
-    }).sort((a, b) => {
-      if (libSort === "year") return b.year - a.year;
-      if (libSort === "title") return a.title.localeCompare(b.title);
-      if (libSort === "author") return a.author.localeCompare(b.author);
-      if (libSort === "rating") {
-        const order = ["transformative", "loved", "enjoyed", "meh", "dont_remember", "dropped", "didnt_like"];
-        const ai = a.rating ? order.indexOf(a.rating) : 99;
-        const bi = b.rating ? order.indexOf(b.rating) : 99;
-        return ai !== bi ? ai - bi : a.title.localeCompare(b.title);
-      }
-      return 0;
-    }), [books, search, libGenres, libYears, libAuthors, libCountries, libFormats, libMoods, libArchetypes, libThemes, libSort]);
-
-  const allGenres = genreList;
-  const allYears = useMemo(() => Object.keys(stats.byYear).sort().reverse(), [stats]);
-  const allAuthors = useMemo(() => [...new Set(books.flatMap(b => (b.authors || []).map(a => a.name)))].sort(), [books]);
-  const allCountries = useMemo(() => [...new Set(books.map(b => b.country).filter(Boolean))].sort(), [books]);
-  const allFormats = useMemo(() => [...new Set(books.map(b => b.format || "Unknown"))].sort(), [books]);
-  const allMoods = useMemo(() => [...new Set(books.map(b => b.mood).filter(Boolean))].sort(), [books]);
-  const allArchetypes = useMemo(() => [...new Set(books.map(b => b.archetype).filter(Boolean))].sort(), [books]);
-  const allThemes = useMemo(() => [...new Set(books.flatMap(b => b.theme || []))].sort(), [books]);
-  const allYearsList = useMemo(() => {
-    const years = Object.keys(stats.byYearTracked).map(Number);
-    if (!years.length) return [];
-    const min = Math.min(...years);
-    const max = Math.max(Math.max(...years), new Date().getFullYear());
-    const full = [];
-    for (let y = min; y <= max; y++) full.push(y);
-    return full;
-  }, [stats]);
-
-  const allYearsListFull = useMemo(() => Object.keys(stats.byYear).sort().map(Number), [stats]);
 
   // ── HANDLERS ──────────────────────────────────────────────────────────────
   const sendChat = async () => {
@@ -343,9 +156,9 @@ export default function App() {
         stats.sortedYears[0] ? `Peak year: ${stats.sortedYears[0][0]} (${stats.sortedYears[0][1]} books)` : "",
         stats.sortedAuthors[0] ? `#1 author: ${stats.sortedAuthors[0][0]} (${stats.sortedAuthors[0][1]} books)` : "",
         stats.sortedGenres[0] ? `Top genre: ${stats.sortedGenres[0][0]} (${stats.sortedGenres[0][1]} books)` : "",
-        `Fiction/Non-fiction split: ${analysisInsights.fictionCount} fiction (${analysisInsights.fictionPct}%) · ${analysisInsights.nonFictionCount} non-fiction`,
-        `Series books: ${analysisInsights.seriesCount} (${analysisInsights.seriesPct}%)`,
-        analysisInsights.loyaltyRatio ? `${analysisInsights.loyaltyRatio}% of books from authors read 5+ times` : "",
+        analysisInsights ? `Fiction/Non-fiction split: ${analysisInsights.fictionCount} fiction (${analysisInsights.fictionPct}%) · ${analysisInsights.nonFictionCount} non-fiction` : "",
+        analysisInsights ? `Series books: ${analysisInsights.seriesCount} (${analysisInsights.seriesPct}%)` : "",
+        analysisInsights?.loyaltyRatio ? `${analysisInsights.loyaltyRatio}% of books from authors read 5+ times` : "",
         "",
         "Books per year: " + Object.entries(stats.byYear).sort((a, b) => a[0] - b[0]).map(([y, c]) => `${y}:${c}`).join(", "),
         "",
@@ -444,7 +257,8 @@ Formatting rules: Write in clean, natural prose. Do not use markdown syntax — 
         })
       });
       const data = await res.json();
-      setMessages(prev => [...prev, { role: "assistant", content: data.content?.[0]?.text || data.error?.message || "Sorry, try again." }]);
+      if (data.error) console.error("Chat API error:", data.error);
+      setMessages(prev => [...prev, { role: "assistant", content: data.content?.[0]?.text || "Sorry, try again." }]);
     } catch { setMessages(prev => [...prev, { role: "assistant", content: "Connection error. Please try again." }]); }
     finally { setChatLoading(false); }
   };
@@ -476,19 +290,15 @@ Formatting rules: Write in clean, natural prose. Do not use markdown syntax — 
           messages: [{ role: "user", content: `Please recap the "${seriesName}" series. The reader has read these books (in order): ${seriesBooks.map((b, i) => `${i+1}. ${b.title} (${b.year_read_end})`).join(", ")}. Give a short recap of each book and a "What to remember" section with the 3–5 most important things going into the next installment.` }]
         })
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error?.message || `HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setSeriesRecap({ series: seriesName, books: seriesBooks, text: data.content?.[0]?.text || data.error?.message || "Could not generate recap." });
+      setSeriesRecap({ series: seriesName, books: seriesBooks, text: data.content?.[0]?.text || "Could not generate recap." });
     } catch (e) {
       console.error("generateSeriesRecap error:", e);
-      setSeriesRecap({ series: seriesName, books: seriesBooks, text: `Error: ${e?.message || "Unknown error"}` });
+      setSeriesRecap({ series: seriesName, books: seriesBooks, text: "Could not generate recap. Please try again." });
     }
     finally { setSeriesLoading(false); }
   };
-
 
 
 
@@ -761,12 +571,12 @@ Formatting rules: Write in clean, natural prose. Do not use markdown syntax — 
 
       {/* LOGIN MODAL */}
       {showLoginModal && (
-        <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) { setShowLoginModal(false); setLoginError(""); } }}>
+        <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) closeLoginModal(); }}>
           <div className="modal-box" style={{ maxWidth: 360 }}>
           <div className="modal-scroll">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
               <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, color: G.text }}>Sign In</div>
-              <button onClick={() => { setShowLoginModal(false); setLoginError(""); }} style={{ background: "none", border: "none", color: G.muted, fontSize: 20, cursor: "pointer" }}>×</button>
+              <button onClick={closeLoginModal} style={{ background: "none", border: "none", color: G.muted, fontSize: 20, cursor: "pointer" }}>×</button>
             </div>
             <form style={{ display: "flex", flexDirection: "column", gap: 12 }} onSubmit={e => { e.preventDefault(); login(); }}>
               <input className="input-dark" type="email" placeholder="Email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} autoFocus autoComplete="email" />

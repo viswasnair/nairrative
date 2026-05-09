@@ -51,13 +51,10 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
 
   const fetchAnalysisAI = async () => {
     if (analysisAILoading || !books.length) return;
-    const cachedFp = localStorage.getItem(LS_FP);
-    const cachedResult = localStorage.getItem(LS_DATA);
-    if (cachedFp === booksFingerprint && cachedResult) {
-      try { setAnalysisAI(JSON.parse(cachedResult)); return; } catch { /* malformed — regenerate */ }
-    }
-    setAnalysisAILoading(true);
     const { data: { session } } = await supabase.auth.getSession();
+    const cached = await loadCachedData({ table: TABLE, lsDataKey: LS_DATA, lsFpKey: LS_FP, fingerprint: booksFingerprint, session });
+    if (cached) { setAnalysisAI(cached); return; }
+    setAnalysisAILoading(true);
     const result = {};
     for (const dimension of DIMENSIONS) {
       try {
