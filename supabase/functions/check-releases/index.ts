@@ -6,6 +6,16 @@ const YEARS_BACK = 2;
 const TOP_GENRES = 3;
 const TOP_AUTHORS = 15;
 
+// Fetches the newest books for an author from Google Books.
+// To swap for another book data API, replace only this function.
+async function fetchBooksByAuthor(author: string): Promise<object[]> {
+  const url = `${GOOGLE_BOOKS}?q=inauthor:"${encodeURIComponent(author)}"&orderBy=newest&maxResults=5`;
+  const res = await fetch(url);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.items ?? [];
+}
+
 Deno.serve(async () => {
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -64,12 +74,8 @@ Deno.serve(async () => {
   for (const author of eligibleAuthors) {
     if (toInsert.length >= MAX_RESULTS) break;
     try {
-      const url = `${GOOGLE_BOOKS}?q=inauthor:"${encodeURIComponent(author)}"&orderBy=newest&maxResults=5`;
-      const res = await fetch(url);
-      if (!res.ok) continue;
-      const data = await res.json();
-
-      for (const item of data.items ?? []) {
+      const items = await fetchBooksByAuthor(author);
+      for (const item of items) {
         if (toInsert.length >= MAX_RESULTS) break;
         const info = item.volumeInfo ?? {};
         const pubYear = parseInt((info.publishedDate ?? "0").slice(0, 4));
