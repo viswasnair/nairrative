@@ -1,0 +1,62 @@
+name: Update Architecture Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'api/**'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-architecture:
+    name: Sync architecture diagrams
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2   # need HEAD~1 for the diff
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Run architecture update script
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: node scripts/update-architecture.mjs
+
+      - name: Open PR if docs changed
+        run: |
+          if git diff --quiet ARCHITECTURE.md architecture.html; then
+            echo "No doc changes — nothing to PR."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          BRANCH="auto/architecture-update-$(date +%Y%m%d-%H%M%S)"
+          git checkout -b "$BRANCH"
+          git add ARCHITECTURE.md architecture.html
+          git commit -m "docs: auto-update architecture diagrams"
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --title "docs: update architecture diagrams" \
+            --body "Architecture diagrams auto-updated to reflect recent changes to \`src/\` or \`api/\`.\n\nReview the diff to confirm accuracy before merging." \
+            --base main \
+            --head "$BRANCH"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
