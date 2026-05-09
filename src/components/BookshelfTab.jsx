@@ -59,52 +59,8 @@ function CoverRow({ label, books, genreMap, openEditModal, session }) {
   );
 }
 
-const VIEWS = [
-  { id: "grid",   label: "Grid" },
-  { id: "spine",  label: "Shelf" },
-  { id: "mosaic", label: "Timeline" },
-];
-
 function primaryColor(b, genreMap) {
   return (b.genre?.[0] && genreMap[b.genre[0]]) || G.muted;
-}
-
-// ── Grid view ─────────────────────────────────────────────────────────────────
-function GridView({ filtered, genreMap, session, openEditModal }) {
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: 16 }}>
-      {filtered.map(b => {
-        const color = primaryColor(b, genreMap);
-        return (
-          <div key={b.id}
-            onClick={() => session && openEditModal(b)}
-            title={`${b.title} — ${b.author}`}
-            style={{ cursor: session ? "pointer" : "default", display: "flex", flexDirection: "column", gap: 6 }}>
-            {/* Cover */}
-            <div style={{
-              width: "100%", paddingBottom: "145%", position: "relative",
-              borderRadius: 4, overflow: "hidden",
-              border: `1px solid ${G.border}`,
-              background: `${color}22`,
-              transition: "box-shadow 0.15s",
-            }}
-              onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.12)"}
-              onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
-              {b.cover_url
-                ? <img src={b.cover_url} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
-                    onError={e => { e.target.style.display = "none"; }} />
-                : <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <span style={{ fontSize: 32, fontFamily: "'Playfair Display', serif", color, opacity: 0.4 }}>{b.title[0]}</span>
-                  </div>
-              }
-            </div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: G.text, lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{b.title}</div>
-            <div style={{ fontSize: 10, color: G.muted, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{b.author}</div>
-          </div>
-        );
-      })}
-    </div>
-  );
 }
 
 const u = (svg) => `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
