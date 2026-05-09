@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nairrative — Architecture</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d0d0d;
+      color: #e8e0d0;
+      font-family: "DM Sans", system-ui, sans-serif;
+      padding: 2rem 1rem 4rem;
+    }
+
+    h1 {
+      font-family: "Playfair Display", Georgia, serif;
+      font-size: 2rem;
+      font-weight: 700;
+      color: #c9a84c;
+      text-align: center;
+      margin-bottom: 0.25rem;
+      letter-spacing: 0.01em;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #888;
+      font-size: 0.9rem;
+      margin-bottom: 3rem;
+    }
+
+    section {
+      max-width: 1100px;
+      margin: 0 auto 3.5rem;
+    }
+
+    h2 {
+      font-family: "Playfair Display", Georgia, serif;
+      font-size: 1.3rem;
+      color: #c9a84c;
+      margin-bottom: 0.4rem;
+      border-bottom: 1px solid #2a2a2a;
+      padding-bottom: 0.4rem;
+    }
+
+    .description {
+      color: #999;
+      font-size: 0.85rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .diagram-wrap {
+      background: #141414;
+      border: 1px solid #222;
+      border-radius: 10px;
+      padding: 2rem 1rem;
+      overflow-x: auto;
+      display: flex;
+      justify-content: center;
+    }
+
+    .mermaid {
+      min-width: 320px;
+    }
+
+    footer {
+      text-align: center;
+      color: #444;
+      font-size: 0.75rem;
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Nairrative</h1>
+<p class="subtitle">Architecture reference — open in any browser</p>
+
+<!-- ── 1. System Layers ─────────────────────────────────── -->
+<section>
+  <h2>1. System Layers</h2>
+  <p class="description">The four runtime tiers and how they connect.</p>
+  <div class="diagram-wrap">
+    <pre class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"primaryColor": "#1e1e1e", "primaryTextColor": "#e8e0d0", "primaryBorderColor": "#c9a84c", "lineColor": "#c9a84c", "secondaryColor": "#141414", "tertiaryColor": "#0d0d0d"}}}%%
+flowchart TD
+    subgraph Browser["Browser — React SPA (Vite)"]
+        direction TB
+        App["App.jsx\n(shell · auth · nav · hook wiring)"]
+        subgraph Components["Components"]
+            OT["OverviewTab\n8 Recharts charts + KPI cards"]
+            LT["LibraryTab\nFilterable / sortable table"]
+            AT["AnalysisTab\n8 AI insight panels"]
+            RT["RecsTab\n15 discovery lenses"]
+            CT["ChatTab\nConversational assistant"]
+            BM["BookModal\nAdd / edit + AI fill"]
+        end
+        subgraph Hooks["Hooks"]
+            uAuth["useAuth"]
+            uBooks["useBooks\n↳ useGenres\n↳ useBookAiFill"]
+            uAn["useAnalysis"]
+            uRecs["useRecs"]
+            uChat["useChat"]
+            uFilt["useLibraryFilters"]
+        end
+        subgraph Lib["Lib / Constants"]
+            apiLib["api.js\nLLM_URL · claudeHeaders"]
+            cache["aiCache.js\n3-layer cache"]
+            bookUtils["bookUtils.js\nnormalizeBook · buildBookContext · toRow"]
+            prompts["analysisPrompts.js\nrecsPrompts.js"]
+            theme["theme.js · config.js · seeds.js"]
+        end
+        LS[("localStorage\n(fast cache)")]
+    end
+
+    subgraph Vercel["Vercel Edge Function"]
+        proxy["api/claude.js\nCORS · JWT verify · rate limit\nmodel allowlist · provider routing"]
+        apiUtils["apiUtils.js\ncorsHeaders · verifyJWT · checkRateLimit"]
+        providers["providers.js\nAnthropic · OpenAI normalisation"]
+        proxy --> apiUtils
+        proxy --> providers
+    end
+
+    subgraph SupabaseCloud["Supabase"]
+        Auth["Auth\n(JWKS endpoint)"]
+        subgraph DB["PostgreSQL (RLS on all tables)"]
+            T1["books · book_authors · authors · genres"]
+            T2["analysis_cache · recs_cache · panel_prompts"]
+        end
+    end
+
+    subgraph External["External Services"]
+        Anthropic["Anthropic API\nclaude-sonnet-4-6"]
+        Redis[("Upstash Redis\n30 req / 60 s per user")]
+    end
+
+    App --> Components
+    App --> Hooks
+    Hooks --> Lib
+    Lib --> LS
+    Lib --> apiLib
+    apiLib -->|"POST /api/claude\nBearer token"| proxy
+    Hooks -->|"Supabase JS client"| SupabaseCloud
+    proxy -->|"JWKS fetch"| Auth
+    proxy -->|"rate-limit check"| Redis
+    providers -->|"HTTPS"| Anthropic
+    </pre>
+  </div>
+</section>
+
+<!-- ── 2. Hook & Component Wiring ───────────────────────── -->
+<section>
+  <h2>2. Hook &amp; Component Wiring</h2>
+  <p class="description">How App.jsx connects hooks to components.</p>
+  <div class="diagram-wrap">
+    <pre class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"primaryColor": "#1e1e1e", "primaryTextColor": "#e8e0d0", "primaryBorderColor": "#c9a84c", "lineColor": "#c9a84c", "secondaryColor": "#141414", "tertiaryColor": "#0d0d0d"}}}%%
+flowchart LR
+    App["App.jsx"]
+
+    subgraph HookTree["Hooks (composed in App.jsx)"]
+        uAuth["useAuth\nsession · login · logout"]
+        uBooks["useBooks"]
+        uGen["useGenres\ngenre list · addGenre · fuzzy UI"]
+        uFill["useBookAiFill\nchat-fill · applyPending"]
+        uAn["useAnalysis\n8 panels · panel prompts · cache"]
+        uRecs["useRecs\n15 lenses · intent inputs · cache"]
+        uChat["useChat\nmessages · sendChat"]
+        uFilt["useLibraryFilters\n8 filter dims · filteredBooks"]
+        uBooks -->|composes| uGen
+        uBooks -->|composes| uFill
+    end
+
+    subgraph Tabs["Tab Components"]
+        OT["OverviewTab"]
+        LT["LibraryTab"]
+        AT["AnalysisTab"]
+        RT["RecsTab"]
+        CT["ChatTab"]
+        BM["BookModal"]
+    end
+
+    App --> uAuth
+    App --> uBooks
+    App --> uAn
+    App --> uRecs
+    App --> uChat
+    App --> uFilt
+
+    uAuth -->|"session"| App
+
+    App -->|"books · openModal · saveBook"| OT
+    App -->|"filteredBooks · filters · setFilters"| LT
+    App -->|"panels · regenerate · prompts"| AT
+    App -->|"lenses · intentInputs · refresh"| RT
+    App -->|"messages · sendChat · books"| CT
+    App -->|"editBook · saveBook · aiFill"| BM
+
+    LT -->|"uses"| uFilt
+    </pre>
+  </div>
+</section>
+
+<!-- ── 3. AI & Cache Data Flow ──────────────────────────── -->
+<section>
+  <h2>3. AI Request &amp; Cache Data Flow</h2>
+  <p class="description">What happens when a hook needs fresh AI output (e.g. recommendations).</p>
+  <div class="diagram-wrap">
+    <pre class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"primaryColor": "#1e1e1e", "primaryTextColor": "#e8e0d0", "primaryBorderColor": "#c9a84c", "lineColor": "#c9a84c", "secondaryColor": "#141414", "tertiaryColor": "#0d0d0d", "activationBorderColor": "#c9a84c", "activationBkgColor": "#1e1e1e"}}}%%
+sequenceDiagram
+    participant C as Component
+    participant H as Hook<br/>(useRecs / useAnalysis)
+    participant LS as localStorage
+    participant SB as Supabase<br/>(recs_cache / analysis_cache)
+    participant Edge as /api/claude<br/>(Vercel Edge)
+    participant JWKS as Supabase JWKS
+    participant Redis as Upstash Redis
+    participant AI as Anthropic API
+
+    C->>H: trigger (tab open / refresh / lastAddedAt)
+    H->>LS: loadCachedData (fingerprint check)
+    alt cache hit & fingerprint matches
+        LS-->>H: cached result
+    else cache miss
+        H->>SB: SELECT data WHERE user_id = ?
+        alt Supabase cache hit
+            SB-->>H: cached result
+            H->>LS: sync to localStorage
+        else full miss
+            H->>Edge: POST /api/claude<br/>{ model, messages, system, max_tokens }<br/>Authorization: Bearer token
+            Edge->>JWKS: verify JWT signature
+            JWKS-->>Edge: claims (sub, exp)
+            Edge->>Redis: INCR rl:{sub} (30 req / 60 s)
+            Redis-->>Edge: count OK
+            Edge->>AI: forward request (Anthropic format)
+            AI-->>Edge: { content: [{ type, text }] }
+            Edge-->>H: normalised response
+            H->>LS: saveCachedData (fingerprint + result)
+            H->>SB: UPSERT ON CONFLICT user_id
+        end
+    end
+    H-->>C: panels / lenses state update
+    </pre>
+  </div>
+</section>
+
+<footer>Nairrative · architecture.html · open in any browser · diagrams rendered by Mermaid.js</footer>
+
+<script>
+  mermaid.initialize({ startOnLoad: true, securityLevel: "loose" });
+</script>
+</body>
+</html>
