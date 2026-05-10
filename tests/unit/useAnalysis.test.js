@@ -23,6 +23,8 @@ vi.mock('../../src/lib/db', () => ({
   getAnalysisCache:  vi.fn(),
   saveAnalysisCache: vi.fn(),
   savePanelPrompts:  vi.fn(),
+  loadCacheRow:      vi.fn(),
+  saveCacheRow:      vi.fn(),
 }))
 
 vi.mock('../../src/lib/api', () => ({
@@ -124,6 +126,8 @@ describe('useAnalysis — saveAnalysisToSupabase (via regeneratePanel)', () => {
     db.getAnalysisCache.mockResolvedValue({ data: null })
     db.saveAnalysisCache.mockResolvedValue({ error: null })
     db.savePanelPrompts.mockResolvedValue({ error: null })
+    db.loadCacheRow.mockResolvedValue({ data: null })
+    db.saveCacheRow.mockResolvedValue({})
   })
 
   it('skips analysis cache save when there is no active session', async () => {
@@ -150,8 +154,9 @@ describe('useAnalysis — saveAnalysisToSupabase (via regeneratePanel)', () => {
     })
     await flushPromises()
 
-    expect(db.saveAnalysisCache).toHaveBeenCalledOnce()
-    const [userId, fingerprint, data] = db.saveAnalysisCache.mock.calls[0]
+    expect(db.saveCacheRow).toHaveBeenCalledOnce()
+    const [table, userId, fingerprint, data] = db.saveCacheRow.mock.calls[0]
+    expect(table).toBe('analysis_cache')
     expect(userId).toBe('user-xyz')
     expect(fingerprint).toBe('fp-test')
     expect(data).toBeDefined()
@@ -167,7 +172,7 @@ describe('useAnalysis — saveAnalysisToSupabase (via regeneratePanel)', () => {
     })
     await flushPromises()
 
-    const [, , data] = db.saveAnalysisCache.mock.calls[0]
+    const [, , , data] = db.saveCacheRow.mock.calls[0]
     expect(data).toHaveProperty('temporal')
     expect(data.temporal).toHaveProperty('insight')
     expect(data.temporal.insight).toContain('Reading')

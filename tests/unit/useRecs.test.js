@@ -21,6 +21,8 @@ vi.mock('../../src/lib/auth', () => ({
 vi.mock('../../src/lib/db', () => ({
   getRecsCache:  vi.fn(),
   saveRecsCache: vi.fn(),
+  loadCacheRow:  vi.fn(),
+  saveCacheRow:  vi.fn(),
 }))
 
 vi.mock('../../src/lib/api', () => ({
@@ -70,6 +72,8 @@ describe('useRecs — saveRecsToSupabase (via fetchIntentRecs)', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockFetchResponse()))
     db.getRecsCache.mockResolvedValue({ data: null })
     db.saveRecsCache.mockResolvedValue({ error: null })
+    db.loadCacheRow.mockResolvedValue({ data: null })
+    db.saveCacheRow.mockResolvedValue({})
   })
 
   it('skips recs cache save when there is no active session', async () => {
@@ -95,8 +99,9 @@ describe('useRecs — saveRecsToSupabase (via fetchIntentRecs)', () => {
     })
     await flushPromises()
 
-    expect(db.saveRecsCache).toHaveBeenCalledOnce()
-    const [userId, fingerprint, data] = db.saveRecsCache.mock.calls[0]
+    expect(db.saveCacheRow).toHaveBeenCalledOnce()
+    const [table, userId, fingerprint, data] = db.saveCacheRow.mock.calls[0]
+    expect(table).toBe('recs_cache')
     expect(userId).toBe('user-recs')
     expect(fingerprint).toBe('fp-recs')
     expect(data).toBeDefined()
@@ -112,7 +117,7 @@ describe('useRecs — saveRecsToSupabase (via fetchIntentRecs)', () => {
     })
     await flushPromises()
 
-    const [userId] = db.saveRecsCache.mock.calls[0]
+    const [, userId] = db.saveCacheRow.mock.calls[0]
     expect(typeof userId).toBe('string')
     expect(userId).toBe('user-recs')
   })
@@ -127,7 +132,7 @@ describe('useRecs — saveRecsToSupabase (via fetchIntentRecs)', () => {
     })
     await flushPromises()
 
-    const [, , data] = db.saveRecsCache.mock.calls[0]
+    const [, , , data] = db.saveCacheRow.mock.calls[0]
     expect(data).toHaveProperty('loved')
     expect(Array.isArray(data.loved)).toBe(true)
     expect(data.loved[0]).toMatchObject({ title: 'Foundation', author: 'Isaac Asimov' })
