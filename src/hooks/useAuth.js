@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../lib/supabase";
+import { getSession, signIn, signOut, onAuthStateChange } from "../lib/auth";
 
 export function useAuth() {
   const [session,        setSession]        = useState(null);
@@ -10,9 +10,9 @@ export function useAuth() {
   const [loginLoading,   setLoginLoading]   = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
-    return () => subscription.unsubscribe();
+    getSession().then(session => setSession(session));
+    const unsubscribe = onAuthStateChange((_event, session) => setSession(session));
+    return unsubscribe;
   }, []);
 
   const closeLoginModal = () => { setShowLoginModal(false); setLoginError(""); };
@@ -26,13 +26,13 @@ export function useAuth() {
 
   const login = async () => {
     setLoginLoading(true); setLoginError("");
-    const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password: loginPassword });
+    const { error } = await signIn(loginEmail, loginPassword);
     if (error) setLoginError(error.message);
     else { setShowLoginModal(false); setLoginEmail(""); setLoginPassword(""); }
     setLoginLoading(false);
   };
 
-  const logout = async () => { await supabase.auth.signOut(); };
+  const logout = async () => { await signOut(); };
 
   return {
     session,

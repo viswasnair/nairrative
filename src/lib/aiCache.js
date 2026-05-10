@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { loadCacheRow, saveCacheRow } from "./db";
 
 // Loads AI result from localStorage → Supabase → null.
 // Returns the cached data if found and fingerprint matches, otherwise null.
@@ -9,8 +9,7 @@ export async function loadCachedData({ table, lsDataKey, lsFpKey, fingerprint, s
     try { return JSON.parse(cachedResult); } catch { /* malformed — fall through */ }
   }
   try {
-    const query = supabase.from(table).select("data");
-    const { data } = await (session ? query.eq("user_id", session.user.id) : query).maybeSingle();
+    const { data } = await loadCacheRow(table, session?.user?.id ?? null);
     if (data?.data) {
       localStorage.setItem(lsDataKey, JSON.stringify(data.data));
       localStorage.setItem(lsFpKey, fingerprint);
@@ -26,9 +25,6 @@ export async function saveCachedData({ table, lsDataKey, lsFpKey, fingerprint, d
   localStorage.setItem(lsFpKey, fingerprint);
   if (!session) return;
   try {
-    await supabase.from(table).upsert(
-      { user_id: session.user.id, fingerprint, data },
-      { onConflict: "user_id" }
-    );
+    await saveCacheRow(table, session.user.id, fingerprint, data);
   } catch (e) { console.error(`Failed to save ${table} to Supabase:`, e); }
 }

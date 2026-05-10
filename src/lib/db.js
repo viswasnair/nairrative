@@ -124,6 +124,20 @@ export function savePanelPrompts(userId, data) {
   );
 }
 
+// ── Generic cache helpers (used by aiCache.js) ────────────────────────────────
+
+export function loadCacheRow(table, userId) {
+  const q = supabase.from(table).select("data");
+  return (userId ? q.eq("user_id", userId) : q).maybeSingle();
+}
+
+export function saveCacheRow(table, userId, fingerprint, data) {
+  return supabase.from(table).upsert(
+    { user_id: userId, fingerprint, data },
+    { onConflict: "user_id" }
+  );
+}
+
 // ── New releases ──────────────────────────────────────────────────────────────
 
 export function getNewReleases({ cols = "*", yearsBack = 2, limit = 20 } = {}) {

@@ -1,64 +1,53 @@
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import { loadCachedData, saveCachedData } from "../../src/lib/aiCache";
 
-vi.mock("../../src/lib/supabase", () => ({
-  supabase: { from: vi.fn() },
+vi.mock("../../src/lib/db", () => ({
+  loadCacheRow: vi.fn(),
+  saveCacheRow: vi.fn(),
 }));
 
-import { supabase } from "../../src/lib/supabase";
+import { loadCacheRow, saveCacheRow } from "../../src/lib/db";
 
 const SESSION = { user: { id: "user-1" } };
 const OPTS = { table: "analysis_cache", lsDataKey: "ai_data", lsFpKey: "ai_fp", fingerprint: "fp-123" };
 
-function makeSupabaseMock(returnData = null) {
-  const maybeSingle = vi.fn().mockResolvedValue({ data: returnData });
-  const eq = vi.fn().mockReturnValue({ maybeSingle });
-  const select = vi.fn().mockReturnValue({ maybeSingle, eq });
-  const upsert = vi.fn().mockResolvedValue({ error: null });
-  supabase.from.mockReturnValue({ select, upsert });
-  return { maybeSingle, eq, select, upsert };
-}
+beforeEach(() => { vi.clearAllMocks(); localStorage.clear(); });
 
 describe("loadCachedData", () => {
-  beforeEach(() => { vi.clearAllMocks(); localStorage.clear(); });
-
   it("returns parsed localStorage data when fingerprint matches", async () => {
     const cached = { temporal: { insight: "test" } };
     localStorage.setItem("ai_fp", "fp-123");
     localStorage.setItem("ai_data", JSON.stringify(cached));
-    makeSupabaseMock();
 
     const result = await loadCachedData({ ...OPTS, session: SESSION });
     expect(result).toEqual(cached);
-    expect(supabase.from).not.toHaveBeenCalled();
+    expect(loadCacheRow).not.toHaveBeenCalled();
   });
 
-  it("falls through to Supabase when fingerprint does not match", async () => {
+  it("falls through to db when fingerprint does not match", async () => {
     localStorage.setItem("ai_fp", "fp-old");
     localStorage.setItem("ai_data", JSON.stringify({ old: true }));
-    const sbData = { data: { temporal: { insight: "fresh" } } };
-    makeSupabaseMock(sbData);
+    loadCacheRow.mockResolvedValue({ data: { data: { temporal: { insight: "fresh" } } } });
 
     const result = await loadCachedData({ ...OPTS, session: SESSION });
-    expect(result).toEqual(sbData.data);
-    expect(supabase.from).toHaveBeenCalledWith("analysis_cache");
+    expect(result).toEqual({ temporal: { insight: "fresh" } });
+    expect(loadCacheRow).toHaveBeenCalledWith("analysis_cache", "user-1");
   });
 
-  it("adds user_id eq filter when session is present", async () => {
-    const { eq } = makeSupabaseMock(null);
+  it("passes user id to loadCacheRow when session is present", async () => {
+    loadCacheRow.mockResolvedValue({ data: null });
     await loadCachedData({ ...OPTS, session: SESSION });
-    expect(eq).toHaveBeenCalledWith("user_id", "user-1");
+    expect(loadCacheRow).toHaveBeenCalledWith("analysis_cache", "user-1");
   });
 
-  it("skips user_id filter when session is null", async () => {
-    const { eq, maybeSingle } = makeSupabaseMock(null);
+  it("passes null user id to loadCacheRow when session is null", async () => {
+    loadCacheRow.mockResolvedValue({ data: null });
     await loadCachedData({ ...OPTS, session: null });
-    expect(eq).not.toHaveBeenCalled();
-    expect(maybeSingle).toHaveBeenCalled();
+    expect(loadCacheRow).toHaveBeenCalledWith("analysis_cache", null);
   });
 
-  it("returns null when Supabase has no data", async () => {
-    makeSupabaseMock(null);
+  it("returns null when db has no data", async () => {
+    loadCacheRow.mockResolvedValue({ data: null });
     const result = await loadCachedData({ ...OPTS, session: SESSION });
     expect(result).toBeNull();
   });
@@ -66,44 +55,37 @@ describe("loadCachedData", () => {
   it("returns null when localStorage has malformed JSON", async () => {
     localStorage.setItem("ai_fp", "fp-123");
     localStorage.setItem("ai_data", "not-json{{{");
-    makeSupabaseMock(null);
+    loadCacheRow.mockResolvedValue({ data: null });
     const result = await loadCachedData({ ...OPTS, session: SESSION });
     expect(result).toBeNull();
   });
 
-  it("populates localStorage from Supabase on cache miss", async () => {
-    const sbData = { data: { genre: { insight: "hi" } } };
-    makeSupabaseMock(sbData);
+  it("populates localStorage from db on cache miss", async () => {
+    loadCacheRow.mockResolvedValue({ data: { data: { genre: { insight: "hi" } } } });
     await loadCachedData({ ...OPTS, session: SESSION });
-    expect(localStorage.getItem("ai_data")).toBe(JSON.stringify(sbData.data));
+    expect(localStorage.getItem("ai_data")).toBe(JSON.stringify({ genre: { insight: "hi" } }));
     expect(localStorage.getItem("ai_fp")).toBe("fp-123");
   });
 });
 
 describe("saveCachedData", () => {
-  beforeEach(() => { vi.clearAllMocks(); localStorage.clear(); });
-
   it("writes data and fingerprint to localStorage", async () => {
-    makeSupabaseMock();
+    saveCacheRow.mockResolvedValue({});
     const data = { temporal: { insight: "saved" } };
     await saveCachedData({ ...OPTS, data, session: SESSION });
     expect(localStorage.getItem("ai_data")).toBe(JSON.stringify(data));
     expect(localStorage.getItem("ai_fp")).toBe("fp-123");
   });
 
-  it("upserts to Supabase with user_id and onConflict when session exists", async () => {
-    const { upsert } = makeSupabaseMock();
+  it("calls saveCacheRow with table, user_id, fingerprint, data", async () => {
+    saveCacheRow.mockResolvedValue({});
     const data = { temporal: { insight: "saved" } };
     await saveCachedData({ ...OPTS, data, session: SESSION });
-    expect(upsert).toHaveBeenCalledWith(
-      { user_id: "user-1", fingerprint: "fp-123", data },
-      { onConflict: "user_id" }
-    );
+    expect(saveCacheRow).toHaveBeenCalledWith("analysis_cache", "user-1", "fp-123", data);
   });
 
-  it("skips Supabase upsert when session is null", async () => {
-    const { upsert } = makeSupabaseMock();
+  it("skips saveCacheRow when session is null", async () => {
     await saveCachedData({ ...OPTS, data: {}, session: null });
-    expect(upsert).not.toHaveBeenCalled();
+    expect(saveCacheRow).not.toHaveBeenCalled();
   });
 });
