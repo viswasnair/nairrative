@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import G from "../constants/theme";
 import MultiSelect from "./MultiSelect";
 
@@ -37,6 +37,8 @@ export default function BookModal({
   const [coverSearched, setCoverSearched] = useState(false);
   const [pasteMode, setPasteMode] = useState(false);
   const [pasteInput, setPasteInput] = useState("");
+  const [themeText, setThemeText] = useState(() => (bookDraft.theme || []).join(", "));
+  const themeIsEditingRef = useRef(false);
 
   // Auto-search covers whenever the title changes, with a debounce.
   useEffect(() => {
@@ -68,6 +70,10 @@ export default function BookModal({
 
     return () => clearTimeout(timer);
   }, [bookDraft.title]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!themeIsEditingRef.current) setThemeText((bookDraft.theme || []).join(", "));
+  }, [bookDraft.theme]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const applyPasteUrl = () => {
     const url = pasteInput.trim();
@@ -106,7 +112,16 @@ export default function BookModal({
             <div style={{ marginTop: 10, padding: "10px 12px", background: `${G.gold}12`, border: `1px solid ${G.goldDim}`, borderRadius: 8 }}>
               <div style={{ fontSize: 12, color: G.text, fontWeight: 600, marginBottom: 4 }}>"{bookChatPending.title}" by {bookChatPending.authors?.map(a => a.name).join(" & ")}</div>
               <div style={{ fontSize: 11, color: G.muted, marginBottom: 4 }}>{bookChatPending.genres?.join(", ")} · {bookChatPending.fiction ? "Fiction" : "Non-Fiction"} · {bookChatPending.format} · {bookChatPending.year}{bookChatPending.pages ? ` · ${bookChatPending.pages}pp` : ""}</div>
-              {bookChatPending.description && <div style={{ fontSize: 11, color: G.muted, fontStyle: "italic", marginBottom: 8, lineHeight: 1.5 }}>{bookChatPending.description}</div>}
+              {bookChatPending.description && <div style={{ fontSize: 11, color: G.muted, fontStyle: "italic", marginBottom: 6, lineHeight: 1.5 }}>{bookChatPending.description}</div>}
+              {(bookChatPending.mood || bookChatPending.narrative_style || bookChatPending.setting_era || bookChatPending.archetype || bookChatPending.theme?.length > 0) && (
+                <div style={{ marginBottom: 8, display: "flex", flexWrap: "wrap", gap: "3px 14px" }}>
+                  {bookChatPending.mood && <span style={{ fontSize: 11, color: G.muted }}>Mood: <span style={{ color: G.text }}>{bookChatPending.mood}</span></span>}
+                  {bookChatPending.narrative_style && <span style={{ fontSize: 11, color: G.muted }}>Style: <span style={{ color: G.text }}>{bookChatPending.narrative_style}</span></span>}
+                  {bookChatPending.setting_era && <span style={{ fontSize: 11, color: G.muted }}>Setting: <span style={{ color: G.text }}>{bookChatPending.setting_era}</span></span>}
+                  {bookChatPending.archetype && <span style={{ fontSize: 11, color: G.muted }}>Archetype: <span style={{ color: G.text }}>{bookChatPending.archetype}</span></span>}
+                  {bookChatPending.theme?.length > 0 && <span style={{ fontSize: 11, color: G.muted }}>Themes: <span style={{ color: G.text }}>{bookChatPending.theme.join(", ")}</span></span>}
+                </div>
+              )}
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="btn-gold" style={{ fontSize: 11, padding: "5px 12px" }} onClick={applyPending}>Apply to form</button>
                 <button className="btn-ghost" style={{ fontSize: 11, padding: "5px 12px" }} onClick={() => setBookChatPending(null)}>Dismiss</button>
@@ -229,44 +244,90 @@ export default function BookModal({
             <textarea className="input-dark" rows={3} placeholder="A brief spoiler-free summary — shown on hover in the library…" value={bookDraft.description} onChange={e => setBookDraft(p => ({ ...p, description: e.target.value }))} style={{ resize: "vertical", lineHeight: 1.5, fontSize: 12 }} />
           </div>
 
-          {/* AI Attributes — read-only */}
-          {(bookDraft.mood || bookDraft.narrative_style || bookDraft.setting_era || bookDraft.archetype || bookDraft.theme?.length > 0) && (
+          {/* AI Attributes */}
+          {(editingBook || bookDraft.mood || bookDraft.narrative_style || bookDraft.setting_era || bookDraft.archetype || bookDraft.theme?.length > 0) && (
             <div style={{ background: G.card2, border: `1px solid ${G.border}`, borderRadius: 8, padding: "10px 12px" }}>
               <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 8 }}>
-                ✦ AI Attributes <span style={{ textTransform: "none", letterSpacing: 0, fontStyle: "italic", fontWeight: 400 }}>· read-only</span>
+                ✦ AI Attributes
+                {!editingBook && <span style={{ textTransform: "none", letterSpacing: 0, fontStyle: "italic", fontWeight: 400 }}> · read-only</span>}
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                {bookDraft.mood && (
-                  <div style={{ display: "flex", gap: 8, fontSize: 11 }}>
-                    <span style={{ color: G.muted, minWidth: 100 }}>Mood</span>
-                    <span style={{ color: G.text }}>{bookDraft.mood}</span>
+              {editingBook ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    <div>
+                      <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 4 }}>Mood</div>
+                      <input className="input-dark" style={{ fontSize: 12 }} placeholder="e.g. tense, contemplative" value={bookDraft.mood || ""} onChange={e => setBookDraft(p => ({ ...p, mood: e.target.value }))} />
+                    </div>
+                    <div>
+                      <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 4 }}>Narrative Style</div>
+                      <input className="input-dark" style={{ fontSize: 12 }} placeholder="e.g. first-person" value={bookDraft.narrative_style || ""} onChange={e => setBookDraft(p => ({ ...p, narrative_style: e.target.value }))} />
+                    </div>
                   </div>
-                )}
-                {bookDraft.narrative_style && (
-                  <div style={{ display: "flex", gap: 8, fontSize: 11 }}>
-                    <span style={{ color: G.muted, minWidth: 100 }}>Narrative style</span>
-                    <span style={{ color: G.text }}>{bookDraft.narrative_style}</span>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    <div>
+                      <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 4 }}>Setting / Era</div>
+                      <input className="input-dark" style={{ fontSize: 12 }} placeholder="e.g. WWII Britain" value={bookDraft.setting_era || ""} onChange={e => setBookDraft(p => ({ ...p, setting_era: e.target.value }))} />
+                    </div>
+                    <div>
+                      <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 4 }}>Archetype</div>
+                      <select className="input-dark" style={{ fontSize: 12 }} value={bookDraft.archetype || ""} onChange={e => setBookDraft(p => ({ ...p, archetype: e.target.value }))}>
+                        <option value="">— select —</option>
+                        {["Hero's Journey","Overcoming the Monster","Quest","Voyage and Return","Rebirth","Rags to Riches","Tragedy","Comedy","Ensemble Drama"].map(a => <option key={a}>{a}</option>)}
+                      </select>
+                    </div>
                   </div>
-                )}
-                {bookDraft.setting_era && (
-                  <div style={{ display: "flex", gap: 8, fontSize: 11 }}>
-                    <span style={{ color: G.muted, minWidth: 100 }}>Setting / era</span>
-                    <span style={{ color: G.text }}>{bookDraft.setting_era}</span>
+                  <div>
+                    <div style={{ color: G.muted, fontSize: 10, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 4 }}>
+                      Themes <span style={{ textTransform: "none", fontStyle: "italic", letterSpacing: 0 }}>(comma-separated)</span>
+                    </div>
+                    <input className="input-dark" style={{ fontSize: 12 }} placeholder="e.g. survival, identity, power"
+                      value={themeText}
+                      onFocus={() => { themeIsEditingRef.current = true; }}
+                      onChange={e => {
+                        setThemeText(e.target.value);
+                        setBookDraft(p => ({ ...p, theme: e.target.value.split(",").map(t => t.trim()).filter(Boolean) }));
+                      }}
+                      onBlur={() => {
+                        themeIsEditingRef.current = false;
+                        setBookDraft(p => ({ ...p, theme: themeText.split(",").map(t => t.trim()).filter(Boolean) }));
+                      }}
+                    />
                   </div>
-                )}
-                {bookDraft.archetype && (
-                  <div style={{ display: "flex", gap: 8, fontSize: 11 }}>
-                    <span style={{ color: G.muted, minWidth: 100 }}>Archetype</span>
-                    <span style={{ color: G.text }}>{bookDraft.archetype}</span>
-                  </div>
-                )}
-                {bookDraft.theme?.length > 0 && (
-                  <div style={{ display: "flex", gap: 8, fontSize: 11 }}>
-                    <span style={{ color: G.muted, minWidth: 100 }}>Themes</span>
-                    <span style={{ color: G.text }}>{bookDraft.theme.join(", ")}</span>
-                  </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  {bookDraft.mood && (
+                    <div style={{ display: "flex", gap: 8, fontSize: 11 }}>
+                      <span style={{ color: G.muted, minWidth: 100 }}>Mood</span>
+                      <span style={{ color: G.text }}>{bookDraft.mood}</span>
+                    </div>
+                  )}
+                  {bookDraft.narrative_style && (
+                    <div style={{ display: "flex", gap: 8, fontSize: 11 }}>
+                      <span style={{ color: G.muted, minWidth: 100 }}>Narrative style</span>
+                      <span style={{ color: G.text }}>{bookDraft.narrative_style}</span>
+                    </div>
+                  )}
+                  {bookDraft.setting_era && (
+                    <div style={{ display: "flex", gap: 8, fontSize: 11 }}>
+                      <span style={{ color: G.muted, minWidth: 100 }}>Setting / era</span>
+                      <span style={{ color: G.text }}>{bookDraft.setting_era}</span>
+                    </div>
+                  )}
+                  {bookDraft.archetype && (
+                    <div style={{ display: "flex", gap: 8, fontSize: 11 }}>
+                      <span style={{ color: G.muted, minWidth: 100 }}>Archetype</span>
+                      <span style={{ color: G.text }}>{bookDraft.archetype}</span>
+                    </div>
+                  )}
+                  {bookDraft.theme?.length > 0 && (
+                    <div style={{ display: "flex", gap: 8, fontSize: 11 }}>
+                      <span style={{ color: G.muted, minWidth: 100 }}>Themes</span>
+                      <span style={{ color: G.text }}>{bookDraft.theme.join(", ")}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
