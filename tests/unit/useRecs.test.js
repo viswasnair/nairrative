@@ -2,27 +2,22 @@
  * Integration tests for useRecs — focused on the cache save scoping regression.
  *
  * Regression: recs_cache was previously upserted with { id: 1, data }.
- * It must now require an active session and call the db adapter with the
- * correct user_id.
+ * It must now require an active session and upsert with { user_id, ... }
+ * using onConflict: "user_id".
  */
 
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { getSession } from '../../src/lib/auth'
-import * as db from '../../src/lib/db'
+import { supabase } from '../../src/lib/supabase'
 import { useRecs } from '../../src/hooks/useRecs'
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
 
-vi.mock('../../src/lib/auth', () => ({
-  getSession: vi.fn(),
-}))
-
-vi.mock('../../src/lib/db', () => ({
-  getRecsCache:  vi.fn(),
-  saveRecsCache: vi.fn(),
-  loadCacheRow:  vi.fn(),
-  saveCacheRow:  vi.fn(),
+vi.mock('../../src/lib/supabase', () => ({
+  supabase: {
+    auth: { getSession: vi.fn() },
+    from: vi.fn(),
+  },
 }))
 
 vi.mock('../../src/lib/api', () => ({
@@ -53,6 +48,7 @@ const MOCK_REC = [
   { title: 'Foundation', author: 'Isaac Asimov', year: 1951, reason: 'Classic sci-fi match.' },
 ]
 
+// The fetch response format useRecs expects
 const mockFetchResponse = () => ({
   ok: true,
   json: () => Promise.resolve({
@@ -63,21 +59,39 @@ const mockFetchResponse = () => ({
 // Resolves all pending microtasks and macrotasks
 const flushPromises = () => new Promise(r => setTimeout(r, 0))
 
+// ── Mock factory ──────────────────────────────────────────────────────────────
+
+/**
+ * Wires supabase.from() with a per-table upsert mock for recs_cache.
+ * Returns { recsUpsert } for assertions.
+ */
+function makeFromMock() {
+  const recsUpsert  = vi.fn().mockResolvedValue({ error: null })
+  const maybeSingle = vi.fn().mockResolvedValue({ data: null })
+  const eq          = vi.fn().mockReturnValue({ maybeSingle })
+  const select      = vi.fn().mockReturnValue({ maybeSingle, eq })
+
+  supabase.from.mockImplementation((table) => {
+    if (table === 'recs_cache') return { select, upsert: recsUpsert }
+    return { select, upsert: vi.fn().mockResolvedValue({ error: null }) }
+  })
+
+  return { recsUpsert }
+}
+
 // ── Tests: saveRecsToSupabase (triggered via fetchIntentRecs) ─────────────────
+// saveRecsToSupabase is internal; we reach it by calling fetchIntentRecs().
 
 describe('useRecs — saveRecsToSupabase (via fetchIntentRecs)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockFetchResponse()))
-    db.getRecsCache.mockResolvedValue({ data: null })
-    db.saveRecsCache.mockResolvedValue({ error: null })
-    db.loadCacheRow.mockResolvedValue({ data: null })
-    db.saveCacheRow.mockResolvedValue({})
   })
 
-  it('skips recs cache save when there is no active session', async () => {
-    getSession.mockResolvedValue(null)
+  it('skips recs_cache upsert when there is no active session', async () => {
+    supabase.auth.getSession.mockResolvedValue({ data: { session: null } })
+    const { recsUpsert } = makeFromMock()
 
     const { result } = renderHook(() => useRecs(DEFAULT_PROPS))
 
@@ -86,11 +100,14 @@ describe('useRecs — saveRecsToSupabase (via fetchIntentRecs)', () => {
     })
     await flushPromises()
 
-    expect(db.saveRecsCache).not.toHaveBeenCalled()
+    expect(recsUpsert).not.toHaveBeenCalled()
   })
 
-  it('calls db.saveRecsCache with user_id, fingerprint, and data when session exists', async () => {
-    getSession.mockResolvedValue({ user: { id: 'user-recs' } })
+  it('upserts recs_cache with user_id and onConflict:"user_id" when session exists', async () => {
+    supabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: 'user-recs' } } },
+    })
+    const { recsUpsert } = makeFromMock()
 
     const { result } = renderHook(() => useRecs(DEFAULT_PROPS))
 
@@ -99,31 +116,19 @@ describe('useRecs — saveRecsToSupabase (via fetchIntentRecs)', () => {
     })
     await flushPromises()
 
-    expect(db.saveCacheRow).toHaveBeenCalledOnce()
-    const [table, userId, fingerprint, data] = db.saveCacheRow.mock.calls[0]
-    expect(table).toBe('recs_cache')
-    expect(userId).toBe('user-recs')
-    expect(fingerprint).toBe('fp-recs')
-    expect(data).toBeDefined()
-  })
-
-  it('does not pass a legacy id field — only user_id is the key', async () => {
-    getSession.mockResolvedValue({ user: { id: 'user-recs' } })
-
-    const { result } = renderHook(() => useRecs(DEFAULT_PROPS))
-
-    await act(async () => {
-      await result.current.fetchIntentRecs('loved', 'Dune')
-    })
-    await flushPromises()
-
-    const [, userId] = db.saveCacheRow.mock.calls[0]
-    expect(typeof userId).toBe('string')
-    expect(userId).toBe('user-recs')
+    expect(recsUpsert).toHaveBeenCalledOnce()
+    const [payload, options] = recsUpsert.mock.calls[0]
+    expect(payload).toHaveProperty('user_id', 'user-recs')
+    expect(payload).toHaveProperty('fingerprint', 'fp-recs')
+    expect(payload).not.toHaveProperty('id')
+    expect(options).toEqual({ onConflict: 'user_id' })
   })
 
   it('payload data contains the recommended book under the correct lens key', async () => {
-    getSession.mockResolvedValue({ user: { id: 'user-recs' } })
+    supabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: 'user-recs' } } },
+    })
+    const { recsUpsert } = makeFromMock()
 
     const { result } = renderHook(() => useRecs(DEFAULT_PROPS))
 
@@ -132,14 +137,17 @@ describe('useRecs — saveRecsToSupabase (via fetchIntentRecs)', () => {
     })
     await flushPromises()
 
-    const [, , , data] = db.saveCacheRow.mock.calls[0]
+    const [{ data }] = recsUpsert.mock.calls[0]
     expect(data).toHaveProperty('loved')
     expect(Array.isArray(data.loved)).toBe(true)
     expect(data.loved[0]).toMatchObject({ title: 'Foundation', author: 'Isaac Asimov' })
   })
 
   it('updates intentResults state with the fetched recommendation', async () => {
-    getSession.mockResolvedValue({ user: { id: 'user-recs' } })
+    supabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: 'user-recs' } } },
+    })
+    makeFromMock()
 
     const { result } = renderHook(() => useRecs(DEFAULT_PROPS))
 
@@ -153,5 +161,52 @@ describe('useRecs — saveRecsToSupabase (via fetchIntentRecs)', () => {
       title: 'Foundation',
       author: 'Isaac Asimov',
     })
+  })
+
+  it('sets an error result when fetch rejects', async () => {
+    supabase.auth.getSession.mockResolvedValue({ data: { session: null } })
+    makeFromMock()
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network failure')))
+
+    const { result } = renderHook(() => useRecs(DEFAULT_PROPS))
+
+    await act(async () => { await result.current.fetchIntentRecs('loved', 'Dune') })
+    await flushPromises()
+
+    const rec = result.current.intentResults['loved']?.[0]
+    expect(rec).toBeDefined()
+    expect(rec.title).toBe('Could not load')
+    expect(rec.reason).toContain('Recommendation unavailable')
+  })
+
+  it('loads intentResults from localStorage when fingerprint matches', async () => {
+    supabase.auth.getSession.mockResolvedValue({ data: { session: null } })
+    makeFromMock()
+    const cached = { 'more-like': [{ title: 'Cached Book', author: 'Author', reason: 'From cache.' }] }
+    localStorage.setItem('nairrative_recs_fp', 'fp-recs')
+    localStorage.setItem('nairrative_recs', JSON.stringify(cached))
+
+    // Switch to the recs tab — triggers the cache-load effect
+    const { result } = renderHook(() => useRecs({ ...DEFAULT_PROPS, activeTab: 'recs' }))
+    await act(async () => { await flushPromises() })
+
+    // Seed is merged in; cached result should appear for 'more-like'
+    expect(result.current.intentResults['more-like']?.[0].title).toBe('Cached Book')
+  })
+
+  it('targets the recs_cache table (not a different cache table)', async () => {
+    supabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: 'user-recs' } } },
+    })
+    makeFromMock()
+
+    const { result } = renderHook(() => useRecs(DEFAULT_PROPS))
+
+    await act(async () => {
+      await result.current.fetchIntentRecs('loved', 'Dune')
+    })
+    await flushPromises()
+
+    expect(supabase.from).toHaveBeenCalledWith('recs_cache')
   })
 })

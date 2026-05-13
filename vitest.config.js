@@ -11,7 +11,7 @@ export default defineConfig({
     reporter: 'verbose',
     coverage: {
       provider: 'v8',
-      include: ['src/lib/**', 'src/constants/**', 'src/components/**', 'api/**'],
+      include: ['src/lib/**', 'src/constants/**', 'src/components/**', 'src/hooks/**', 'api/**'],
       reporter: ['text', 'html', 'json-summary'],
       thresholds: {
         // Per-file floors set ~10 pts below current coverage.
@@ -30,6 +30,14 @@ export default defineConfig({
         // Current: RangeFilter 100/100/100/100, DarkTooltip 100/100/100/100
         'src/components/RangeFilter.jsx': { statements: 90, branches: 90, functions: 90, lines: 90 },
         'src/components/DarkTooltip.jsx': { statements: 90, branches: 90, functions: 90, lines: 90 },
+
+        // Hook tests added 2026-05-08 (floors = actual − 10)
+        // Current: useAnalysis 56/34/60/57
+        'src/hooks/useAnalysis.js': { statements: 46, branches: 24, functions: 50, lines: 47 },
+        // Current: useBooks 47/35/55/50
+        'src/hooks/useBooks.js':    { statements: 37, branches: 25, functions: 45, lines: 40 },
+        // Current: useRecs 74/57/73/75
+        'src/hooks/useRecs.js':     { statements: 64, branches: 47, functions: 63, lines: 65 },
 
         // Gap-filling tests added 2026-05-06/08 (floors = actual − 10)
         // Current: AnalysisTab 86/75/90/89

@@ -136,7 +136,7 @@ describe('SeriesTab', () => {
       fireEvent.click(screen.getByRole('button', { name: /Recap/i }))
     })
 
-    expect(screen.getByText(/Could not generate recap/i)).toBeTruthy()
+    expect(screen.getByText(/network error/i)).toBeTruthy()
   })
 
   it('seriesLoading=true shows loading pulse while generating series recap', () => {

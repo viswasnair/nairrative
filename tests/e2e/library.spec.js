@@ -23,7 +23,7 @@ test.describe('Library — add and remove a book', () => {
     const title = testBookTitle();
 
     // ── 1. Open Add Book modal ──
-    await page.locator('button.btn-gold', { hasText: '+ Add Book' }).click();
+    await page.locator('button.btn-gold', { hasText: '+ Book' }).click();
     await expect(page.locator('.modal-box')).toBeVisible();
     await expect(page.locator('.modal-box', { hasText: 'Add Book' })).toBeVisible();
 
@@ -71,7 +71,7 @@ test.describe('Library — add and remove a book', () => {
   });
 
   test('save is blocked when title or author is missing', async ({ page }) => {
-    await page.locator('button.btn-gold', { hasText: '+ Add Book' }).click();
+    await page.locator('button.btn-gold', { hasText: '+ Book' }).click();
     await expect(page.locator('.modal-box')).toBeVisible();
 
     // Try to save with no fields filled
@@ -89,7 +89,7 @@ test.describe('Library — add and remove a book', () => {
   });
 
   test('cancel / close modal without saving', async ({ page }) => {
-    await page.locator('button.btn-gold', { hasText: '+ Add Book' }).click();
+    await page.locator('button.btn-gold', { hasText: '+ Book' }).click();
     await expect(page.locator('.modal-box')).toBeVisible();
     await page.locator('input[placeholder="Book title"]').fill('This should not be saved');
     // Close with the × button
