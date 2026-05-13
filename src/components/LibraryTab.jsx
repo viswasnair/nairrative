@@ -92,7 +92,7 @@ export default function LibraryTab({
             >
               {secondaryCount > 0 ? `▼ Filters · ${secondaryCount}` : (showMoreFilters ? "▲ Less" : "▼ More")}
             </button>
-            <button className="btn-gold" style={{ padding: "7px 16px", fontSize: 12, opacity: session ? 1 : 0.35, cursor: session ? "pointer" : "not-allowed" }} onClick={() => session && openAddModal()}>+ Book</button>
+            <button className="btn-gold" style={{ padding: "7px 16px", fontSize: 12, opacity: session ? 1 : 0.35, cursor: session ? "pointer" : "not-allowed" }} onClick={() => session && openAddModal()}>+ Add Book</button>
             <span style={{ color: G.muted, fontSize: 12, whiteSpace: "nowrap" }}>{filteredBooks.length} books</span>
             <div style={{ flex: 1 }} />
             <button className="btn-ghost" onClick={() => downloadCSV(books)}>↓ CSV</button>
