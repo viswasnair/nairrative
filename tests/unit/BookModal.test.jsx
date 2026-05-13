@@ -19,6 +19,7 @@ const DRAFT = {
   title: '', authors: [{ name: '' }], genres: [],
   yearStart: '', yearEnd: '', pages: '', format: 'Novel',
   fiction: true, series: '', rating: '', cover_url: '',
+  description: '', mood: '', narrative_style: '', setting_era: '', archetype: '', theme: [],
 }
 
 const EDITING_BOOK = {
@@ -350,9 +351,41 @@ describe('BookModal', () => {
     expect(screen.getByText('Identity')).toBeTruthy()
   })
 
-  it('AI Attributes section is hidden when no AI attributes are set', () => {
+  it('AI Attributes section is hidden in add mode when no AI attributes are set', () => {
     render(<BookModal {...makeProps()} />)
-    expect(screen.queryByText('AI Attributes')).toBeNull()
+    expect(screen.queryByText(/AI Attributes/)).toBeNull()
+  })
+
+  it('AI Attributes section always shows in edit mode even with no values', () => {
+    render(<BookModal {...makeProps({ editingBook: EDITING_BOOK })} />)
+    expect(screen.getByText(/AI Attributes/)).toBeTruthy()
+  })
+
+  it('AI Attributes edit mode renders editable inputs for mood, style, setting, archetype, theme', () => {
+    const draft = { ...DRAFT, mood: 'Melancholic', narrative_style: 'Third-person', setting_era: 'Future', archetype: "Hero's Journey", theme: ['identity', 'power'] }
+    render(<BookModal {...makeProps({ editingBook: EDITING_BOOK, bookDraft: draft })} />)
+    expect(screen.getByDisplayValue('Melancholic')).toBeTruthy()
+    expect(screen.getByDisplayValue('Third-person')).toBeTruthy()
+    expect(screen.getByDisplayValue('Future')).toBeTruthy()
+    expect(screen.getByDisplayValue("Hero's Journey")).toBeTruthy()
+    expect(screen.getByDisplayValue('identity, power')).toBeTruthy()
+  })
+
+  it('pending preview shows AI attributes (mood, style, setting, archetype, themes)', () => {
+    const pending = {
+      title: 'Dune', authors: [{ name: 'Frank Herbert' }], genres: ['Sci-Fi'],
+      fiction: true, format: 'Novel', year: 1965, pages: 412,
+      description: 'An epic sci-fi story.',
+      mood: 'epic', narrative_style: 'third-person omniscient',
+      setting_era: 'far future', archetype: "Hero's Journey",
+      theme: ['ecology', 'power'],
+    }
+    render(<BookModal {...makeProps({ bookChatPending: pending })} />)
+    expect(screen.getByText('epic')).toBeTruthy()
+    expect(screen.getByText('third-person omniscient')).toBeTruthy()
+    expect(screen.getByText('far future')).toBeTruthy()
+    expect(screen.getByText("Hero's Journey")).toBeTruthy()
+    expect(screen.getByText('ecology, power')).toBeTruthy()
   })
 
   it('"No covers found" message shows after search returns empty', async () => {
