@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import { CLAUDE_URL, claudeHeaders } from "../lib/api";
+import { LLM_URL, claudeHeaders } from "../lib/api";
 import { sanitizeShortInput } from "../lib/textUtils";
 import { fuzzyMatches } from "../lib/textUtils";
 
@@ -48,7 +48,7 @@ export function useGenres({ session }) {
     setNewGenreSaving(true);
     let color = "#a0a0a0";
     try {
-      const res = await fetch(CLAUDE_URL, {
+      const res = await fetch(LLM_URL, {
         method: "POST", headers: claudeHeaders(session),
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001", max_tokens: 16,

@@ -1,10 +1,10 @@
 import { supabase } from "./supabase";
-import { CLAUDE_URL, claudeHeaders } from "./api";
+import { LLM_URL, claudeHeaders } from "./api";
 import { sanitizeShortInput } from "./textUtils";
 
 export async function fetchAuthorCountry(authorName, session) {
   try {
-    const res = await fetch(CLAUDE_URL, {
+    const res = await fetch(LLM_URL, {
       method: "POST", headers: claudeHeaders(session),
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001", max_tokens: 20,

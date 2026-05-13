@@ -176,7 +176,7 @@ describe('useRecs — saveRecsToSupabase (via fetchIntentRecs)', () => {
     const rec = result.current.intentResults['loved']?.[0]
     expect(rec).toBeDefined()
     expect(rec.title).toBe('Could not load')
-    expect(rec.reason).toContain('Network failure')
+    expect(rec.reason).toContain('Recommendation unavailable')
   })
 
   it('loads intentResults from localStorage when fingerprint matches', async () => {

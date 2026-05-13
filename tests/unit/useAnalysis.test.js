@@ -205,14 +205,16 @@ describe('useAnalysis — cache load paths', () => {
   })
 
   it('loads panel prompts from Supabase on mount and updates state', async () => {
+    supabase.auth.getSession.mockResolvedValue({ data: { session: { user: { id: 'user-1' } } } })
     const customPrompts = { temporal: 'From DB prompt.' }
-    // Mock panel_prompts select to return data
+    // Mock panel_prompts select to return data — include .eq() in the chain
     const maybeSingle = vi.fn().mockResolvedValue({ data: { data: customPrompts } })
-    const select      = vi.fn().mockReturnValue({ maybeSingle })
+    const eq          = vi.fn().mockReturnValue({ maybeSingle })
+    const select      = vi.fn().mockReturnValue({ eq, maybeSingle })
     supabase.from.mockImplementation((table) => {
       if (table === 'panel_prompts')  return { select, upsert: vi.fn().mockResolvedValue({ error: null }) }
-      if (table === 'analysis_cache') return { select: vi.fn().mockReturnValue({ maybeSingle: vi.fn().mockResolvedValue({ data: null }) }), upsert: vi.fn().mockResolvedValue({ error: null }) }
-      return { select: vi.fn().mockReturnValue({ maybeSingle: vi.fn().mockResolvedValue({ data: null }) }), upsert: vi.fn().mockResolvedValue({ error: null }) }
+      if (table === 'analysis_cache') return { select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ maybeSingle: vi.fn().mockResolvedValue({ data: null }) }), maybeSingle: vi.fn().mockResolvedValue({ data: null }) }), upsert: vi.fn().mockResolvedValue({ error: null }) }
+      return { select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ maybeSingle: vi.fn().mockResolvedValue({ data: null }) }), maybeSingle: vi.fn().mockResolvedValue({ data: null }) }), upsert: vi.fn().mockResolvedValue({ error: null }) }
     })
 
     const { result } = renderHook(() => useAnalysis(DEFAULT_PROPS))
