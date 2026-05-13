@@ -107,17 +107,17 @@ describe('LibraryTab', () => {
     expect(screen.getByText('No books match your filters.')).toBeTruthy()
   })
 
-  it('+ Book is dimmed when session is null', () => {
+  it('+ Add Book is dimmed when session is null', () => {
     setup({ session: null })
-    const btn = screen.getByText('+ Book').closest('button')
+    const btn = screen.getByText('+ Add Book').closest('button')
     expect(btn.style.opacity).toBe('0.35')
   })
 
-  it('+ Book calls openAddModal when session is present', () => {
+  it('+ Add Book calls openAddModal when session is present', () => {
     const openAddModal = vi.fn()
     const session = { user: { id: 'u1' } }
     setup({ session, openAddModal })
-    fireEvent.click(screen.getByText('+ Book'))
+    fireEvent.click(screen.getByText('+ Add Book'))
     expect(openAddModal).toHaveBeenCalledTimes(1)
   })
 
