@@ -22,9 +22,13 @@ Nairrative is a personal reading dashboard — a React SPA deployed on Vercel wi
 ### Hooks (`src/hooks/`)
 | File | Responsibility |
 |------|---------------|
-| `useBooks.js` | Book CRUD, modal state, AI fill, genre management |
+| `useBooks.js` | Book CRUD, modal state — composes `useGenres` + `useBookAiFill` |
+| `useGenres.js` | Genre list/map, addGenre, fuzzy suggestion UI state |
+| `useBookAiFill.js` | AI chat-fill (chatFillBook, applyPending), chat loading/pending state |
 | `useAnalysis.js` | Analysis AI panels, panel prompts, Supabase cache |
 | `useRecs.js` | 15-lens recommendations, intent inputs, Supabase cache |
+| `useLibraryFilters.js` | Library filter state (8 dimensions), filteredBooks, allX derived arrays |
+| `useAuth.js` | Session, login/logout, login modal state |
 
 ### Components (`src/components/`)
 | File | Tab |
@@ -44,8 +48,13 @@ Nairrative is a personal reading dashboard — a React SPA deployed on Vercel wi
 - `theme.js` — all colour tokens (`G.gold`, `G.card`, `G.muted`, etc.)
 - `config.js` — `TABS`, `INPUT_DEFAULTS`, `DEFAULT_PANEL_PROMPTS` (8 analysis panel prompts), `AUTO_RECS`, `READING_CONTEXT`
 - `seeds.js` — `SEED_RECS`, `SEED_ANALYSIS` (fallback data for logged-out users)
-- `bookUtils.js` — `buildBookContext`, `downloadCSV`, `downloadJSON`, `stripMd` (strips markdown symbols from AI text before display)
-- `textUtils.js` — `levenshtein`, `fuzzyMatches`, `sanitizePromptInput`, `sanitizeShortInput`, `sanitizeCoverUrl` (pure helpers extracted from `useBooks.js` for testability)
+- `bookUtils.js` — `buildBookContext`, `downloadCSV`, `downloadJSON`, `stripMd`, `normalizeBook`, `toRow`
+- `bookStats.js` — `computeStats(books)`, `computeAnalysisInsights(books, stats)` (pure derivations used by App.jsx via `useMemo`)
+- `textUtils.js` — `levenshtein`, `fuzzyMatches`, `sanitizePromptInput`, `sanitizeShortInput`, `sanitizeCoverUrl`
+- `authorUtils.js` — `fetchAuthorCountry`, `resolveAuthorLinks` (author SELECT/INSERT, country backfill)
+- `aiCache.js` — `loadCachedData`, `saveCachedData` (shared 3-layer cache: localStorage → Supabase → null)
+- `analysisPrompts.js` — `buildAnalysisRequestBody`, `buildRegenerateRequestBody`, `parseAnalysisResponse`
+- `recsPrompts.js` — `buildLensPrompts` (15 lens prompt strings)
 - `supabase.js` — Supabase client
 - `api.js` — shared `CLAUDE_URL`, `AI_HEADERS`, and `claudeHeaders(session)` used by all hooks and App.jsx
 
@@ -136,16 +145,21 @@ Always run `npm run test:unit` before considering a task done. If tests fail, fi
 
 ```
 tests/unit/
-  bookUtils.test.js       ← src/lib/bookUtils.js
-  textUtils.test.js       ← src/lib/textUtils.js
-  apiUtils.test.js        ← api/lib/apiUtils.js
-  claudeHeaders.test.js   ← src/lib/api.js
-  useAnalysis.test.js     ← src/hooks/useAnalysis.js (cache-save regression)
-  useRecs.test.js         ← src/hooks/useRecs.js (cache-save regression)
-  MultiSelect.test.jsx    ← src/components/MultiSelect.jsx
-  RangeFilter.test.jsx    ← src/components/RangeFilter.jsx
-  DarkTooltip.test.jsx    ← src/components/DarkTooltip.jsx
-  ChatTab.test.jsx        ← src/components/ChatTab.jsx
+  bookUtils.test.js         ← src/lib/bookUtils.js
+  bookStats.test.js         ← src/lib/bookStats.js
+  textUtils.test.js         ← src/lib/textUtils.js
+  authorUtils.test.js       ← src/lib/authorUtils.js
+  aiCache.test.js           ← src/lib/aiCache.js
+  analysisPrompts.test.js   ← src/lib/analysisPrompts.js
+  recsPrompts.test.js       ← src/lib/recsPrompts.js
+  apiUtils.test.js          ← api/lib/apiUtils.js
+  claudeHeaders.test.js     ← src/lib/api.js
+  useAnalysis.test.js       ← src/hooks/useAnalysis.js (cache-save regression)
+  useRecs.test.js           ← src/hooks/useRecs.js (cache-save regression)
+  MultiSelect.test.jsx      ← src/components/MultiSelect.jsx
+  RangeFilter.test.jsx      ← src/components/RangeFilter.jsx
+  DarkTooltip.test.jsx      ← src/components/DarkTooltip.jsx
+  ChatTab.test.jsx          ← src/components/ChatTab.jsx
 
 supabase/tests/
   01_rls_books.test.sql         ← books + book_authors RLS
@@ -188,3 +202,64 @@ Before committing, briefly consider whether `CLAUDE.md` or `README.md` has becom
 - **Security headers** (`vercel.json`): X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, CSP, HSTS (2yr + preload).
 - **Dependabot**: enabled on GitHub for automated CVE alerts.
 - **MCP**: Vercel MCP configured via `.mcp.json` for deployment management from Claude Code.
+
+## Coding Rules — Do Not Break These
+
+These rules exist because vibecoded patterns introduced each of them as subtle bugs. Treat them as hard constraints, not style suggestions.
+
+### Error handling
+
+**In API route handlers (`api/`):**
+- Never return `err.message`, `err.stack`, or any raw exception property in an HTTP response body.
+- The catch block in `api/claude.js` must return a generic message: `"AI service temporarily unavailable"`.
+- Log real errors server-side with `console.error` or `securityLog`. The client must not learn why the server failed.
+- Good: `return new Response("AI service temporarily unavailable", { status: 500, headers: cors });`
+- Bad: `return new Response(JSON.stringify({ error: err.message }), { status: 500 ... })`
+
+**In frontend hooks (`src/hooks/`):**
+- Never pass `e.message` or `JSON.stringify(e)` into user-visible state (e.g. `setBookMsg`).
+- Raw Supabase errors contain constraint names, table names, and query fragments — these must not reach the UI.
+- Show users a generic message: `"Something went wrong. Please try again."` Log details with `console.error`.
+- Good: `setBookMsg("Something went wrong. Please try again."); console.error("saveBook error:", e);`
+- Bad: `setBookMsg(\`Error: ${e?.message || JSON.stringify(e)}\`);`
+
+**Propagating API errors through the UI:**
+- If an API response contains `data.error`, do not expose `data.error.message` or `data.error.type` in any user-visible field (including recommendation "reason" strings).
+- Log details to console; show a generic placeholder to the user.
+
+### API input validation (`api/claude.js`)
+
+Before forwarding any request body to the Anthropic API, validate:
+- `body.messages` is a non-empty array.
+- `body.max_tokens`, if present, is a positive integer (not a string, not negative, not a float).
+- `body.model`, if present, is a string before calling `.has()` on it.
+
+Malformed payloads that pass through unvalidated reach Anthropic and can cause confusing failures. Validate at the boundary; reject early with a 400.
+
+### Supabase data access — defense-in-depth
+
+All reads from user-scoped tables (`books`, `analysis_cache`, `recs_cache`, `panel_prompts`) **must** include an explicit `.eq("user_id", session.user.id)` filter in addition to relying on RLS.
+
+RLS is the primary enforcement layer, but it is a single point of failure: a migration that accidentally disables or misconfigures a policy would silently expose all users' data if there is no application-layer filter. The `.eq()` filter is cheap and makes isolation redundant.
+
+- **Never** query a user-scoped table without an explicit user_id filter when a session exists.
+- Writes already set `user_id: session.user.id` on insert and use `onConflict: "user_id"` on upsert — reads must follow the same pattern.
+
+Example:
+```js
+// Good
+supabase.from("books").select("...").eq("user_id", session.user.id)
+
+// Bad — relies on RLS alone
+supabase.from("books").select("...")
+```
+
+### Rate limiting
+
+The rate limiter (`api/lib/apiUtils.js`) uses Upstash Redis — this is correct for a serverless environment. **Do not replace it with an in-memory `Map`**. In-memory state is reset on every Vercel function invocation; an in-memory rate limiter accepts every request regardless of frequency because it never sees more than one request per process lifetime.
+
+If Redis is unreachable, the current implementation fails open (allows the request). This is a deliberate trade-off. Do not change it without understanding the implications.
+
+### File size discipline
+
+`useBooks.js` has been modularised: author resolution lives in `authorUtils.js`, genre management in `useGenres.js`, and AI chat-fill in `useBookAiFill.js`. Keep each file under ~300 lines. If any hook or lib file approaches that limit, extract the next logical unit before adding more code.

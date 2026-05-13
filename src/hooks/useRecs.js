@@ -1,29 +1,15 @@
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { buildBookContext, toRow } from "../lib/bookUtils";
-import { SEED_RECS, } from "../constants/seeds";
-import { AUTO_RECS } from "../constants/config";
-import { CLAUDE_URL, claudeHeaders, INTER_REQUEST_DELAY_MS } from "../lib/api";
+import { SEED_RECS } from "../constants/seeds";
+import { AUTO_RECS, DEFAULT_MODELS } from "../constants/config";
+import { LLM_URL, claudeHeaders, INTER_REQUEST_DELAY_MS } from "../lib/api";
+import { loadCachedData, saveCachedData } from "../lib/aiCache";
+import { buildLensPrompts } from "../lib/recsPrompts";
 
-function buildLensPrompts({ lastBook, lastAuthor, randomSeries, today, input, variationNote }) {
-  return {
-    "more-like":      `The user's most recent read is "${lastBook?.title}" by ${lastAuthor}. Recommend 1 unread book with the same feel, themes, or writing style that this reader would love.${variationNote}`,
-    "more-by-last":   `The user's most recent author is ${lastAuthor}. Recommend 1 other book by ${lastAuthor} that the reader hasn't read yet. If all are read, recommend 1 book by an author with very similar style.${variationNote}`,
-    "similar-author": `Based on the reader loving ${lastAuthor}, recommend 1 book by an author with a very similar writing style, themes, or storytelling approach.${variationNote}`,
-    "trending":       `Today is ${today}. Recommend 1 book that is critically acclaimed, culturally buzzy, or award-shortlisted in 2024–2026 that fits this reader's taste profile. Use web search to verify it is actually available and well-reviewed.${variationNote}`,
-    "challenge":      `This reader favors accessible genre fiction. Recommend 1 genuinely challenging, rewarding read — dense classic, experimental fiction, or demanding long-form non-fiction.${variationNote}`,
-    "quick":          `Recommend 1 book under 300 pages that is deeply rewarding given this reader's taste (thrillers, literary fiction, fantasy).${variationNote}`,
-    "gaps":           `This reader's library skews Western/Indian/anglophone. Recommend 1 book from an underrepresented literary tradition — Japanese, African, Latin American, Nordic, Arabic, or Southeast Asian voices.${variationNote}`,
-    "surprise":       `Give 1 wildly unexpected book recommendation that this reader would never pick for themselves but would secretly love. Bold, surprising, off-pattern pick.${variationNote}`,
-    "finish":         `This reader has read books from the series "${randomSeries}". Recommend 1 book that is either the next unread entry in this series or a very similar series with satisfying completions.${variationNote}`,
-    "loved":          `The user loved: "${input}". Recommend 1 book with similar appeal — themes, pacing, emotional tone, or narrative style.${variationNote}`,
-    "authors-like":   `The user loves authors like ${input}. Recommend 1 book by a different author with very similar style, subject matter, or storytelling sensibility.${variationNote}`,
-    "mood":           `The user is in the mood for: "${input}". Recommend 1 book that perfectly matches this emotional register or atmosphere.${variationNote}`,
-    "genre-pick":     `Recommend 1 excellent book in the genre: "${input}". Today is ${today} — consider recent releases as well as classics.${variationNote}`,
-    "topic":          `Recommend 1 book about: "${input}". Cross genre if needed — fiction, non-fiction, memoir. Today is ${today}.${variationNote}`,
-    "pair":           `The user wants to pair a book with: "${input}" (a film, show, event, or experience). Recommend 1 ideal companion read.${variationNote}`,
-  };
-}
+const LS_DATA = "nairrative_recs";
+const LS_FP   = "nairrative_recs_fp";
+const TABLE   = "recs_cache";
 
 export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }) {
   const [intentInputs, setIntentInputs] = useState({
@@ -44,34 +30,15 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
   useEffect(() => {
     if (activeTab !== "recs") return;
     if (!books.length) { setIntentResults(SEED_RECS); return; }
-    const cachedFp = localStorage.getItem("nairrative_recs_fp");
-    const cachedResult = localStorage.getItem("nairrative_recs");
-    if (cachedFp === booksFingerprint && cachedResult) {
-      try { setIntentResults({ ...SEED_RECS, ...JSON.parse(cachedResult) }); return; } catch { /* malformed cache — fall through */ }
-    }
-    supabase.from("recs_cache").select("data").maybeSingle()
-      .then(({ data }) => {
-        if (data?.data) {
-          const merged = { ...SEED_RECS, ...data.data };
-          setIntentResults(merged);
-          localStorage.setItem("nairrative_recs", JSON.stringify(merged));
-          localStorage.setItem("nairrative_recs_fp", booksFingerprint);
-        } else {
-          setIntentResults(SEED_RECS);
-        }
-      })
-      .catch(() => setIntentResults(SEED_RECS));
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const cached = await loadCachedData({ table: TABLE, lsDataKey: LS_DATA, lsFpKey: LS_FP, fingerprint: booksFingerprint, session });
+      setIntentResults(cached ? { ...SEED_RECS, ...cached } : SEED_RECS);
+    });
   }, [activeTab, booksFingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const saveRecsToSupabase = async (data) => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      await supabase.from("recs_cache").upsert(
-        { user_id: session.user.id, fingerprint: booksFingerprint, data },
-        { onConflict: "user_id" }
-      );
-    } catch (e) { console.error("Failed to save recs to Supabase:", e); }
+  const saveRecs = async (data) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    await saveCachedData({ table: TABLE, lsDataKey: LS_DATA, lsFpKey: LS_FP, fingerprint: booksFingerprint, data, session });
   };
 
   const fetchIntentRecs = async (intentId, input = "") => {
@@ -79,8 +46,6 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
     setIntentLoading(p => ({ ...p, [intentId]: true }));
     const rc = (refreshCounts[intentId] || 0) + 1;
     setRefreshCounts(p => ({ ...p, [intentId]: rc }));
-
-    // Free this panel's slot so it doesn't block its own retry
     delete allocatedTitlesRef.current[intentId];
 
     const lastBook = books[books.length - 1];
@@ -102,15 +67,15 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
       const useWebSearch = intentId === "trending" || intentId === "pair";
       const fullList = books.map(toRow).join("\n");
       const body = {
-        model: "claude-haiku-4-5-20251001", max_tokens: 400,
+        model: DEFAULT_MODELS.fast, max_tokens: 400,
         system: `You are a precise book recommendation engine. Today is ${today}. Reader history:\n${buildBookContext(books)}\n\nFULL BOOK LIST (${books.length} books):\n${fullList}\n\nDo NOT recommend any of these already-read titles: ${readTitlesString}.${crossPanelNote}\nOnly recommend unread books published up to ${today}.\n\n${prompts[intentId] || input}\n\nReturn ONLY a JSON array — no markdown, no explanation. Exactly 1 item. Format: [{"title": "...", "author": "...", "year": 2024, "reason": "1-2 sentences why it fits this reader"}].`,
         messages: [{ role: "user", content: "JSON array only." }],
       };
       if (useWebSearch) body.tools = [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }];
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(CLAUDE_URL, { method: "POST", headers: claudeHeaders(session), body: JSON.stringify(body) });
+      const res = await fetch(LLM_URL, { method: "POST", headers: claudeHeaders(session), body: JSON.stringify(body) });
       const data = await res.json();
-      if (data.error) throw new Error(data.error.message || data.error.type || JSON.stringify(data.error));
+      if (data.error) { console.error("claude api error:", data.error); throw new Error("api_error"); }
       const txt = (data.content || []).filter(c => c.type === "text").map(c => c.text).join("");
       const m = txt.match(/\[[\s\S]*?\]/);
       return m ? JSON.parse(m[0]) : JSON.parse(txt.replace(/```json|```/g, "").trim());
@@ -126,26 +91,20 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
     try {
       let parsed = await attemptFetch();
       const pick = parsed[0];
-
       if (pick?.title && (isAlreadyRead(pick.title) || isAllocatedElsewhere(pick.title))) {
-        // Retry once, explicitly excluding the bad pick
         parsed = await attemptFetch([`"${pick.title}" by ${pick.author}`]);
       }
-
       if (parsed[0]?.title) {
         allocatedTitlesRef.current[intentId] = { title: parsed[0].title, author: parsed[0].author || "" };
       }
-
       setIntentResults(prev => {
         const updated = { ...prev, [intentId]: Array.isArray(parsed) ? parsed.slice(0, 1) : [] };
-        localStorage.setItem("nairrative_recs", JSON.stringify(updated));
-        localStorage.setItem("nairrative_recs_fp", booksFingerprint);
-        saveRecsToSupabase(updated);
+        saveRecs(updated);
         return updated;
       });
     } catch (e) {
       console.error("fetchIntentRecs error:", e);
-      setIntentResults(p => ({ ...p, [intentId]: [{ title: "Could not load", author: "", reason: e?.message || "Unknown error — check console for details." }] }));
+      setIntentResults(p => ({ ...p, [intentId]: [{ title: "Could not load", author: "", reason: "Recommendation unavailable. Please try again." }] }));
     }
     setIntentLoading(p => { const n = { ...p }; delete n[intentId]; return n; });
   };
@@ -158,8 +117,8 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
     prevRecsFingerprint.current = booksFingerprint;
     allocatedTitlesRef.current = {};
     setIntentResults({});
-    localStorage.removeItem("nairrative_recs");
-    localStorage.removeItem("nairrative_recs_fp");
+    localStorage.removeItem(LS_DATA);
+    localStorage.removeItem(LS_FP);
     (async () => {
       for (const id of AUTO_RECS) {
         await fetchIntentRecs(id);

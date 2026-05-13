@@ -21,7 +21,7 @@ vi.mock('../../src/lib/supabase', () => ({
 }))
 
 vi.mock('../../src/lib/api', () => ({
-  CLAUDE_URL: 'https://mock/claude',
+  LLM_URL: 'https://mock/claude',
   claudeHeaders: vi.fn(() => ({ 'content-type': 'application/json' })),
   INTER_REQUEST_DELAY_MS: 0,
 }))
@@ -68,7 +68,8 @@ const flushPromises = () => new Promise(r => setTimeout(r, 0))
 function makeFromMock() {
   const recsUpsert  = vi.fn().mockResolvedValue({ error: null })
   const maybeSingle = vi.fn().mockResolvedValue({ data: null })
-  const select      = vi.fn().mockReturnValue({ maybeSingle })
+  const eq          = vi.fn().mockReturnValue({ maybeSingle })
+  const select      = vi.fn().mockReturnValue({ maybeSingle, eq })
 
   supabase.from.mockImplementation((table) => {
     if (table === 'recs_cache') return { select, upsert: recsUpsert }
