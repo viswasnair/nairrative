@@ -1,6 +1,6 @@
 import { useState } from "react";
 import G from "../constants/theme";
-import { CLAUDE_URL, claudeHeaders } from "../lib/api";
+import { LLM_URL, claudeHeaders } from "../lib/api";
 
 export default function SeriesTab({ books, session, selectedSeries, setSelectedSeries, seriesRecap, setSeriesRecap, seriesLoading, generateSeriesRecap }) {
   const [customInput, setCustomInput] = useState("");
@@ -16,7 +16,7 @@ export default function SeriesTab({ books, session, selectedSeries, setSelectedS
     setCustomLoading(true);
     setCustomRecap(null);
     try {
-      const res = await fetch(CLAUDE_URL, {
+      const res = await fetch(LLM_URL, {
         method: "POST",
         headers: claudeHeaders(session),
         body: JSON.stringify({

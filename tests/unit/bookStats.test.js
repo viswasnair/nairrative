@@ -1,7 +1,7 @@
 import { vi, describe, it, expect } from "vitest";
 import { computeStats, computeAnalysisInsights } from "../../src/lib/bookStats";
 
-vi.mock("../../src/constants/theme", () => ({ G: { gold: "#f0c040" } }));
+vi.mock("../../src/constants/theme", () => ({ default: { gold: "#f0c040" } }));
 
 const book = (overrides) => ({
   id: 1, title: "Test Book", author: "Author A", year: 2022,

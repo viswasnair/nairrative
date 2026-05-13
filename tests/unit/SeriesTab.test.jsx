@@ -3,7 +3,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react'
 import SeriesTab from '../../src/components/SeriesTab.jsx'
 
 vi.mock('../../src/lib/api.js', () => ({
-  CLAUDE_URL: 'https://mock.vercel.app/api/claude',
+  LLM_URL: 'https://mock.vercel.app/api/claude',
   claudeHeaders: vi.fn(() => ({ 'Content-Type': 'application/json' })),
 }))
 

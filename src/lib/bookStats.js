@@ -1,4 +1,4 @@
-import { G } from "../constants/theme";
+import G from "../constants/theme";
 
 // Computes raw aggregation counts from a books array.
 export function computeStats(books) {
