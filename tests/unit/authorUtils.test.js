@@ -5,7 +5,7 @@ vi.mock("../../src/lib/supabase", () => ({
   supabase: { from: vi.fn() },
 }));
 vi.mock("../../src/lib/api", () => ({
-  CLAUDE_URL: "https://mock/claude",
+  LLM_URL: "https://mock/claude",
   claudeHeaders: vi.fn(() => ({})),
 }));
 vi.mock("../../src/lib/textUtils", () => ({

@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { CLAUDE_URL, claudeHeaders } from "../lib/api";
+import { LLM_URL, claudeHeaders } from "../lib/api";
 import { sanitizePromptInput } from "../lib/textUtils";
 
 export function useBookAiFill({ session, setBookDraft }) {
@@ -12,7 +12,7 @@ export function useBookAiFill({ session, setBookDraft }) {
     if (!bookChatValue || bookChatLoading) return;
     setBookChatLoading(true);
     try {
-      const res = await fetch(CLAUDE_URL, {
+      const res = await fetch(LLM_URL, {
         method: "POST", headers: claudeHeaders(session),
         body: JSON.stringify({
           model: "claude-sonnet-4-6", max_tokens: 600,

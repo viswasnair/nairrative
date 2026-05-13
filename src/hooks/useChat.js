@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { buildBookContext, toRow } from "../lib/bookUtils";
-import { CLAUDE_URL, claudeHeaders } from "../lib/api";
+import { LLM_URL, claudeHeaders } from "../lib/api";
 
 const ANALYSIS_LABELS = {
   temporal: "Reading Pace & Volume", genre: "Genre Evolution",
@@ -114,7 +114,7 @@ export function useChat({ books, stats, analysisInsights, analysisAI, intentResu
 
       const seriesRecapContext = seriesRecap ? `Series: ${selectedSeries}\n${seriesRecap}` : "";
 
-      const res = await fetch(CLAUDE_URL, {
+      const res = await fetch(LLM_URL, {
         method: "POST", headers: claudeHeaders(session),
         body: JSON.stringify({
           model: "claude-sonnet-4-6", max_tokens: 1200,
@@ -154,7 +154,7 @@ Formatting rules: Write in clean, natural prose. Do not use markdown syntax — 
     setSeriesRecap(null);
     const seriesBks = books.filter(b => b.series === seriesName).sort((a, b) => (a.id - b.id));
     try {
-      const res = await fetch(CLAUDE_URL, {
+      const res = await fetch(LLM_URL, {
         method: "POST", headers: claudeHeaders(session),
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001", max_tokens: 800,
