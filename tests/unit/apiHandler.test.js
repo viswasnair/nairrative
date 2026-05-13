@@ -30,6 +30,7 @@ describe('api/claude.js handler', () => {
   beforeEach(() => {
     savedEnv = {
       ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY,
       VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL,
       UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
       UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
@@ -72,6 +73,12 @@ describe('api/claude.js handler', () => {
     expect(res.status).toBe(500)
   })
 
+  it('gpt-4o model with missing OPENAI_API_KEY → 500', async () => {
+    delete process.env.OPENAI_API_KEY
+    const res = await handler(makePost({ ...GOOD_BODY, model: 'gpt-4o' }))
+    expect(res.status).toBe(500)
+  })
+
   it('missing VITE_SUPABASE_URL → 500', async () => {
     delete process.env.VITE_SUPABASE_URL
     const res = await handler(makePost(GOOD_BODY))
@@ -106,8 +113,52 @@ describe('api/claude.js handler', () => {
   })
 
   it('disallowed model → 400', async () => {
-    const res = await handler(makePost({ ...GOOD_BODY, model: 'gpt-4o' }))
+    const res = await handler(makePost({ ...GOOD_BODY, model: 'unknown-model-xyz' }))
     expect(res.status).toBe(400)
+  })
+
+  it('missing messages → 400', async () => {
+    const res = await handler(makePost({ ...GOOD_BODY, messages: undefined }))
+    expect(res.status).toBe(400)
+  })
+
+  it('empty messages array → 400', async () => {
+    const res = await handler(makePost({ ...GOOD_BODY, messages: [] }))
+    expect(res.status).toBe(400)
+  })
+
+  it('messages not an array → 400', async () => {
+    const res = await handler(makePost({ ...GOOD_BODY, messages: 'not an array' }))
+    expect(res.status).toBe(400)
+  })
+
+  it('max_tokens as string → 400', async () => {
+    const res = await handler(makePost({ ...GOOD_BODY, max_tokens: '100' }))
+    expect(res.status).toBe(400)
+  })
+
+  it('max_tokens as negative integer → 400', async () => {
+    const res = await handler(makePost({ ...GOOD_BODY, max_tokens: -1 }))
+    expect(res.status).toBe(400)
+  })
+
+  it('max_tokens as float → 400', async () => {
+    const res = await handler(makePost({ ...GOOD_BODY, max_tokens: 1.5 }))
+    expect(res.status).toBe(400)
+  })
+
+  it('model as non-string → 400', async () => {
+    const res = await handler(makePost({ ...GOOD_BODY, model: 42 }))
+    expect(res.status).toBe(400)
+  })
+
+  it('fetch error returns generic 500 without leaking details', async () => {
+    fetch.mockRejectedValueOnce(new Error('Connection refused to secret-internal-host'))
+    const res = await handler(makePost(GOOD_BODY))
+    expect(res.status).toBe(500)
+    const body = await res.text()
+    expect(body).not.toContain('Connection refused')
+    expect(body).not.toContain('secret-internal-host')
   })
 
   it('max_tokens > 2000 is capped to 2000 before forwarding', async () => {
@@ -117,10 +168,23 @@ describe('api/claude.js handler', () => {
     expect(forwarded.max_tokens).toBe(2000)
   })
 
-  it('happy path: request forwarded to Anthropic and response returned', async () => {
+  it('happy path: claude model forwarded to Anthropic URL', async () => {
     const res = await handler(makePost(GOOD_BODY))
     expect(fetch).toHaveBeenCalledWith(
       'https://api.anthropic.com/v1/messages',
+      expect.objectContaining({ method: 'POST' })
+    )
+    expect(res.status).toBe(200)
+  })
+
+  it('gpt-4o model forwarded to OpenAI URL when key is present', async () => {
+    process.env.OPENAI_API_KEY = 'test-openai-key'
+    fetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ choices: [{ message: { content: 'hi' } }] }), { status: 200 })
+    )
+    const res = await handler(makePost({ ...GOOD_BODY, model: 'gpt-4o' }))
+    expect(fetch).toHaveBeenCalledWith(
+      'https://api.openai.com/v1/chat/completions',
       expect.objectContaining({ method: 'POST' })
     )
     expect(res.status).toBe(200)

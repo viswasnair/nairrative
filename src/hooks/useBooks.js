@@ -1,48 +1,10 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { normalizeBook } from "../lib/bookUtils";
-import { CLAUDE_URL, claudeHeaders } from "../lib/api";
-import { sanitizePromptInput, sanitizeShortInput, sanitizeCoverUrl, fuzzyMatches } from "../lib/textUtils";
-
-async function fetchAuthorCountry(authorName, session) {
-  try {
-    const res = await fetch(CLAUDE_URL, {
-      method: "POST", headers: claudeHeaders(session),
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001", max_tokens: 20,
-        messages: [{ role: "user", content: `What country is the author "${sanitizeShortInput(authorName)}" from? Reply with only the ISO 3166-1 short country name (e.g. "United Kingdom" not "UK", "United States" not "USA", "Czechia" not "Czech Republic"). If unknown, reply "Unknown".` }]
-      })
-    });
-    const data = await res.json();
-    return data.content?.[0]?.text?.trim() || null;
-  } catch { return null; }
-}
-
-// Resolves each author (SELECT or INSERT), backfills country, links to bookId via book_authors.
-// Returns the resolved rows in the shape expected by normalizeBook.
-async function resolveAuthorLinks(authors, bookId, session) {
-  const resolved = [];
-  for (let i = 0; i < authors.length; i++) {
-    const aName = authors[i].name.trim();
-    if (!aName) continue;
-    let { data: au } = await supabase.from("authors").select().eq("name", aName).maybeSingle();
-    if (!au) {
-      const { data: newAu, error } = await supabase.from("authors").insert([{ name: aName }]).select().single();
-      if (error || !newAu) throw new Error(`Could not create author: ${aName}`);
-      au = newAu;
-    }
-    if (!au.country) {
-      const country = await fetchAuthorCountry(aName, session);
-      if (country) {
-        await supabase.from("authors").update({ country }).eq("id", au.id);
-        au.country = country;
-      }
-    }
-    await supabase.from("book_authors").insert([{ book_id: bookId, author_id: au.id, author_order: i + 1 }]);
-    resolved.push({ author_order: i + 1, authors: au });
-  }
-  return resolved;
-}
+import { sanitizeCoverUrl, fuzzyMatches } from "../lib/textUtils";
+import { resolveAuthorLinks } from "../lib/authorUtils";
+import { useGenres } from "./useGenres";
+import { useBookAiFill } from "./useBookAiFill";
 
 const makeDraft = () => ({
   title: "",
@@ -67,28 +29,17 @@ const makeDraft = () => ({
 
 export function useBooks({ session }) {
   const [books, setBooks] = useState([]);
-  const [genreList, setGenreList] = useState([]);
-  const [genreMap, setGenreMap] = useState({});
-
   const [showBookModal, setShowBookModal] = useState(false);
   const [editingBook, setEditingBook] = useState(null);
   const [bookDraft, setBookDraft] = useState(makeDraft);
-
-  const [bookChatLoading, setBookChatLoading] = useState(false);
-  const [bookChatPending, setBookChatPending] = useState(null);
   const [bookSaving, setBookSaving] = useState(false);
   const [bookMsg, setBookMsg] = useState("");
-
-  const [newGenreInput, setNewGenreInput] = useState("");
-  const [newGenreOpen, setNewGenreOpen] = useState(false);
-  const [newGenreSaving, setNewGenreSaving] = useState(false);
   const [lastAddedAt, setLastAddedAt] = useState(null);
-
   const [authorList, setAuthorList] = useState([]);
   const [authorSuggestions, setAuthorSuggestions] = useState([]);
-  const [genreSuggestion, setGenreSuggestion] = useState(null);
 
-  const bookChatInputRef = useRef(null);
+  const genres = useGenres({ session });
+  const aiFill = useBookAiFill({ session, setBookDraft });
 
   // Fetch authors for fuzzy matching
   useEffect(() => {
@@ -97,25 +48,16 @@ export function useBooks({ session }) {
     });
   }, []);
 
-  // Fetch genres
-  useEffect(() => {
-    supabase.from("genres").select("name, color, sort_order").order("sort_order").then(({ data }) => {
-      if (data) {
-        setGenreList(data.map(g => g.name));
-        setGenreMap(Object.fromEntries(data.map(g => [g.name, g.color])));
-      }
-    });
-  }, []);
-
   // Fetch books — depends on session so we re-fetch once auth is established
   useEffect(() => {
-    if (session === undefined) return; // still initialising
+    if (session === undefined) return;
     const PUBLIC_COLS = "id, user_id, title, year_read_start, year_read_end, genre, format, fiction, series, series_number, pages, user_added, created_at, updated_at, cover_url, rating, description";
     const cols = session ? "*" : PUBLIC_COLS;
-    supabase
+    let query = supabase
       .from("books")
-      .select(`${cols}, book_authors(author_order, authors(id, name, country))`)
-      .order("id")
+      .select(`${cols}, book_authors(author_order, authors(id, name, country))`);
+    if (session) query = query.eq("user_id", session.user.id);
+    query.order("id")
       .then(({ data, error }) => {
         if (error) { console.error("Supabase fetch error:", error); return; }
         if (data) {
@@ -130,14 +72,18 @@ export function useBooks({ session }) {
     books.map(b => `${b.id}|${b.title}|${b.year}|${(b.genre || []).join("")}`).join(","),
   [books]);
 
+  const resetModal = () => {
+    if (aiFill.bookChatInputRef.current) aiFill.bookChatInputRef.current.value = "";
+    aiFill.setBookChatPending(null);
+    setBookMsg("");
+    setAuthorSuggestions([]);
+    genres.dismissGenreSuggestion();
+  };
+
   const openAddModal = () => {
     setEditingBook(null);
     setBookDraft(makeDraft());
-    if (bookChatInputRef.current) bookChatInputRef.current.value = "";
-    setBookChatPending(null);
-    setBookMsg("");
-    setAuthorSuggestions([]);
-    setGenreSuggestion(null);
+    resetModal();
     setShowBookModal(true);
   };
 
@@ -163,62 +109,8 @@ export function useBooks({ session }) {
       archetype: b.archetype || "",
       theme: b.theme || [],
     });
-    if (bookChatInputRef.current) bookChatInputRef.current.value = "";
-    setBookChatPending(null);
-    setBookMsg("");
-    setAuthorSuggestions([]);
-    setGenreSuggestion(null);
+    resetModal();
     setShowBookModal(true);
-  };
-
-  const chatFillBook = async () => {
-    const bookChatValue = sanitizePromptInput(bookChatInputRef.current?.value?.trim() || "");
-    if (!bookChatValue || bookChatLoading) return;
-    setBookChatLoading(true);
-    try {
-      const res = await fetch(CLAUDE_URL, {
-        method: "POST", headers: claudeHeaders(session),
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6", max_tokens: 600,
-          system: `You are a book database assistant. Given a natural language description of a book, use your knowledge to identify the exact book (correct title, author spelling, publication year) and return ONLY valid JSON (no markdown) with these fields: title (string), authors (array of {name, country}), genres (array, pick from: Fantasy, Sci-Fi, Thriller, Mystery, Literary Fiction, Historical Fiction, Non-Fiction, Graphic Novel, Memoir, Biography, Classic, Philosophy, Popular Science, Self-Help, Travel, Horror, History, Politics, Economics, Psychology, Business), fiction (boolean), format (MUST be exactly one of these values, no others allowed: "Novel", "Novella", "Short Stories", "Graphic Novel", "Non-Fiction", "Play"), series (string or ""), pages (number or null), year (original publication year as number), description (2-3 sentence spoiler-free summary of what the book is about and why it is notable), mood (single word or short phrase for the dominant emotional register, e.g. "tense", "contemplative", "epic", "witty"), narrative_style (how the story is told, e.g. "linear third-person", "omniscient third-person", "first-person", "expository", "multiple perspectives"), setting_era (time and place context, e.g. "contemporary", "far future", "WWII Britain", "ancient Rome", "fantasy world"), archetype (dominant story structure — one of: "Hero's Journey", "Overcoming the Monster", "Quest", "Voyage and Return", "Rebirth", "Rags to Riches", "Tragedy", "Comedy", "Ensemble Drama"), theme (array of 2-5 short lowercase strings for the main intellectual/emotional themes, e.g. ["survival", "identity", "power"]).`,
-          messages: [{ role: "user", content: bookChatValue }]
-        })
-      });
-      if (!res.ok) throw new Error("api_unavailable");
-      const data = await res.json();
-      const txt = data.content?.[0]?.text || "";
-      const parsed = JSON.parse(txt.replace(/```json|```/g, "").trim());
-      setBookChatPending(parsed);
-    } catch (e) {
-      setBookMsg(e?.message === "api_unavailable"
-        ? "AI fill only works on the deployed site, not locally."
-        : "Could not parse. Try: 'Dune by Frank Herbert, sci-fi novel'.");
-    }
-    setBookChatLoading(false);
-  };
-
-  const applyPending = () => {
-    if (!bookChatPending) return;
-    setBookDraft(p => ({
-      ...p,
-      title: bookChatPending.title || p.title,
-      authors: bookChatPending.authors?.length ? bookChatPending.authors : p.authors,
-      genres: bookChatPending.genres?.length ? bookChatPending.genres : p.genres,
-      fiction: bookChatPending.fiction !== undefined ? bookChatPending.fiction : p.fiction,
-      format: bookChatPending.format || p.format,
-      series: bookChatPending.series || p.series,
-      pages: bookChatPending.pages ? String(bookChatPending.pages) : p.pages,
-      yearStart: bookChatPending.year || p.yearStart,
-      yearEnd: bookChatPending.year || p.yearEnd,
-      description: bookChatPending.description || p.description,
-      mood: bookChatPending.mood || p.mood,
-      narrative_style: bookChatPending.narrative_style || p.narrative_style,
-      setting_era: bookChatPending.setting_era || p.setting_era,
-      archetype: bookChatPending.archetype || p.archetype,
-      theme: bookChatPending.theme?.length ? bookChatPending.theme : p.theme,
-    }));
-    setBookChatPending(null);
-    if (bookChatInputRef.current) bookChatInputRef.current.value = "";
   };
 
   const checkAuthorSuggestion = (i, name) => {
@@ -244,61 +136,27 @@ export function useBooks({ session }) {
     setAuthorSuggestions(prev => { const next = [...prev]; next[i] = null; return next; });
   };
 
-  const acceptGenreSuggestion = (suggestion) => {
-    if (!suggestion) return;
-    if (!bookDraft.genres.includes(suggestion))
-      setBookDraft(p => ({ ...p, genres: [...p.genres, suggestion] }));
-    setNewGenreInput(""); setNewGenreOpen(false); setGenreSuggestion(null);
+  // Wraps useGenres.addGenre with draft genre update
+  const addGenre = async (force = false) => {
+    const result = await genres.addGenre(genres.newGenreInput, bookDraft.genres, force);
+    if (result.type === "existing" || result.type === "new") {
+      const genre = result.genre;
+      if (!bookDraft.genres.includes(genre))
+        setBookDraft(p => ({ ...p, genres: [...p.genres, genre] }));
+    }
   };
 
-  const dismissGenreSuggestion = () => setGenreSuggestion(null);
-
-  const addGenre = async (force = false) => {
-    const name = sanitizeShortInput(newGenreInput.trim());
-    if (!name) return;
-    // Case-insensitive exact match — just select it, don't insert
-    const exactMatch = genreList.find(g => g.toLowerCase() === name.toLowerCase());
-    if (exactMatch) {
-      if (!bookDraft.genres.includes(exactMatch))
-        setBookDraft(p => ({ ...p, genres: [...p.genres, exactMatch] }));
-      setNewGenreInput(""); setNewGenreOpen(false); setGenreSuggestion(null);
-      return;
-    }
-    // Fuzzy check before inserting
-    if (!force) {
-      const matches = fuzzyMatches(name, genreList);
-      if (matches.length) { setGenreSuggestion(matches); return; }
-    }
-    setGenreSuggestion(null);
-    setNewGenreSaving(true);
-    let color = "#a0a0a0";
-    try {
-      const res = await fetch(CLAUDE_URL, {
-        method: "POST", headers: claudeHeaders(session),
-        body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001", max_tokens: 16,
-          messages: [{ role: "user", content: `Pick a single hex color code that visually represents the "${name}" book genre. Consider the mood and tone of the genre. Reply with only the hex code (e.g. #a29bfe), nothing else. Avoid colors already used for similar genres: ${Object.entries(genreMap).map(([g, c]) => g + ":" + c).join(", ")}` }]
-        })
-      });
-      const data = await res.json();
-      const hex = data.content?.[0]?.text?.trim();
-      if (/^#[0-9a-fA-F]{6}$/.test(hex)) color = hex;
-    } catch { /* fallback to default */ }
-    const sortOrder = genreList.length + 1;
-    const { data, error } = await supabase.from("genres").insert([{ name, color, sort_order: sortOrder }]).select().single();
-    if (!error && data) {
-      setGenreList(prev => [...prev, name].sort());
-      setGenreMap(prev => ({ ...prev, [name]: color }));
-      setBookDraft(p => ({ ...p, genres: [...p.genres, name] }));
-    }
-    setNewGenreInput(""); setNewGenreOpen(false); setNewGenreSaving(false);
+  // Wraps useGenres.acceptGenreSuggestion with draft genre update
+  const acceptGenreSuggestion = (suggestion) => {
+    genres.acceptGenreSuggestion(suggestion);
+    if (!bookDraft.genres.includes(suggestion))
+      setBookDraft(p => ({ ...p, genres: [...p.genres, suggestion] }));
   };
 
   const saveBook = async () => {
-    const { title, authors, genres, yearStart, yearEnd, format, fiction, series, pages, notes, cover_url, rating, description, mood, narrative_style, setting_era, archetype, theme } = bookDraft;
+    const { title, authors, genres: draftGenres, yearStart, yearEnd, format, fiction, series, pages, notes, cover_url, rating, description, mood, narrative_style, setting_era, archetype, theme } = bookDraft;
     if (!title.trim() || !authors[0]?.name?.trim()) { setBookMsg("Title and at least one author are required."); return; }
 
-    // Validate author names against existing authors before saving
     const saveSuggestions = authors.map(a => {
       const trimmed = a.name.trim();
       if (!trimmed || authorList.some(n => n.toLowerCase() === trimmed.toLowerCase())) return null;
@@ -317,42 +175,34 @@ export function useBooks({ session }) {
       const ye = parseInt(yearEnd);
       if (isNaN(ys) || isNaN(ye) || ys > ye) { setBookMsg("Year Start must be ≤ Year End."); setBookSaving(false); return; }
       if (editingBook) {
-        // UPDATE
         const { error } = await supabase.from("books").update({
           title: title.trim(), year_read_start: ys, year_read_end: ye,
-          genre: genres, format, fiction, series: series || "",
+          genre: draftGenres, format, fiction, series: series || "",
           pages: pages ? parseInt(pages) : null, notes: notes || "",
           cover_url: sanitizeCoverUrl(cover_url),
-          rating: rating || null,
-          description: description || "",
-          mood: mood || null,
-          narrative_style: narrative_style || null,
-          setting_era: setting_era || null,
-          archetype: archetype || null,
+          rating: rating || null, description: description || "",
+          mood: mood || null, narrative_style: narrative_style || null,
+          setting_era: setting_era || null, archetype: archetype || null,
           theme: theme?.length ? theme : null,
         }).eq("id", editingBook.id);
         if (error) throw error;
         await supabase.from("book_authors").delete().eq("book_id", editingBook.id);
         const updatedAuthors = await resolveAuthorLinks(authors, editingBook.id, session);
-        const normalized = normalizeBook({ ...editingBook, title: title.trim(), year_read_start: ys, year_read_end: ye, genre: genres, format, fiction, series, pages: pages ? parseInt(pages) : null, notes, cover_url: sanitizeCoverUrl(cover_url), rating: rating || null, description: description || "", book_authors: updatedAuthors });
+        const normalized = normalizeBook({ ...editingBook, title: title.trim(), year_read_start: ys, year_read_end: ye, genre: draftGenres, format, fiction, series, pages: pages ? parseInt(pages) : null, notes, cover_url: sanitizeCoverUrl(cover_url), rating: rating || null, description: description || "", book_authors: updatedAuthors });
         setBooks(prev => prev.map(b => b.id === editingBook.id ? normalized : b));
         const updatedNames = authors.map(a => a.name.trim()).filter(n => n && !authorList.includes(n));
         if (updatedNames.length) setAuthorList(prev => [...new Set([...prev, ...updatedNames])].sort());
         setBookMsg("✓ Book updated!");
       } else {
-        // INSERT
         const { data: book, error: bookErr } = await supabase.from("books").insert([{
           user_id: session.user.id,
           title: title.trim(), year_read_start: ys, year_read_end: ye,
-          genre: genres, format, fiction, series: series || "",
+          genre: draftGenres, format, fiction, series: series || "",
           pages: pages ? parseInt(pages) : null, notes: notes || "",
           cover_url: sanitizeCoverUrl(cover_url),
-          rating: rating || null,
-          description: description || "",
-          mood: mood || null,
-          narrative_style: narrative_style || null,
-          setting_era: setting_era || null,
-          archetype: archetype || null,
+          rating: rating || null, description: description || "",
+          mood: mood || null, narrative_style: narrative_style || null,
+          setting_era: setting_era || null, archetype: archetype || null,
           theme: theme?.length ? theme : null,
           user_added: true,
         }]).select().single();
@@ -365,7 +215,7 @@ export function useBooks({ session }) {
         setLastAddedAt(Date.now());
       }
       setTimeout(() => { setShowBookModal(false); setBookMsg(""); }, 1200);
-    } catch (e) { console.error("saveBook error:", e); setBookMsg(`Error: ${e?.message || JSON.stringify(e)}`); }
+    } catch (e) { console.error("saveBook error:", e); setBookMsg("Something went wrong. Please try again."); }
     setBookSaving(false);
   };
 
@@ -378,7 +228,6 @@ export function useBooks({ session }) {
     if (!editingBook) return;
     setBookSaving(true);
     try {
-      // Fetch author IDs + names before removing junction rows
       const { data: junctionRows } = await supabase
         .from("book_authors")
         .select("author_id, authors(name)")
@@ -388,7 +237,6 @@ export function useBooks({ session }) {
       const { error } = await supabase.from("books").delete().eq("id", editingBook.id);
       if (error) throw error;
 
-      // Delete authors that now have no remaining books
       if (junctionRows?.length) {
         const orphanedNames = [];
         for (const row of junctionRows) {
@@ -407,42 +255,46 @@ export function useBooks({ session }) {
 
       setBooks(prev => prev.filter(b => b.id !== editingBook.id));
       setShowBookModal(false);
-    } catch (e) { console.error("deleteBook error:", e); setBookMsg(`Error: ${e?.message || JSON.stringify(e)}`); }
+    } catch (e) { console.error("deleteBook error:", e); setBookMsg("Something went wrong. Please try again."); }
     setBookSaving(false);
   };
 
   return {
-    // State
     books,
-    genreList, genreMap,
     booksFingerprint,
     showBookModal, setShowBookModal,
     editingBook,
     bookDraft, setBookDraft,
-    bookChatLoading,
-    bookChatPending, setBookChatPending,
     bookSaving,
     bookMsg, setBookMsg,
-    newGenreInput, setNewGenreInput,
-    newGenreOpen, setNewGenreOpen,
-    newGenreSaving,
-    bookChatInputRef,
     lastAddedAt,
     authorSuggestions,
-    genreSuggestion,
-    // Functions
     openAddModal,
     openEditModal,
-    chatFillBook,
-    applyPending,
     checkAuthorSuggestion,
     acceptAuthorSuggestion,
     dismissAuthorSuggestion,
-    acceptGenreSuggestion,
-    dismissGenreSuggestion,
     addGenre,
+    acceptGenreSuggestion,
     saveBook,
     updateBookRating,
     deleteBook,
+    // from useGenres
+    genreList: genres.genreList,
+    genreMap: genres.genreMap,
+    newGenreInput: genres.newGenreInput,
+    setNewGenreInput: genres.setNewGenreInput,
+    newGenreOpen: genres.newGenreOpen,
+    setNewGenreOpen: genres.setNewGenreOpen,
+    newGenreSaving: genres.newGenreSaving,
+    genreSuggestion: genres.genreSuggestion,
+    dismissGenreSuggestion: genres.dismissGenreSuggestion,
+    // from useBookAiFill
+    bookChatLoading: aiFill.bookChatLoading,
+    bookChatPending: aiFill.bookChatPending,
+    setBookChatPending: aiFill.setBookChatPending,
+    bookChatInputRef: aiFill.bookChatInputRef,
+    chatFillBook: aiFill.chatFillBook,
+    applyPending: aiFill.applyPending,
   };
 }

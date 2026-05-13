@@ -2,13 +2,6 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import BookshelfTab from '../../src/components/BookshelfTab.jsx'
 
-// ResizeObserver used by SpineView — not available in jsdom
-global.ResizeObserver = class {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}
-
 const BOOKS = [
   {
     id: 1, title: 'Dune', author: 'Frank Herbert',
@@ -142,7 +135,7 @@ describe('BookshelfTab', () => {
   })
 
   it('Hall of Fame is hidden when no books have transformative or loved rating', () => {
-    const { container } = setup({
+    setup({
       books: [BOOKS[2]], // only "enjoyed" rating
     })
     expect(screen.queryByText(/hall of fame/i)).toBeNull()

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { claudeHeaders, CLAUDE_URL, INTER_REQUEST_DELAY_MS } from '../../src/lib/api.js'
+import { claudeHeaders, LLM_URL, INTER_REQUEST_DELAY_MS } from '../../src/lib/api.js'
 
 describe('claudeHeaders', () => {
   it('always includes Content-Type: application/json', () => {
@@ -22,9 +22,9 @@ describe('claudeHeaders', () => {
   })
 })
 
-describe('CLAUDE_URL', () => {
+describe('LLM_URL', () => {
   it('points to the /api/claude edge function', () => {
-    expect(CLAUDE_URL).toBe('/api/claude')
+    expect(LLM_URL).toBe('/api/claude')
   })
 })
 
