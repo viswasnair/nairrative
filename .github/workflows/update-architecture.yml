@@ -34,7 +34,7 @@ jobs:
 
       - name: Run architecture update script
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.VITE_ANTHROPIC_API_KEY }}
         run: node scripts/update-architecture.mjs
 
       - name: Open PR if docs changed
