@@ -2,22 +2,29 @@
  * Integration tests for useAnalysis — focused on the cache save scoping regression.
  *
  * Regression: cache tables were previously upserted with { id: 1, data }.
- * They must now require an active session and upsert with { user_id, ... }
- * using onConflict: "user_id".
+ * They must now require an active session and call the db adapter with the
+ * correct user_id.
  */
 
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { supabase } from '../../src/lib/supabase'
+import { getSession } from '../../src/lib/auth'
+import * as db from '../../src/lib/db'
 import { useAnalysis } from '../../src/hooks/useAnalysis'
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
 
-vi.mock('../../src/lib/supabase', () => ({
-  supabase: {
-    auth: { getSession: vi.fn() },
-    from: vi.fn(),
-  },
+vi.mock('../../src/lib/auth', () => ({
+  getSession: vi.fn(),
+}))
+
+vi.mock('../../src/lib/db', () => ({
+  getPanelPrompts:   vi.fn(),
+  getAnalysisCache:  vi.fn(),
+  saveAnalysisCache: vi.fn(),
+  savePanelPrompts:  vi.fn(),
+  loadCacheRow:      vi.fn(),
+  saveCacheRow:      vi.fn(),
 }))
 
 vi.mock('../../src/lib/api', () => ({
@@ -46,40 +53,20 @@ const DEFAULT_PROPS = {
 // Resolves all pending microtasks and macrotasks
 const flushPromises = () => new Promise(r => setTimeout(r, 0))
 
-// ── Mock factory ──────────────────────────────────────────────────────────────
-
-/**
- * Wires supabase.from() so we can track upsert calls per table independently.
- * Returns { analysisUpsert, promptsUpsert } for assertions.
- */
-function makeFromMock() {
-  const analysisUpsert = vi.fn().mockResolvedValue({ error: null })
-  const promptsUpsert  = vi.fn().mockResolvedValue({ error: null })
-  const maybeSingle    = vi.fn().mockResolvedValue({ data: null })
-  const eq             = vi.fn().mockReturnValue({ maybeSingle })
-  const select         = vi.fn().mockReturnValue({ maybeSingle, eq })
-
-  supabase.from.mockImplementation((table) => {
-    if (table === 'analysis_cache') return { select, upsert: analysisUpsert }
-    if (table === 'panel_prompts')  return { select, upsert: promptsUpsert }
-    return { select, upsert: vi.fn().mockResolvedValue({ error: null }) }
-  })
-
-  return { analysisUpsert, promptsUpsert }
-}
-
 // ── Tests: savePanelPromptsToSupabase ─────────────────────────────────────────
-// This function is returned by the hook, so we can call it directly.
 
 describe('useAnalysis — savePanelPromptsToSupabase', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
+    db.getPanelPrompts.mockResolvedValue({ data: null })
+    db.getAnalysisCache.mockResolvedValue({ data: null })
+    db.saveAnalysisCache.mockResolvedValue({ error: null })
+    db.savePanelPrompts.mockResolvedValue({ error: null })
   })
 
-  it('skips upsert when there is no active session', async () => {
-    supabase.auth.getSession.mockResolvedValue({ data: { session: null } })
-    const { promptsUpsert } = makeFromMock()
+  it('skips save when there is no active session', async () => {
+    getSession.mockResolvedValue(null)
 
     const { result } = renderHook(() => useAnalysis(DEFAULT_PROPS))
 
@@ -87,14 +74,11 @@ describe('useAnalysis — savePanelPromptsToSupabase', () => {
       await result.current.savePanelPromptsToSupabase({ temporal: 'custom prompt' })
     })
 
-    expect(promptsUpsert).not.toHaveBeenCalled()
+    expect(db.savePanelPrompts).not.toHaveBeenCalled()
   })
 
-  it('upserts panel_prompts with user_id and onConflict:"user_id" when session exists', async () => {
-    supabase.auth.getSession.mockResolvedValue({
-      data: { session: { user: { id: 'user-abc' } } },
-    })
-    const { promptsUpsert } = makeFromMock()
+  it('calls db.savePanelPrompts with user_id and prompts when session exists', async () => {
+    getSession.mockResolvedValue({ user: { id: 'user-abc' } })
 
     const { result } = renderHook(() => useAnalysis(DEFAULT_PROPS))
     const prompts = { temporal: 'Show volume trends', genre: 'Show genre shifts' }
@@ -103,18 +87,12 @@ describe('useAnalysis — savePanelPromptsToSupabase', () => {
       await result.current.savePanelPromptsToSupabase(prompts)
     })
 
-    expect(promptsUpsert).toHaveBeenCalledOnce()
-    expect(promptsUpsert).toHaveBeenCalledWith(
-      { user_id: 'user-abc', data: prompts },
-      { onConflict: 'user_id' },
-    )
+    expect(db.savePanelPrompts).toHaveBeenCalledOnce()
+    expect(db.savePanelPrompts).toHaveBeenCalledWith('user-abc', prompts)
   })
 
-  it('payload does not contain the legacy id:1 field', async () => {
-    supabase.auth.getSession.mockResolvedValue({
-      data: { session: { user: { id: 'user-abc' } } },
-    })
-    const { promptsUpsert } = makeFromMock()
+  it('does not pass a legacy id field — only user_id is the key', async () => {
+    getSession.mockResolvedValue({ user: { id: 'user-abc' } })
 
     const { result } = renderHook(() => useAnalysis(DEFAULT_PROPS))
 
@@ -122,30 +100,13 @@ describe('useAnalysis — savePanelPromptsToSupabase', () => {
       await result.current.savePanelPromptsToSupabase({})
     })
 
-    const [payload] = promptsUpsert.mock.calls[0]
-    expect(payload).not.toHaveProperty('id')
-    expect(payload).toHaveProperty('user_id')
-  })
-
-  it('targets the panel_prompts table', async () => {
-    supabase.auth.getSession.mockResolvedValue({
-      data: { session: { user: { id: 'user-abc' } } },
-    })
-    makeFromMock()
-
-    const { result } = renderHook(() => useAnalysis(DEFAULT_PROPS))
-
-    await act(async () => {
-      await result.current.savePanelPromptsToSupabase({ temporal: 'x' })
-    })
-
-    expect(supabase.from).toHaveBeenCalledWith('panel_prompts')
+    const [userId] = db.savePanelPrompts.mock.calls[0]
+    expect(typeof userId).toBe('string')
+    expect(userId).toBe('user-abc')
   })
 })
 
 // ── Tests: saveAnalysisToSupabase (triggered via regeneratePanel) ─────────────
-// saveAnalysisToSupabase is internal; we reach it by calling regeneratePanel()
-// which also calls fetch (mocked below).
 
 const TEMPORAL_RESPONSE = {
   content: [{ type: 'text', text: JSON.stringify({
@@ -161,11 +122,16 @@ describe('useAnalysis — saveAnalysisToSupabase (via regeneratePanel)', () => {
       ok: true,
       json: () => Promise.resolve(TEMPORAL_RESPONSE),
     }))
+    db.getPanelPrompts.mockResolvedValue({ data: null })
+    db.getAnalysisCache.mockResolvedValue({ data: null })
+    db.saveAnalysisCache.mockResolvedValue({ error: null })
+    db.savePanelPrompts.mockResolvedValue({ error: null })
+    db.loadCacheRow.mockResolvedValue({ data: null })
+    db.saveCacheRow.mockResolvedValue({})
   })
 
-  it('skips analysis_cache upsert when there is no active session', async () => {
-    supabase.auth.getSession.mockResolvedValue({ data: { session: null } })
-    const { analysisUpsert, promptsUpsert } = makeFromMock()
+  it('skips analysis cache save when there is no active session', async () => {
+    getSession.mockResolvedValue(null)
 
     const { result } = renderHook(() => useAnalysis(DEFAULT_PROPS))
 
@@ -174,15 +140,12 @@ describe('useAnalysis — saveAnalysisToSupabase (via regeneratePanel)', () => {
     })
     await flushPromises()
 
-    expect(analysisUpsert).not.toHaveBeenCalled()
-    expect(promptsUpsert).not.toHaveBeenCalled()
+    expect(db.saveAnalysisCache).not.toHaveBeenCalled()
+    expect(db.savePanelPrompts).not.toHaveBeenCalled()
   })
 
-  it('upserts analysis_cache with user_id and onConflict:"user_id" when session exists', async () => {
-    supabase.auth.getSession.mockResolvedValue({
-      data: { session: { user: { id: 'user-xyz' } } },
-    })
-    const { analysisUpsert } = makeFromMock()
+  it('calls db.saveAnalysisCache with user_id, fingerprint, and data when session exists', async () => {
+    getSession.mockResolvedValue({ user: { id: 'user-xyz' } })
 
     const { result } = renderHook(() => useAnalysis(DEFAULT_PROPS))
 
@@ -191,20 +154,16 @@ describe('useAnalysis — saveAnalysisToSupabase (via regeneratePanel)', () => {
     })
     await flushPromises()
 
-    expect(analysisUpsert).toHaveBeenCalledOnce()
-    const [payload, options] = analysisUpsert.mock.calls[0]
-    expect(payload).toHaveProperty('user_id', 'user-xyz')
-    expect(payload).toHaveProperty('fingerprint', 'fp-test')
-    expect(payload).toHaveProperty('data')
-    expect(payload).not.toHaveProperty('id')
-    expect(options).toEqual({ onConflict: 'user_id' })
+    expect(db.saveCacheRow).toHaveBeenCalledOnce()
+    const [table, userId, fingerprint, data] = db.saveCacheRow.mock.calls[0]
+    expect(table).toBe('analysis_cache')
+    expect(userId).toBe('user-xyz')
+    expect(fingerprint).toBe('fp-test')
+    expect(data).toBeDefined()
   })
 
-  it('analysis_cache payload contains the updated dimension result', async () => {
-    supabase.auth.getSession.mockResolvedValue({
-      data: { session: { user: { id: 'user-xyz' } } },
-    })
-    const { analysisUpsert } = makeFromMock()
+  it('analysis cache data contains the updated dimension result', async () => {
+    getSession.mockResolvedValue({ user: { id: 'user-xyz' } })
 
     const { result } = renderHook(() => useAnalysis(DEFAULT_PROPS))
 
@@ -213,7 +172,7 @@ describe('useAnalysis — saveAnalysisToSupabase (via regeneratePanel)', () => {
     })
     await flushPromises()
 
-    const [{ data }] = analysisUpsert.mock.calls[0]
+    const [, , , data] = db.saveCacheRow.mock.calls[0]
     expect(data).toHaveProperty('temporal')
     expect(data.temporal).toHaveProperty('insight')
     expect(data.temporal.insight).toContain('Reading')

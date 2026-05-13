@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { SEED_ANALYSIS } from "../constants/seeds";
 import { DEFAULT_PANEL_PROMPTS } from "../constants/config";
-import { LLM_URL, claudeHeaders, INTER_REQUEST_DELAY_MS } from "../lib/api";
+import { INTER_REQUEST_DELAY_MS } from "../lib/api";
+import { callAI } from "../lib/aiClient";
 import { loadCachedData, saveCachedData } from "../lib/aiCache";
 import { buildAnalysisRequestBody, buildRegenerateRequestBody, parseAnalysisResponse } from "../lib/analysisPrompts";
 
@@ -59,8 +60,7 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
     for (const dimension of DIMENSIONS) {
       try {
         const body = buildAnalysisRequestBody({ dimension, books, panelPrompts });
-        const res = await fetch(LLM_URL, { method: "POST", headers: claudeHeaders(session), body: JSON.stringify(body) });
-        const data = await res.json();
+        const data = await callAI(body.messages, { model: body.model, maxTokens: body.max_tokens, system: body.system }, session);
         const parsed = parseAnalysisResponse(data.content?.[0]?.text || "{}", dimension);
         if (parsed) {
           result[dimension] = { ...parsed, generatedAt: new Date().toISOString(), bookCount: body.messages[0].content.includes("RECENT") ? books.filter(b => (b.year_read_end || b.year) >= new Date().getFullYear() - 1).length : books.length };
@@ -113,8 +113,7 @@ export function useAnalysis({ books, booksFingerprint, activeTab, lastAddedAt })
     const { data: { session } } = await supabase.auth.getSession();
     try {
       const body = buildRegenerateRequestBody({ dimension, books, panelPrompts });
-      const res = await fetch(LLM_URL, { method: "POST", headers: claudeHeaders(session), body: JSON.stringify(body) });
-      const data = await res.json();
+      const data = await callAI(body.messages, { model: body.model, maxTokens: body.max_tokens, system: body.system }, session);
       const parsed = parseAnalysisResponse(data.content?.[0]?.text || "{}", dimension);
       if (parsed) {
         const panelData = { ...parsed, generatedAt: new Date().toISOString(), bookCount: books.length };

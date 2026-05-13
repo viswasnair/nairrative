@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import G from "../constants/theme";
 import MultiSelect from "./MultiSelect";
+import { searchBookCovers, coverUrl } from "../lib/bookSearch";
 
 export default function BookModal({
   editingBook,
@@ -52,14 +53,7 @@ export default function BookModal({
     const timer = setTimeout(async () => {
       setCoverSearching(true);
       try {
-        const params = new URLSearchParams({ fields: "cover_i,title", limit: 20 });
-        params.set("title", title);
-        if (author) params.set("author", author);
-        const res = await fetch(`https://openlibrary.org/search.json?${params}`);
-        const data = await res.json();
-        const ids = [...new Set(
-          (data.docs || []).filter(d => d.cover_i).map(d => d.cover_i)
-        )].slice(0, 9);
+        const ids = await searchBookCovers(title, author);
         setCoverResults(ids);
       } catch { /* silently fail */ }
       setCoverSearching(false);
@@ -341,7 +335,7 @@ export default function BookModal({
                 <div style={{ fontSize: 10, color: G.muted, marginBottom: 6 }}>Click a cover to use it</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {coverResults.map(id => {
-                    const url = `https://covers.openlibrary.org/b/id/${id}-M.jpg`;
+                    const url = coverUrl(id);
                     const selected = bookDraft.cover_url === url;
                     return (
                       <button key={id} onClick={() => setBookDraft(p => ({ ...p, cover_url: selected ? "" : url }))}

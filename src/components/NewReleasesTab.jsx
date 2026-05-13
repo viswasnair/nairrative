@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import G from "../constants/theme";
-import { supabase } from "../lib/supabase";
+import * as db from "../lib/db";
 
 export default function NewReleasesTab({ books, session }) {
   const [releases, setReleases] = useState([]);
@@ -14,12 +14,7 @@ export default function NewReleasesTab({ books, session }) {
 
   const fetchReleases = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("new_releases")
-      .select("*")
-      .gte("published_date", `${new Date().getFullYear() - 2}-01-01`)
-      .order("published_date", { ascending: false })
-      .limit(20);
+    const { data } = await db.getNewReleases();
     setReleases(data || []);
     setLoading(false);
   };
@@ -27,7 +22,7 @@ export default function NewReleasesTab({ books, session }) {
   const refresh = async () => {
     setRefreshing(true);
     try {
-      await supabase.functions.invoke("check-releases");
+      await db.triggerReleasesCheck();
       await fetchReleases();
       setLastChecked(new Date());
     } catch (e) {
