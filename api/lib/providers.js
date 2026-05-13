@@ -29,7 +29,7 @@ export const PROVIDERS = {
       // Move Anthropic's top-level `system` into the messages array, strip unsupported fields
       const messages = [...(body.messages || [])];
       if (body.system) messages.unshift({ role: "system", content: body.system });
-      const { system, tools, ...rest } = body;
+      const { system: _system, tools: _tools, ...rest } = body;
       return { ...rest, messages };
     },
     normalizeResponse: (data) => ({
