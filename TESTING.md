@@ -4,7 +4,7 @@ Four independent test suites. Each targets a different layer of the system.
 
 | Suite | Runner | Count | Command |
 |-------|--------|-------|---------|
-| Unit + Component | Vitest | 567 tests | `npm run test:unit` |
+| Unit + Component | Vitest | 571 tests | `npm run test:unit` |
 | Type checking | TypeScript `tsc` | — (no emit) | `npm run type:check` |
 | Database / RLS | pgTAP | 3 files | `npm run test:db` |
 | E2E + Security | Playwright | ~50 tests | `npm run test:security` |
@@ -58,7 +58,7 @@ npx vitest tests/unit/bookUtils.test.js  # single file
 | Test file | Source | What's covered |
 |-----------|--------|----------------|
 | `useAnalysis.test.js` | `src/hooks/useAnalysis.js` | `savePanelPromptsToSupabase` (session guard, payload shape, no legacy `id:1`), `updatePanelPrompt`/`resetPanelPrompt` state + localStorage, cache load paths, `saveAnalysisToSupabase` (via `regeneratePanel`), AbortError swallowing, signal abort on unmount |
-| `useRecs.test.js` | `src/hooks/useRecs.js` | `saveRecsToSupabase` (session guard, `user_id` + `onConflict`, no `id`), `fetchIntentRecs` state update, error result on fetch failure, localStorage cache load, AbortError swallowing, signal abort on unmount |
+| `useRecs.test.js` | `src/hooks/useRecs.js` | `saveRecsToSupabase` (session guard, `user_id` + `onConflict`, no `id`), `fetchIntentRecs` state update, already-read retry loop (up to 3 attempts, hard-enforcement fallback), cache load filters already-read books and deduplicates across panels, `allocatedTitlesRef` rebuilt on cache load, AbortError swallowing, signal abort on unmount |
 | `useBookCRUD.test.js` | `src/hooks/useBookCRUD.js` | `makeDraft` defaults, modal open/edit state, author suggestion flow (fuzzy/exact/accept/dismiss), `saveBook` validation + add/edit success/error paths, `updateBookRating` optimistic update + rollback, `deleteBook` + orphaned-author cleanup |
 | `useBooks.test.js` | `src/hooks/useBooks.js` + `src/hooks/useBookCRUD.js` | Modal state, CRUD validation paths, author/genre suggestion helpers, `updateBookRating` optimistic update — all exercised via `useBooks` which composes `useBookCRUD` |
 
