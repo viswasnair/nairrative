@@ -101,13 +101,16 @@ flowchart TD
         end
         subgraph Hooks["Hooks"]
             uAuth["useAuth"]
-            uBooks["useBooks\n↳ useGenres\n↳ useBookAiFill"]
+            uBooks["useBooks\n↳ useBookCRUD\n↳ useGenres\n↳ useBookAiFill"]
             uAn["useAnalysis"]
             uRecs["useRecs"]
             uChat["useChat"]
             uFilt["useLibraryFilters"]
         end
         BAC["BookActionsContext\n(save · delete · draft)"]
+        AC["AnalysisContext\n(panels · prompts · loading)"]
+        RC["RecsContext\n(lenses · series recap)"]
+        LFC["LibraryFiltersContext\n(filters · filteredBooks · derived arrays)"]
         subgraph Lib["Lib / Adapters / Constants"]
             aiClient["aiClient.js\ncallAI · AI_MODELS"]
             dbLib["db.js\nall Supabase data calls"]
@@ -123,11 +126,13 @@ flowchart TD
     end
 
     subgraph Vercel["Vercel Edge Function"]
-        proxy["api/claude.js\nCORS · JWT verify · rate limit\nmodel allowlist · provider routing"]
-        apiUtils["apiUtils.js\ncorsHeaders · verifyJWT · checkRateLimit"]
+        proxy["api/claude.js\nCORS · origin check · JWT verify\nrate limit · model allowlist\nprovider routing · message validation"]
+        health["api/health.js\nliveness probe"]
+        apiUtils["apiUtils.js\ncorsHeaders · checkOrigin · verifyJWT\ncheckRateLimit (fails closed)"]
         providers["providers.js\nAnthropic · OpenAI normalisation"]
         proxy --> apiUtils
         proxy --> providers
+        health
     end
 
     subgraph SupabaseCloud["Supabase"]
@@ -149,6 +154,12 @@ flowchart TD
     App --> Hooks
     App -->|"provides"| BAC
     BAC -->|"consumed by"| BM
+    App -->|"provides"| AC
+    AC -->|"consumed by"| AT
+    App -->|"provides"| RC
+    RC -->|"consumed by"| RT
+    App -->|"provides"| LFC
+    LFC -->|"consumed by"| LT
     Hooks --> Lib
     Lib --> LS
     aiClient -->|"POST /api/claude\nBearer token"| proxy
@@ -245,8 +256,9 @@ sequenceDiagram
             SB-->>H: cached result
             H->>LS: sync to localStorage
         else full miss
-            H->>Edge: POST /api/claude<br/>{ model, messages, system, max_tokens }<br/>Authorization: Bearer token
-            Edge->>JWKS: verify JWT signature
+            H->>Edge: POST /api/claude<br/>{ model, messages, system, max_tokens }<br/>Authorization: Bearer <token>
+            Edge->>Edge: checkOrigin (validate request origin)
+            Edge->>JWKS: verify JWT signature + algorithm family
             JWKS-->>Edge: claims (sub, exp)
             Edge->>Redis: INCR rl:{sub} (30 req / 60 s)
             Redis-->>Edge: count OK
