@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { buildBookContext, toRow } from "../lib/bookUtils";
 import { SEED_RECS } from "../constants/seeds";
-import { AUTO_RECS, DEFAULT_MODELS } from "../constants/config";
+import { AUTO_RECS } from "../constants/config";
+import { AI_MODELS } from "../lib/aiClient";
 import { LLM_URL, claudeHeaders, INTER_REQUEST_DELAY_MS } from "../lib/api";
 import { loadCachedData, saveCachedData } from "../lib/aiCache";
 import { buildLensPrompts } from "../lib/recsPrompts";
@@ -12,6 +13,12 @@ const LS_FP   = "nairrative_recs_fp";
 const TABLE   = "recs_cache";
 
 export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }) {
+  const intentAbortRef = useRef({});
+  useEffect(() => {
+    const refs = intentAbortRef.current;
+    return () => Object.values(refs).forEach(c => c.abort());
+  }, []);
+
   const [intentInputs, setIntentInputs] = useState({
     "loved": "God's Debris",
     "authors-like": "Elif Shafak",
@@ -26,15 +33,16 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
   const prevRecsFingerprint = useRef(null);
   const allocatedTitlesRef = useRef({});
 
-  // Load recs from cache on tab switch or when books first load
+  // Load recs from cache on tab switch or when books first load.
+  // booksFingerprint already changes whenever books changes, so books is not a dep.
   useEffect(() => {
     if (activeTab !== "recs") return;
-    if (!books.length) { setIntentResults(SEED_RECS); return; }
+    if (!booksFingerprint) { setIntentResults(SEED_RECS); return; }
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       const cached = await loadCachedData({ table: TABLE, lsDataKey: LS_DATA, lsFpKey: LS_FP, fingerprint: booksFingerprint, session });
       setIntentResults(cached ? { ...SEED_RECS, ...cached } : SEED_RECS);
     });
-  }, [activeTab, booksFingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeTab, booksFingerprint]);
 
   const saveRecs = async (data) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -43,6 +51,10 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
 
   const fetchIntentRecs = async (intentId, input = "") => {
     if (intentLoading[intentId]) return;
+    intentAbortRef.current[intentId]?.abort();
+    const controller = new AbortController();
+    intentAbortRef.current[intentId] = controller;
+
     setIntentLoading(p => ({ ...p, [intentId]: true }));
     const rc = (refreshCounts[intentId] || 0) + 1;
     setRefreshCounts(p => ({ ...p, [intentId]: rc }));
@@ -67,13 +79,13 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
       const useWebSearch = intentId === "trending" || intentId === "pair";
       const fullList = books.map(toRow).join("\n");
       const body = {
-        model: DEFAULT_MODELS.fast, max_tokens: 400,
+        model: AI_MODELS.fast, max_tokens: 400,
         system: `You are a precise book recommendation engine. Today is ${today}. Reader history:\n${buildBookContext(books)}\n\nFULL BOOK LIST (${books.length} books):\n${fullList}\n\nDo NOT recommend any of these already-read titles: ${readTitlesString}.${crossPanelNote}\nOnly recommend unread books published up to ${today}.\n\n${prompts[intentId] || input}\n\nReturn ONLY a JSON array — no markdown, no explanation. Exactly 1 item. Format: [{"title": "...", "author": "...", "year": 2024, "reason": "1-2 sentences why it fits this reader"}].`,
         messages: [{ role: "user", content: "JSON array only." }],
       };
       if (useWebSearch) body.tools = [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }];
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(LLM_URL, { method: "POST", headers: claudeHeaders(session), body: JSON.stringify(body) });
+      const res = await fetch(LLM_URL, { method: "POST", headers: claudeHeaders(session), body: JSON.stringify(body), signal: controller.signal });
       const data = await res.json();
       if (data.error) { console.error("claude api error:", data.error); throw new Error("api_error"); }
       const txt = (data.content || []).filter(c => c.type === "text").map(c => c.text).join("");
@@ -90,10 +102,12 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
 
     try {
       let parsed = await attemptFetch();
+      if (controller.signal.aborted) return;
       const pick = parsed[0];
       if (pick?.title && (isAlreadyRead(pick.title) || isAllocatedElsewhere(pick.title))) {
         parsed = await attemptFetch([`"${pick.title}" by ${pick.author}`]);
       }
+      if (controller.signal.aborted) return;
       if (parsed[0]?.title) {
         allocatedTitlesRef.current[intentId] = { title: parsed[0].title, author: parsed[0].author || "" };
       }
@@ -103,13 +117,17 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
         return updated;
       });
     } catch (e) {
+      if (e.name === "AbortError") return;
       console.error("fetchIntentRecs error:", e);
       setIntentResults(p => ({ ...p, [intentId]: [{ title: "Could not load", author: "", reason: "Recommendation unavailable. Please try again." }] }));
     }
     setIntentLoading(p => { const n = { ...p }; delete n[intentId]; return n; });
   };
 
-  // Regenerate auto recs when books change (skip initial load)
+  // Regenerate auto recs when books change (skip initial load).
+  // fetchIntentRecs is intentionally excluded: including it would cause this effect
+  // to re-register on every render since it's recreated each time.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!booksFingerprint) return;
     if (prevRecsFingerprint.current === null) { prevRecsFingerprint.current = booksFingerprint; return; }
@@ -125,7 +143,7 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
         await new Promise(r => setTimeout(r, INTER_REQUEST_DELAY_MS));
       }
     })();
-  }, [booksFingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [booksFingerprint]);
 
   return {
     intentInputs, setIntentInputs,

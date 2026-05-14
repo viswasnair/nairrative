@@ -6,7 +6,7 @@
  * using onConflict: "user_id".
  */
 
-import { vi, describe, it, expect, beforeEach } from 'vitest'
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { supabase } from '../../src/lib/supabase'
 import { useAnalysis } from '../../src/hooks/useAnalysis'
@@ -298,5 +298,56 @@ describe('useAnalysis — saveAnalysisToSupabase (via regeneratePanel)', () => {
     expect(data).toHaveProperty('temporal')
     expect(data.temporal).toHaveProperty('insight')
     expect(data.temporal.insight).toContain('Reading')
+  })
+})
+
+// ── Tests: abort / race conditions ────────────────────────────────────────────
+
+describe('useAnalysis — abort and race condition handling', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+    makeFromMock()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('AbortError from callAI in regeneratePanel is swallowed without a console.error', async () => {
+    supabase.auth.getSession.mockResolvedValue({ data: { session: null } })
+    const abortError = new DOMException('Aborted', 'AbortError')
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(abortError))
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const { result } = renderHook(() => useAnalysis(DEFAULT_PROPS))
+    await act(async () => { await result.current.regeneratePanel('temporal') })
+    await flushPromises()
+
+    const panelErrorCalls = consoleSpy.mock.calls.filter(
+      args => typeof args[0] === 'string' && args[0].includes('Panel regenerate error'),
+    )
+    expect(panelErrorCalls).toHaveLength(0)
+    consoleSpy.mockRestore()
+  })
+
+  it('unmounting the hook aborts any pending regeneration fetch', async () => {
+    supabase.auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: 'user-abort' } } },
+    })
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise(() => {})))
+
+    const { result, unmount } = renderHook(() => useAnalysis(DEFAULT_PROPS))
+    act(() => { void result.current.regeneratePanel('temporal') })
+
+    // Flush the auth session call so callAI → fetch actually gets called
+    await act(async () => { await flushPromises() })
+
+    const regenCall = fetch.mock.calls.find(c => c[1]?.signal)
+    expect(regenCall).toBeDefined()
+    const signal = regenCall[1].signal
+
+    unmount()
+    expect(signal.aborted).toBe(true)
   })
 })

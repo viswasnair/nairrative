@@ -4,8 +4,10 @@ import { verifyJWT, checkRateLimit } from '../../api/lib/apiUtils.js'
 
 vi.mock('../../api/lib/apiUtils.js', () => ({
   corsHeaders: vi.fn(() => ({ 'Access-Control-Allow-Origin': '*' })),
+  checkOrigin: vi.fn(() => ({ ok: true })),
   verifyJWT: vi.fn().mockResolvedValue({ ok: true, sub: 'user-123' }),
   checkRateLimit: vi.fn().mockResolvedValue(true),
+  PRODUCTION_ORIGIN: 'https://nairrative.vercel.app',
 }))
 
 const GOOD_BODY = {

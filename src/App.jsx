@@ -1,4 +1,4 @@
-import { useState, useMemo, useTransition, useDeferredValue } from "react";
+import { useState, useMemo, useCallback, useTransition, useDeferredValue } from "react";
 import G from "./constants/theme";
 import { TABS } from "./constants/config";
 import { computeStats, computeAnalysisInsights } from "./lib/bookStats";
@@ -9,12 +9,17 @@ import { useRecs } from "./hooks/useRecs";
 import { useLibraryFilters } from "./hooks/useLibraryFilters";
 import { useChat } from "./hooks/useChat";
 import BookModal from "./components/BookModal";
+import { BookActionsContext } from "./contexts/BookActionsContext";
+import { AnalysisContext } from "./contexts/AnalysisContext";
+import { RecsContext } from "./contexts/RecsContext";
+import { LibraryFiltersContext } from "./contexts/LibraryFiltersContext";
 import AnalysisTab from "./components/AnalysisTab";
 import RecsTab from "./components/RecsTab";
 import OverviewTab from "./components/OverviewTab";
 import ChatTab from "./components/ChatTab";
 import LibraryTab from "./components/LibraryTab";
 import RatingFlashcard from "./components/RatingFlashcard";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 // ── MAIN APP ──────────────────────────────────────────────────────────────
 export default function App() {
@@ -34,6 +39,7 @@ export default function App() {
 
   const {
     books,
+    booksLoading,
     genreList, genreMap,
     booksFingerprint,
     showBookModal, setShowBookModal,
@@ -123,7 +129,7 @@ export default function App() {
     seriesRecap, setSeriesRecap, seriesLoading, selectedSeries, setSelectedSeries, generateSeriesRecap,
   } = useChat({ books, stats, analysisInsights, analysisAI, intentResults, session });
 
-  const getChartRange = (id) => {
+  const getChartRange = useCallback((id) => {
     const timeCharts = new Set(["yc", "fn", "ge"]);
     const defaultFrom = timeCharts.has(id) ? (allYearsList[0] ?? 2011) : (allYearsListFull[0] ?? 2010);
     const defaultTo = timeCharts.has(id) ? (allYearsList[allYearsList.length - 1] ?? 2026) : (allYearsListFull[allYearsListFull.length - 1] ?? 2026);
@@ -131,69 +137,13 @@ export default function App() {
       from: chartRanges[id]?.from ?? defaultFrom,
       to: chartRanges[id]?.to ?? defaultTo,
     };
-  };
-  const setChartRange = (id, from, to) => setChartRanges(p => ({ ...p, [id]: { from, to } }));
-
-  // ── STYLES ────────────────────────────────────────────────────────────────
-  const css = `
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: ${G.bg}; }
-    ::-webkit-scrollbar { width: 4px; height: 4px; }
-    ::-webkit-scrollbar-track { background: ${G.bg}; }
-    ::-webkit-scrollbar-thumb { background: ${G.dimmed}; border-radius: 4px; }
-    .tab-btn { cursor: pointer; padding: 6px 14px; border: none; border-radius: 0; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 400; transition: color 0.15s; white-space: nowrap; color: #a0a8b4; background: transparent; letter-spacing: 0.2px; }
-    .tab-btn:hover { color: ${G.text}; }
-    .tab-btn.active { color: ${G.gold}; font-weight: 600; }
-    .stat-card { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 12px; padding: 20px 24px; transition: border-color 0.2s; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    .stat-card:hover { border-color: ${G.goldDim}; }
-    .genre-pill { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; }
-    .recharts-wrapper svg { overflow: visible !important; }
-    .input-dark { background: ${G.card2}; border: 1px solid ${G.border}; border-radius: 8px; color: ${G.text}; padding: 10px 14px; font-family: 'DM Sans', sans-serif; font-size: 13px; width: 100%; outline: none; transition: border-color 0.2s; }
-    .input-dark:focus { border-color: ${G.goldDim}; }
-    .btn-gold { background: ${G.gold}; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-    .btn-gold:hover { background: ${G.goldLight}; }
-    .btn-ghost { background: transparent; color: ${G.muted}; border: 1px solid ${G.border}; border-radius: 8px; padding: 8px 16px; font-family: 'DM Sans', sans-serif; font-size: 12px; cursor: pointer; transition: all 0.2s; }
-    .btn-ghost:hover { color: ${G.text}; border-color: ${G.dimmed}; }
-    .rec-card { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 12px; padding: 18px; transition: all 0.2s; }
-    .rec-card:hover { border-color: ${G.goldDim}; transform: translateY(-1px); }
-    .chat-input-wrap { display: flex; gap: 10px; }
-    .lib-row { display: grid; grid-template-columns: 44px 2fr 150px 110px 90px 90px 50px 56px 56px 90px 32px; gap: 10px; padding: 9px 14px; border-bottom: 1px solid ${G.border}; align-items: center; transition: background 0.15s; }
-    .cell-clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .lib-row:hover { background: ${G.card2}; }
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; }
-    .modal-box { background: ${G.card}; border: 1px solid ${G.border}; border-radius: 16px; width: 100%; max-width: 540px; max-height: 88vh; overflow: hidden; position: relative; }
-    .modal-scroll { overflow-y: auto; max-height: 88vh; padding: 28px; }
-    .modal-scroll::-webkit-scrollbar { width: 4px; } .modal-scroll::-webkit-scrollbar-track { background: transparent; } .modal-scroll::-webkit-scrollbar-thumb { background: ${G.dimmed}; border-radius: 4px; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-    @keyframes widgetFade { from { opacity: 0; } to { opacity: 1; } }
-    .fade-in { animation: fadeIn 0.3s ease; }
-    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-    .pulse { animation: pulse 1.5s infinite; }
-    .burger-btn { display: none; background: none; border: none; cursor: pointer; flex-direction: column; gap: 5px; padding: 4px; }
-    .mini-brand { cursor: pointer; padding: 0; }
-    .logo-collapse { overflow: hidden; transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease; }
-    @media (max-width: 640px) {
-      .tab-nav { display: none !important; }
-      .burger-btn { display: flex !important; }
-      .page-header { padding-left: 16px !important; padding-right: 16px !important; }
-      .page-content { padding: 16px !important; }
-      .header-logo { width: 250px !important; height: auto !important; }
-      .kpi-grid { grid-template-columns: repeat(3, 1fr) !important; }
-      .chart-grid { grid-template-columns: 1fr !important; }
-      .rec-grid { grid-template-columns: repeat(2, 1fr) !important; }
-      .analysis-grid { grid-template-columns: 1fr !important; }
-      .new-releases-grid { grid-template-columns: repeat(2, 1fr) !important; }
-      .lib-scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-      .lib-inner { min-width: 1010px; }
-      .lib-row { grid-template-columns: 44px 160px 140px 100px 80px 80px 48px 50px 50px 80px 32px; }
-    }
-  `;
+  }, [chartRanges, allYearsList, allYearsListFull]);
+  const setChartRange = useCallback((id, from, to) => setChartRanges(p => ({ ...p, [id]: { from, to } })), []);
 
 
   // ── RENDER ────────────────────────────────────────────────────────────────
   return (
     <div style={{ background: G.bg, color: G.text, minHeight: "100vh", fontFamily: "'DM Sans', sans-serif" }}>
-      <style>{css}</style>
 
       {/* HEADER */}
       <div className="page-header" style={{
@@ -253,73 +203,58 @@ export default function App() {
       </div>
 
       {/* CONTENT */}
+      <AnalysisContext.Provider value={{ analysisAI, analysisAILoading, panelPrompts, editingPanel, setEditingPanel, viewingPanel, setViewingPanel, panelLoading, updatePanelPrompt, resetPanelPrompt, savePanelPromptsToSupabase, regeneratePanel }}>
+      <RecsContext.Provider value={{ intentInputs, setIntentInputs, intentResults, setIntentResults, intentLoading, fetchIntentRecs, selectedSeries, setSelectedSeries, seriesRecap, setSeriesRecap, seriesLoading, generateSeriesRecap }}>
+      <LibraryFiltersContext.Provider value={{ search, setSearch, libGenres, setLibGenres, libYears, setLibYears, libAuthors, setLibAuthors, libCountries, setLibCountries, libFormats, setLibFormats, libMoods, setLibMoods, libArchetypes, setLibArchetypes, libThemes, setLibThemes, libSort, setLibSort, setAllFilters, filteredBooks, allGenres, allYears, allAuthors, allCountries, allFormats, allMoods, allArchetypes, allThemes }}>
       <div className="fade-in page-content" style={{ padding: "24px 28px" }}>
 
         {/* ── OVERVIEW ──────────────────────────────────────────────────── */}
         {activeTab === "overview" && (
-          <OverviewTab
-            books={books}
-            stats={stats}
-            genreMap={genreMap}
-            allYearsList={allYearsList}
-            allYearsListFull={allYearsListFull}
-            chartRanges={chartRanges}
-            getChartRange={getChartRange}
-            setChartRange={setChartRange}
-            openEditModal={openEditModal}
-            session={session}
-            onChartClick={navigateToLibrary}
-          />
+          <ErrorBoundary>
+            <OverviewTab
+              books={books}
+              booksLoading={booksLoading}
+              stats={stats}
+              genreMap={genreMap}
+              allYearsList={allYearsList}
+              allYearsListFull={allYearsListFull}
+              chartRanges={chartRanges}
+              getChartRange={getChartRange}
+              setChartRange={setChartRange}
+              openEditModal={openEditModal}
+              session={session}
+              onChartClick={navigateToLibrary}
+            />
+          </ErrorBoundary>
         )}
 
         {/* ── ANALYSIS ─────────────────────────────────────────────────── */}
         {activeTab === "analysis" && (
-          <AnalysisTab
-            books={books}
-            stats={stats}
-            analysisInsights={analysisInsights}
-            genreMap={genreMap}
-            session={session}
-            analysisAI={analysisAI}
-            analysisAILoading={analysisAILoading}
-            panelPrompts={panelPrompts}
-            editingPanel={editingPanel}
-            setEditingPanel={setEditingPanel}
-            viewingPanel={viewingPanel}
-            setViewingPanel={setViewingPanel}
-            panelLoading={panelLoading}
-            updatePanelPrompt={updatePanelPrompt}
-            resetPanelPrompt={resetPanelPrompt}
-            savePanelPromptsToSupabase={savePanelPromptsToSupabase}
-            regeneratePanel={regeneratePanel}
-            onCiteClick={onCiteClick}
-          />
+          <ErrorBoundary>
+            <AnalysisTab
+              books={books}
+              booksLoading={booksLoading}
+              stats={stats}
+              analysisInsights={analysisInsights}
+              genreMap={genreMap}
+              session={session}
+              onCiteClick={onCiteClick}
+            />
+          </ErrorBoundary>
         )}
 
         {/* ── LIBRARY ────────────────────────────────────────────────────── */}
         {activeTab === "library" && (
-          <LibraryTab
-            books={books}
-            session={session}
-            genreMap={genreMap}
-            filteredBooks={filteredBooks}
-            search={search} setSearch={setSearch}
-            libGenres={libGenres} setLibGenres={setLibGenres}
-            libYears={libYears} setLibYears={setLibYears}
-            libAuthors={libAuthors} setLibAuthors={setLibAuthors}
-            libCountries={libCountries} setLibCountries={setLibCountries}
-            libFormats={libFormats} setLibFormats={setLibFormats}
-            libMoods={libMoods} setLibMoods={setLibMoods}
-            libArchetypes={libArchetypes} setLibArchetypes={setLibArchetypes}
-            libThemes={libThemes} setLibThemes={setLibThemes}
-            libSort={libSort} setLibSort={setLibSort}
-            allGenres={allGenres} allYears={allYears} allAuthors={allAuthors}
-            allCountries={allCountries} allFormats={allFormats}
-            allMoods={allMoods} allArchetypes={allArchetypes} allThemes={allThemes}
-            openAddModal={openAddModal}
-            openEditModal={openEditModal}
-            openRatingMode={() => setShowRatingMode(true)}
-          />
+          <ErrorBoundary>
+            <LibraryTab
+              books={books}
+              session={session}
+              genreMap={genreMap}
+              openAddModal={openAddModal}
+              openEditModal={openEditModal}
+              openRatingMode={() => setShowRatingMode(true)}
+            />
+          </ErrorBoundary>
         )}
 
         {/* ── RATING FLASHCARD ──────────────────────────────────────────── */}
@@ -333,72 +268,50 @@ export default function App() {
 
         {/* ── BOOK MODAL (Add / Edit) ─────────────────────────────────────── */}
         {showBookModal && (
-          <BookModal
-            editingBook={editingBook}
-            bookDraft={bookDraft}
-            setBookDraft={setBookDraft}
-            bookChatInputRef={bookChatInputRef}
-            bookChatLoading={bookChatLoading}
-            bookChatPending={bookChatPending}
-            bookSaving={bookSaving}
-            bookMsg={bookMsg}
-            newGenreInput={newGenreInput}
-            setNewGenreInput={setNewGenreInput}
-            newGenreOpen={newGenreOpen}
-            setNewGenreOpen={setNewGenreOpen}
-            newGenreSaving={newGenreSaving}
-            genreList={genreList}
-            chatFillBook={chatFillBook}
-            applyPending={applyPending}
-            setBookChatPending={setBookChatPending}
-            addGenre={addGenre}
-            saveBook={saveBook}
-            deleteBook={deleteBook}
-            onClose={() => setShowBookModal(false)}
-            authorSuggestions={authorSuggestions}
-            checkAuthorSuggestion={checkAuthorSuggestion}
-            acceptAuthorSuggestion={acceptAuthorSuggestion}
-            dismissAuthorSuggestion={dismissAuthorSuggestion}
-            genreSuggestion={genreSuggestion}
-            acceptGenreSuggestion={acceptGenreSuggestion}
-            dismissGenreSuggestion={dismissGenreSuggestion}
-          />
+          <BookActionsContext.Provider value={{
+            editingBook, bookDraft, setBookDraft, bookChatInputRef,
+            bookChatLoading, bookChatPending, setBookChatPending,
+            bookSaving, bookMsg, newGenreInput, setNewGenreInput,
+            newGenreOpen, setNewGenreOpen, newGenreSaving,
+            genreList, chatFillBook, applyPending, addGenre,
+            saveBook, deleteBook, onClose: () => setShowBookModal(false),
+            authorSuggestions, checkAuthorSuggestion, acceptAuthorSuggestion,
+            dismissAuthorSuggestion, genreSuggestion, acceptGenreSuggestion,
+            dismissGenreSuggestion,
+          }}>
+            <BookModal />
+          </BookActionsContext.Provider>
         )}
 
         {/* ── RECOMMENDATIONS ────────────────────────────────────────────── */}
         {activeTab === "recs" && (
-          <RecsTab
-            books={books}
-            genreList={genreList}
-            session={session}
-            intentInputs={intentInputs}
-            setIntentInputs={setIntentInputs}
-            intentResults={intentResults}
-            setIntentResults={setIntentResults}
-            intentLoading={intentLoading}
-            fetchIntentRecs={fetchIntentRecs}
-            selectedSeries={selectedSeries}
-            setSelectedSeries={setSelectedSeries}
-            seriesRecap={seriesRecap}
-            setSeriesRecap={setSeriesRecap}
-            seriesLoading={seriesLoading}
-            generateSeriesRecap={generateSeriesRecap}
-          />
+          <ErrorBoundary>
+            <RecsTab
+              books={books}
+              genreList={genreList}
+              session={session}
+            />
+          </ErrorBoundary>
         )}
 
-{/* ── CHAT ──────────────────────────────────────────────────────── */}
+        {/* ── CHAT ──────────────────────────────────────────────────────── */}
         {activeTab === "chat" && (
-          <ChatTab
-            session={session}
-            messages={messages}
-            chatLoading={chatLoading}
-            chatInput={chatInput}
-            setChatInput={setChatInput}
-            chatEndRef={chatEndRef}
-            sendChat={sendChat}
-          />
+          <ErrorBoundary>
+            <ChatTab
+              session={session}
+              messages={messages}
+              chatLoading={chatLoading}
+              chatInput={chatInput}
+              setChatInput={setChatInput}
+              chatEndRef={chatEndRef}
+              sendChat={sendChat}
+            />
+          </ErrorBoundary>
         )}
       </div>
+      </LibraryFiltersContext.Provider>
+      </RecsContext.Provider>
+      </AnalysisContext.Provider>
 
       {/* LOGIN MODAL */}
       {showLoginModal && (

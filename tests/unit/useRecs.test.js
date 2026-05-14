@@ -6,7 +6,7 @@
  * using onConflict: "user_id".
  */
 
-import { vi, describe, it, expect, beforeEach } from 'vitest'
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { supabase } from '../../src/lib/supabase'
 import { useRecs } from '../../src/hooks/useRecs'
@@ -208,5 +208,47 @@ describe('useRecs — saveRecsToSupabase (via fetchIntentRecs)', () => {
     await flushPromises()
 
     expect(supabase.from).toHaveBeenCalledWith('recs_cache')
+  })
+})
+
+// ── Tests: abort / race conditions ────────────────────────────────────────────
+
+describe('useRecs — abort and race condition handling', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+    supabase.auth.getSession.mockResolvedValue({ data: { session: null } })
+    makeFromMock()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('AbortError from fetch is silently swallowed — no error entry in intentResults', async () => {
+    const abortError = new DOMException('The user aborted a request.', 'AbortError')
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(abortError))
+
+    const { result } = renderHook(() => useRecs(DEFAULT_PROPS))
+    await act(async () => { await result.current.fetchIntentRecs('loved', 'Dune') })
+    await flushPromises()
+
+    expect(result.current.intentResults['loved']?.some(r => r.title === 'Could not load')).toBeFalsy()
+  })
+
+  it('unmounting the hook aborts any pending intent fetch requests', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise(() => {})))
+
+    const { result, unmount } = renderHook(() => useRecs(DEFAULT_PROPS))
+    act(() => { void result.current.fetchIntentRecs('loved', 'Dune') })
+
+    // Flush microtasks so supabase.auth.getSession() resolves and fetch gets called
+    await act(async () => { await flushPromises() })
+
+    const signal = fetch.mock.calls[0]?.[1]?.signal
+    expect(signal).toBeDefined()
+
+    unmount()
+    expect(signal.aborted).toBe(true)
   })
 })

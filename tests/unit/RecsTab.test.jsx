@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import RecsTab from '../../src/components/RecsTab.jsx'
+import { RecsContext } from '../../src/contexts/RecsContext.jsx'
 
 vi.mock('../../src/components/SeriesTab.jsx', () => ({
   default: () => <div data-testid="series-tab" />,
@@ -20,25 +21,34 @@ const BOOKS = [
   { id: 1, title: 'Dune', author: 'Frank Herbert', year_read_end: 2022 },
 ]
 
-function setup(overrides = {}) {
-  const defaults = {
-    books:              BOOKS,
-    genreList:          ['Science Fiction', 'History'],
-    session:            null,
-    intentInputs:       {},
-    setIntentInputs:    vi.fn(),
-    intentResults:      {},
-    setIntentResults:   vi.fn(),
-    intentLoading:      {},
-    fetchIntentRecs:    vi.fn(),
-    selectedSeries:     null,
-    setSelectedSeries:  vi.fn(),
-    seriesRecap:        null,
-    setSeriesRecap:     vi.fn(),
-    seriesLoading:      false,
-    generateSeriesRecap:vi.fn(),
+const DEFAULT_CTX = {
+  intentInputs:       {},
+  setIntentInputs:    vi.fn(),
+  intentResults:      {},
+  setIntentResults:   vi.fn(),
+  intentLoading:      {},
+  fetchIntentRecs:    vi.fn(),
+  selectedSeries:     null,
+  setSelectedSeries:  vi.fn(),
+  seriesRecap:        null,
+  setSeriesRecap:     vi.fn(),
+  seriesLoading:      false,
+  generateSeriesRecap:vi.fn(),
+}
+
+function setup(propOverrides = {}, ctxOverrides = {}) {
+  const props = {
+    books:     BOOKS,
+    genreList: ['Science Fiction', 'History'],
+    session:   null,
+    ...propOverrides,
   }
-  return render(<RecsTab {...defaults} {...overrides} />)
+  const ctx = { ...DEFAULT_CTX, ...ctxOverrides }
+  return render(
+    <RecsContext.Provider value={ctx}>
+      <RecsTab {...props} />
+    </RecsContext.Provider>
+  )
 }
 
 describe('RecsTab', () => {
@@ -53,7 +63,6 @@ describe('RecsTab', () => {
     setup()
     expect(screen.queryByTestId('series-tab')).toBeNull()
     expect(screen.queryByTestId('releases-tab')).toBeNull()
-    // Lens titles include the icon in the same span — use regex
     expect(screen.getByText(/More Like Last Book/)).toBeTruthy()
   })
 
@@ -71,7 +80,6 @@ describe('RecsTab', () => {
 
   it('renders multiple lens cards in Picks tab', () => {
     setup()
-    // Lens titles include the icon in the same span — use regex
     expect(screen.getByText(/Challenge Me/)).toBeTruthy()
     expect(screen.getByText(/Quick Reads/)).toBeTruthy()
     expect(screen.getByText(/Surprise Me/)).toBeTruthy()
@@ -79,28 +87,25 @@ describe('RecsTab', () => {
 
   it('text input rendered for a non-auto lens', () => {
     setup()
-    // Multiple non-auto lenses share "Sign in to use this" placeholder when no session
     const inputs = screen.getAllByPlaceholderText('Sign in to use this')
     expect(inputs.length).toBeGreaterThan(0)
   })
 
   it('text input placeholder changes when session is present', () => {
     setup({ session: SESSION })
-    // At least one lens input should show its real placeholder
     expect(screen.getByPlaceholderText('A book title…')).toBeTruthy()
   })
 
   it('pressing Enter in a lens input calls fetchIntentRecs', () => {
     const fetchIntentRecs = vi.fn()
-    // Pre-set the input value since setIntentInputs is a mock and won't update state
-    setup({ session: SESSION, fetchIntentRecs, intentInputs: { loved: 'Foundation' } })
+    setup({ session: SESSION }, { fetchIntentRecs, intentInputs: { loved: 'Foundation' } })
     const input = screen.getByPlaceholderText('A book title…')
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(fetchIntentRecs).toHaveBeenCalledWith('loved', 'Foundation')
   })
 
   it('shows recommendation title when intentResults has data for a lens', () => {
-    setup({
+    setup({}, {
       intentResults: {
         'more-like': [{ title: 'Foundation', author: 'Asimov', year: 1951, reason: 'Classic' }],
       },
@@ -109,7 +114,7 @@ describe('RecsTab', () => {
   })
 
   it('shows recommendation author and year', () => {
-    setup({
+    setup({}, {
       intentResults: {
         'more-like': [{ title: 'Foundation', author: 'Isaac Asimov', year: 1951, reason: 'A classic.' }],
       },
@@ -119,7 +124,7 @@ describe('RecsTab', () => {
   })
 
   it('shows recommendation reason text via RecList', () => {
-    setup({
+    setup({}, {
       intentResults: {
         'more-like': [{ title: 'Foundation', author: 'Asimov', year: 1951, reason: 'Epic scope and ideas.' }],
       },
@@ -128,8 +133,7 @@ describe('RecsTab', () => {
   })
 
   it('shows loading skeleton when a lens is loading', () => {
-    const { container } = setup({ intentLoading: { 'more-like': true } })
-    // The pulse placeholder divs are rendered inside the card
+    const { container } = setup({}, { intentLoading: { 'more-like': true } })
     const pulses = container.querySelectorAll('.pulse')
     expect(pulses.length).toBeGreaterThan(0)
   })
@@ -137,8 +141,7 @@ describe('RecsTab', () => {
   it('refresh button appears when session present and results exist, and calls fetchIntentRecs', () => {
     const fetchIntentRecs = vi.fn()
     const setIntentResults = vi.fn()
-    setup({
-      session: SESSION,
+    setup({ session: SESSION }, {
       fetchIntentRecs,
       setIntentResults,
       intentResults: {
@@ -152,8 +155,7 @@ describe('RecsTab', () => {
 
   it('"Load picks" button appears for auto lens when session is set and no results', () => {
     const fetchIntentRecs = vi.fn()
-    setup({ session: SESSION, fetchIntentRecs })
-    // "Load picks" buttons appear for each auto lens with no result
+    setup({ session: SESSION }, { fetchIntentRecs })
     const loadBtns = screen.getAllByText('Load picks')
     expect(loadBtns.length).toBeGreaterThan(0)
     fireEvent.click(loadBtns[0])
@@ -167,7 +169,7 @@ describe('RecsTab', () => {
 
   it('→ arrow button in non-auto lens calls fetchIntentRecs when input is filled', () => {
     const fetchIntentRecs = vi.fn()
-    setup({ session: SESSION, fetchIntentRecs, intentInputs: { loved: 'Dune' } })
+    setup({ session: SESSION }, { fetchIntentRecs, intentInputs: { loved: 'Dune' } })
     const arrowBtns = screen.getAllByTitle('Get pick')
     fireEvent.click(arrowBtns[0])
     expect(fetchIntentRecs).toHaveBeenCalledWith('loved', 'Dune')
@@ -175,8 +177,7 @@ describe('RecsTab', () => {
 
   it('genre dropdown onChange calls fetchIntentRecs when a genre is selected', () => {
     const fetchIntentRecs = vi.fn()
-    setup({ session: SESSION, fetchIntentRecs })
-    // The genre-pick select contains "— pick a genre —" as its first option
+    setup({ session: SESSION }, { fetchIntentRecs })
     const genreDropdown = screen.getByDisplayValue('— pick a genre —')
     fireEvent.change(genreDropdown, { target: { value: 'Science Fiction' } })
     expect(fetchIntentRecs).toHaveBeenCalledWith('genre-pick', 'Science Fiction')
@@ -184,7 +185,7 @@ describe('RecsTab', () => {
 
   it('non-auto input onChange calls setIntentInputs', () => {
     const setIntentInputs = vi.fn()
-    setup({ session: SESSION, setIntentInputs })
+    setup({ session: SESSION }, { setIntentInputs })
     const input = screen.getByPlaceholderText('A book title…')
     fireEvent.change(input, { target: { value: 'Dune' } })
     expect(setIntentInputs).toHaveBeenCalledTimes(1)

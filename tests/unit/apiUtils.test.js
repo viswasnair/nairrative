@@ -98,22 +98,22 @@ describe('checkRateLimit', () => {
     expect(await checkRateLimit(SUB, URL, TOKEN)).toBe(false)
   })
 
-  it('fails open (returns true) when Redis responds with non-ok', async () => {
+  it('fails closed (returns false) when Redis responds with non-ok', async () => {
     fetch.mockResolvedValue({ ok: false })
-    expect(await checkRateLimit(SUB, URL, TOKEN)).toBe(true)
+    expect(await checkRateLimit(SUB, URL, TOKEN)).toBe(false)
   })
 
-  it('fails open (returns true) when fetch throws', async () => {
+  it('fails closed (returns false) when fetch throws', async () => {
     fetch.mockRejectedValue(new Error('Network error'))
-    expect(await checkRateLimit(SUB, URL, TOKEN)).toBe(true)
+    expect(await checkRateLimit(SUB, URL, TOKEN)).toBe(false)
   })
 
-  it('fails open when count is not a number (unexpected Redis response)', async () => {
+  it('fails closed when count is not a number (unexpected Redis response)', async () => {
     fetch.mockResolvedValue({
       ok: true,
       json: async () => [{ result: 'unexpected' }],
     })
-    expect(await checkRateLimit(SUB, URL, TOKEN)).toBe(true)
+    expect(await checkRateLimit(SUB, URL, TOKEN)).toBe(false)
   })
 })
 

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, AreaChart, Area, CartesianGrid, Legend, PieChart, Pie, LineChart, Line } from "recharts";
 import G from "../constants/theme";
 import RangeFilter from "./RangeFilter";
@@ -7,91 +8,132 @@ const FORMAT_COLORS = { "Novel": "#2d6a4f", "Graphic Novel": "#06d6a0", "Non-Fic
 const ARCHETYPE_COLORS = { "Hero's Journey": "#d97706", "Overcoming the Monster": "#e06c75", "Quest": "#4a9eff", "Voyage and Return": "#06b6d4", "Rebirth": "#2d6a4f", "Rags to Riches": "#f59e0b", "Tragedy": "#a855f7", "Comedy": "#ec4899", "Ensemble Drama": "#b87333" };
 const MOOD_PALETTE = ["#e06c75", "#4a9eff", "#d97706", "#06b6d4", "#a855f7", "#2d6a4f"];
 
-export default function OverviewTab({ books, stats, genreMap, allYearsList, allYearsListFull, chartRanges, getChartRange, setChartRange, onChartClick }) {
-  const cb = id => { const r = getChartRange(id); return books.filter(b => b.year >= r.from && b.year <= r.to); };
+const TIME_CHART_IDS = new Set(["yc", "fn", "ge", "al", "mt"]);
 
-  const ycBooks = cb("yc");
-  const ycCounts = ycBooks.reduce((a,b)=>{a[b.year]=(a[b.year]||0)+1;return a;},{});
-  const ycRange = getChartRange("yc");
-  const ycData = [];
-  for (let y = ycRange.from; y <= ycRange.to; y++) ycData.push({ year: y, count: ycCounts[y] || 0 });
-  const ycMax = Math.max(...ycData.map(d=>d.count),1);
+export default function OverviewTab({ books, booksLoading, stats, genreMap, allYearsList, allYearsListFull, chartRanges, getChartRange, setChartRange, onChartClick }) {
+  if (booksLoading) return (
+    <div>
+      <div className="kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10, marginBottom: 24 }}>
+        {Array.from({ length: 12 }).map((_, i) => (
+          <div key={i} className="stat-card" style={{ padding: "12px 14px" }}>
+            <div className="pulse" style={{ height: 9, width: "70%", background: G.border, borderRadius: 4, marginBottom: 8 }} />
+            <div className="pulse" style={{ height: 18, width: "50%", background: G.border, borderRadius: 4 }} />
+          </div>
+        ))}
+      </div>
+      <div className="chart-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "18px 20px", height: 300 }}>
+            <div className="pulse" style={{ height: 13, width: "40%", background: G.border, borderRadius: 4, marginBottom: 20 }} />
+            <div className="pulse" style={{ height: 200, width: "100%", background: G.border, borderRadius: 8 }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+  const {
+    ycData, ycMax, gcData, fnData,
+    geData, geTop5, acData, coData, alData,
+    fmData, moData, arData, thData, mtData, mtTopMoods,
+    dominantMood, topTheme, topArchetype,
+  } = useMemo(() => {
+    const cb = id => { const r = getChartRange(id); return books.filter(b => b.year >= r.from && b.year <= r.to); };
 
-  const gcBooks = cb("gc");
-  const gcData = Object.entries(gcBooks.reduce((a,b)=>{(b.genre||[]).forEach(g=>{a[g]=(a[g]||0)+1;});return a;},{})).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([genre,count])=>({genre,count}));
+    const ycBooks = cb("yc");
+    const ycCounts = ycBooks.reduce((acc, book) => { acc[book.year] = (acc[book.year] || 0) + 1; return acc; }, {});
+    const ycRange = getChartRange("yc");
+    const ycData = [];
+    for (let y = ycRange.from; y <= ycRange.to; y++) ycData.push({ year: y, count: ycCounts[y] || 0 });
+    const ycMax = Math.max(...ycData.map(d => d.count), 1);
 
-  const fnBooks = cb("fn");
-  const fnRange = getChartRange("fn");
-  const fnData = [];
-  for (let y = fnRange.from; y <= fnRange.to; y++) { const yb=fnBooks.filter(b=>b.year===y); fnData.push({year:y,Fiction:yb.filter(b=>b.fiction).length,"Non-Fiction":yb.filter(b=>b.fiction===false).length}); }
+    const gcBooks = cb("gc");
+    const gcCounts = gcBooks.reduce((acc, book) => { (book.genre || []).forEach(g => { acc[g] = (acc[g] || 0) + 1; }); return acc; }, {});
+    const gcData = Object.entries(gcCounts).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([genre, count]) => ({ genre, count }));
 
-  const geBooks = cb("ge");
-  const geRange = getChartRange("ge");
-  const geYrs = [];
-  for (let y = geRange.from; y <= geRange.to; y++) geYrs.push(y);
-  const geCount = geBooks.reduce((a,b)=>{(b.genre||[]).forEach(g=>{a[g]=(a[g]||0)+1;});return a;},{});
-  const geTop5 = Object.entries(geCount).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([g])=>g);
-  const geData = geYrs.map(year=>{const e={year};geTop5.forEach(g=>{e[g]=geBooks.filter(b=>b.year===year&&(b.genre||[]).includes(g)).length;});return e;});
+    const fnBooks = cb("fn");
+    const fnRange = getChartRange("fn");
+    const fnData = [];
+    for (let y = fnRange.from; y <= fnRange.to; y++) {
+      const yearBooks = fnBooks.filter(book => book.year === y);
+      fnData.push({ year: y, Fiction: yearBooks.filter(b => b.fiction).length, "Non-Fiction": yearBooks.filter(b => b.fiction === false).length });
+    }
 
-  const acBooks = cb("ac");
-  const acData = Object.entries(acBooks.reduce((a,b)=>{a[b.author]=(a[b.author]||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([author,count])=>({author,count}));
+    const geBooks = cb("ge");
+    const geRange = getChartRange("ge");
+    const geYrs = [];
+    for (let y = geRange.from; y <= geRange.to; y++) geYrs.push(y);
+    const geCount = geBooks.reduce((acc, book) => { (book.genre || []).forEach(g => { acc[g] = (acc[g] || 0) + 1; }); return acc; }, {});
+    const geTop5 = Object.entries(geCount).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([g]) => g);
+    const geData = geYrs.map(year => {
+      const entry = { year };
+      geTop5.forEach(g => { entry[g] = geBooks.filter(book => book.year === year && (book.genre || []).includes(g)).length; });
+      return entry;
+    });
 
-  const coBooks = cb("co");
-  const coData = Object.entries(coBooks.filter(b=>b.country).reduce((a,b)=>{a[b.country]=(a[b.country]||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([country,count])=>({country,count}));
+    const acBooks = cb("ac");
+    const acCounts = acBooks.reduce((acc, book) => { acc[book.author] = (acc[book.author] || 0) + 1; return acc; }, {});
+    const acData = Object.entries(acCounts).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([author, count]) => ({ author, count }));
 
-  const alBooks = cb("al");
-  const alRange = getChartRange("al");
-  const alData = [];
-  // 2010 is a collective placeholder for 1998–2010 and would skew avg length; start from 2011
-  for (let y = Math.max(alRange.from, 2011); y <= alRange.to; y++) { const yb=alBooks.filter(b=>b.year===y&&b.pages); alData.push({year:y,avg:yb.length?Math.round(yb.reduce((s,b)=>s+b.pages,0)/yb.length):null}); }
+    const coBooks = cb("co");
+    const coCounts = coBooks.filter(book => book.country).reduce((acc, book) => { acc[book.country] = (acc[book.country] || 0) + 1; return acc; }, {});
+    const coData = Object.entries(coCounts).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([country, count]) => ({ country, count }));
 
-  const fmBooks = cb("fm");
-  const fmCounts = fmBooks.reduce((a,b)=>{ const f=b.format||"Unknown"; a[f]=(a[f]||0)+1; return a; },{});
-  const fmData = Object.entries(fmCounts).sort((a,b)=>b[1]-a[1]).map(([name,value])=>({name,value,color:FORMAT_COLORS[name]||G.muted}));
+    const alBooks = cb("al");
+    const alRange = getChartRange("al");
+    const alData = [];
+    // 2010 is a collective placeholder for 1998–2010 and would skew avg length; start from 2011
+    for (let y = Math.max(alRange.from, 2011); y <= alRange.to; y++) {
+      const yearBooks = alBooks.filter(book => book.year === y && book.pages);
+      alData.push({ year: y, avg: yearBooks.length ? Math.round(yearBooks.reduce((sum, book) => sum + book.pages, 0) / yearBooks.length) : null });
+    }
 
-  // ── New: Mood Breakdown ───────────────────────────────────────────────────
-  const moBooks = cb("mo");
-  const moData = Object.entries(
-    moBooks.filter(b=>b.mood).reduce((a,b)=>{a[b.mood]=(a[b.mood]||0)+1;return a;},{})
-  ).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([mood,count])=>({mood,count}));
+    const fmBooks = cb("fm");
+    const fmCounts = fmBooks.reduce((acc, book) => { const f = book.format || "Unknown"; acc[f] = (acc[f] || 0) + 1; return acc; }, {});
+    const fmData = Object.entries(fmCounts).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value, color: FORMAT_COLORS[name] || G.muted }));
 
-  // ── New: Archetype Distribution ───────────────────────────────────────────
-  const arBooks = cb("ar");
-  const arData = Object.entries(
-    arBooks.filter(b=>b.archetype).reduce((a,b)=>{a[b.archetype]=(a[b.archetype]||0)+1;return a;},{})
-  ).sort((a,b)=>b[1]-a[1]).map(([name,value])=>({name,value,color:ARCHETYPE_COLORS[name]||G.muted}));
+    const moBooks = cb("mo");
+    const moCounts = moBooks.filter(book => book.mood).reduce((acc, book) => { acc[book.mood] = (acc[book.mood] || 0) + 1; return acc; }, {});
+    const moData = Object.entries(moCounts).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([mood, count]) => ({ mood, count }));
 
-  // ── New: Top Themes ───────────────────────────────────────────────────────
-  const thBooks = cb("th");
-  const thData = Object.entries(
-    thBooks.reduce((a,b)=>{(b.theme||[]).forEach(t=>{a[t]=(a[t]||0)+1;});return a;},{})
-  ).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([theme,count])=>({theme,count}));
+    const arBooks = cb("ar");
+    const arCounts = arBooks.filter(book => book.archetype).reduce((acc, book) => { acc[book.archetype] = (acc[book.archetype] || 0) + 1; return acc; }, {});
+    const arData = Object.entries(arCounts).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value, color: ARCHETYPE_COLORS[name] || G.muted }));
 
-  // ── New: Mood Over Time ───────────────────────────────────────────────────
-  const mtBooks = cb("mt");
-  const mtRange = getChartRange("mt");
-  const mtYrs = [];
-  for (let y = Math.max(mtRange.from, 2011); y <= mtRange.to; y++) mtYrs.push(y);
-  const mtMoodCount = mtBooks.filter(b=>b.mood).reduce((a,b)=>{a[b.mood]=(a[b.mood]||0)+1;return a;},{});
-  const mtTopMoods = Object.entries(mtMoodCount).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([m])=>m);
-  const mtData = mtYrs.map(year=>{const e={year};mtTopMoods.forEach(m=>{e[m]=mtBooks.filter(b=>b.year===year&&b.mood===m).length;});return e;});
+    const thBooks = cb("th");
+    const thCounts = thBooks.reduce((acc, book) => { (book.theme || []).forEach(t => { acc[t] = (acc[t] || 0) + 1; }); return acc; }, {});
+    const thData = Object.entries(thCounts).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([theme, count]) => ({ theme, count }));
 
-  // ── KPI: inline computations for new cards ────────────────────────────────
-  const dominantMood = (() => {
-    const counts = {};
-    books.forEach(b => { if (b.mood) counts[b.mood] = (counts[b.mood] || 0) + 1; });
-    return Object.entries(counts).sort((a,b)=>b[1]-a[1])[0]?.[0] || "—";
-  })();
-  const topTheme = (() => {
-    const counts = {};
-    books.forEach(b => (b.theme||[]).forEach(t => { counts[t] = (counts[t]||0)+1; }));
-    return Object.entries(counts).sort((a,b)=>b[1]-a[1])[0]?.[0] || "—";
-  })();
-  const topArchetype = (() => {
-    const counts = {};
-    books.forEach(b => { if (b.archetype) counts[b.archetype] = (counts[b.archetype]||0)+1; });
-    return Object.entries(counts).sort((a,b)=>b[1]-a[1])[0]?.[0] || "—";
-  })();
+    const mtBooks = cb("mt");
+    const mtRange = getChartRange("mt");
+    const mtYrs = [];
+    for (let y = Math.max(mtRange.from, 2011); y <= mtRange.to; y++) mtYrs.push(y);
+    const mtMoodCount = mtBooks.filter(book => book.mood).reduce((acc, book) => { acc[book.mood] = (acc[book.mood] || 0) + 1; return acc; }, {});
+    const mtTopMoods = Object.entries(mtMoodCount).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([mood]) => mood);
+    const mtData = mtYrs.map(year => {
+      const entry = { year };
+      mtTopMoods.forEach(mood => { entry[mood] = mtBooks.filter(book => book.year === year && book.mood === mood).length; });
+      return entry;
+    });
+
+    const dominantMoodCounts = {};
+    books.forEach(book => { if (book.mood) dominantMoodCounts[book.mood] = (dominantMoodCounts[book.mood] || 0) + 1; });
+    const dominantMood = Object.entries(dominantMoodCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
+
+    const topThemeCounts = {};
+    books.forEach(book => (book.theme || []).forEach(t => { topThemeCounts[t] = (topThemeCounts[t] || 0) + 1; }));
+    const topTheme = Object.entries(topThemeCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
+
+    const topArchetypeCounts = {};
+    books.forEach(book => { if (book.archetype) topArchetypeCounts[book.archetype] = (topArchetypeCounts[book.archetype] || 0) + 1; });
+    const topArchetype = Object.entries(topArchetypeCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
+
+    return {
+      ycData, ycMax, gcData, fnData,
+      geData, geTop5, acData, coData, alData,
+      fmData, moData, arData, thData, mtData, mtTopMoods,
+      dominantMood, topTheme, topArchetype,
+    };
+  }, [books, getChartRange]);
 
   const truncTick = (maxChars) => ({ x, y, payload, index }) => {
     if (index % 2 !== 0) return null;
@@ -105,12 +147,11 @@ export default function OverviewTab({ books, stats, genreMap, allYearsList, allY
     );
   };
 
-  const timeChartIds = new Set(["yc", "fn", "ge", "al", "mt"]);
   const chartCard = (title, id, children) => (
     <div style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "18px 20px 12px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14, gap: 8, flexWrap: "wrap" }}>
         <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, color: G.text }}>{title}</div>
-        <RangeFilter chartId={id} allYears={timeChartIds.has(id) ? allYearsList : allYearsListFull} ranges={chartRanges} onSet={setChartRange} />
+        <RangeFilter chartId={id} allYears={TIME_CHART_IDS.has(id) ? allYearsList : allYearsListFull} ranges={chartRanges} onSet={setChartRange} />
       </div>
       {children}
     </div>

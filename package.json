@@ -18,11 +18,13 @@
     "test:unit:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "test:db": "node scripts/test-db.mjs",
+    "type:check": "tsc --noEmit",
     "audit:ci": "npm audit --audit-level=high",
     "check:dead": "knip"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.102.1",
+    "@tanstack/react-virtual": "^3.13.24",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "recharts": "^3.8.1"
@@ -44,6 +46,7 @@
     "globals": "^17.4.0",
     "jsdom": "^29.1.1",
     "knip": "^6.12.1",
+    "typescript": "^6.0.3",
     "vite": "^8.0.1",
     "vitest": "^4.1.5"
   }

@@ -1,6 +1,18 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import LibraryTab from '../../src/components/LibraryTab.jsx'
+import { LibraryFiltersContext } from '../../src/contexts/LibraryFiltersContext.jsx'
+
+// JSDOM has no scroll dimensions, so useVirtualizer renders 0 items.
+// Stub it to render all items so DOM-based assertions work in tests.
+vi.mock('@tanstack/react-virtual', () => ({
+  useVirtualizer: ({ count, estimateSize }) => ({
+    getVirtualItems: () =>
+      Array.from({ length: count }, (_, i) => ({ index: i, key: i, start: i * estimateSize() })),
+    getTotalSize: () => count * estimateSize(),
+    measureElement: () => {},
+  }),
+}))
 
 vi.mock('../../src/components/BookshelfTab.jsx', () => ({
   default: () => <div data-testid="bookshelf-tab" />,
@@ -38,35 +50,45 @@ const BOOKS = [
 
 const GENRE_MAP = { 'Science Fiction': '#4a9eff', History: '#c9a84c' }
 
-function setup(overrides = {}) {
-  const defaults = {
+const DEFAULT_FILTER_CTX = {
+  filteredBooks: BOOKS,
+  search: '', setSearch: vi.fn(),
+  libGenres: [], setLibGenres: vi.fn(),
+  libYears:  [], setLibYears:  vi.fn(),
+  libAuthors:[], setLibAuthors:vi.fn(),
+  libCountries: [], setLibCountries: vi.fn(),
+  libFormats: [], setLibFormats: vi.fn(),
+  libMoods: [], setLibMoods: vi.fn(),
+  libArchetypes: [], setLibArchetypes: vi.fn(),
+  libThemes: [], setLibThemes: vi.fn(),
+  libSort: 'year', setLibSort: vi.fn(),
+  setAllFilters: vi.fn(),
+  allGenres:  ['Science Fiction', 'History'],
+  allYears:   [2022, 2023],
+  allAuthors: ['Frank Herbert', 'Yuval Noah Harari'],
+  allCountries: ['United States', 'Israel'],
+  allFormats: ['Non-Fiction', 'Novel'],
+  allMoods: ['tense', 'contemplative'],
+  allArchetypes: ["Hero's Journey", 'Quest'],
+  allThemes: ['survival', 'identity'],
+}
+
+function setup(propOverrides = {}, ctxOverrides = {}) {
+  const props = {
     books:         BOOKS,
     session:       null,
     genreMap:      GENRE_MAP,
-    filteredBooks: BOOKS,
-    search: '', setSearch: vi.fn(),
-    libGenres: [], setLibGenres: vi.fn(),
-    libYears:  [], setLibYears:  vi.fn(),
-    libAuthors:[], setLibAuthors:vi.fn(),
-    libCountries: [], setLibCountries: vi.fn(),
-    libFormats: [], setLibFormats: vi.fn(),
-    libMoods: [], setLibMoods: vi.fn(),
-    libArchetypes: [], setLibArchetypes: vi.fn(),
-    libThemes: [], setLibThemes: vi.fn(),
-    libSort: 'year', setLibSort: vi.fn(),
-    allGenres:  ['Science Fiction', 'History'],
-    allYears:   [2022, 2023],
-    allAuthors: ['Frank Herbert', 'Yuval Noah Harari'],
-    allCountries: ['United States', 'Israel'],
-    allFormats: ['Non-Fiction', 'Novel'],
-    allMoods: ['tense', 'contemplative'],
-    allArchetypes: ["Hero's Journey", 'Quest'],
-    allThemes: ['survival', 'identity'],
     openAddModal:   vi.fn(),
     openEditModal:  vi.fn(),
     openRatingMode: vi.fn(),
+    ...propOverrides,
   }
-  return render(<LibraryTab {...defaults} {...overrides} />)
+  const ctx = { ...DEFAULT_FILTER_CTX, ...ctxOverrides }
+  return render(
+    <LibraryFiltersContext.Provider value={ctx}>
+      <LibraryTab {...props} />
+    </LibraryFiltersContext.Provider>
+  )
 }
 
 describe('LibraryTab', () => {
@@ -103,7 +125,7 @@ describe('LibraryTab', () => {
   })
 
   it('shows empty-state message when filteredBooks is empty', () => {
-    setup({ filteredBooks: [] })
+    setup({}, { filteredBooks: [] })
     expect(screen.getByText('No books match your filters.')).toBeTruthy()
   })
 
@@ -152,7 +174,7 @@ describe('LibraryTab', () => {
     const books = [
       { ...BOOKS[0], description: 'An epic desert saga.' },
     ]
-    setup({ filteredBooks: books, books })
+    setup({ books }, { filteredBooks: books })
     const row = screen.getByText('Dune').closest('.lib-row')
     fireEvent.mouseEnter(row)
     expect(screen.getByText('An epic desert saga.')).toBeTruthy()
@@ -162,7 +184,7 @@ describe('LibraryTab', () => {
     const books = [
       { ...BOOKS[0], description: '' },
     ]
-    setup({ filteredBooks: books, books })
+    setup({ books }, { filteredBooks: books })
     const row = screen.getByText('Dune').closest('.lib-row')
     fireEvent.mouseEnter(row)
     expect(screen.getByText('No description yet.')).toBeTruthy()
@@ -172,7 +194,7 @@ describe('LibraryTab', () => {
     const books = [
       { ...BOOKS[0], description: 'An epic desert saga.' },
     ]
-    setup({ filteredBooks: books, books })
+    setup({ books }, { filteredBooks: books })
     const row = screen.getByText('Dune').closest('.lib-row')
     fireEvent.mouseEnter(row)
     expect(screen.getByText('An epic desert saga.')).toBeTruthy()
@@ -202,19 +224,19 @@ describe('LibraryTab', () => {
   })
 
   it('secondary panel auto-opens when secondary filters are active', () => {
-    setup({ libAuthors: ['Frank Herbert'] })
+    setup({}, { libAuthors: ['Frank Herbert'] })
     // secondaryCount > 0 → panelOpen = true without user clicking
     expect(screen.getByTestId('multiselect-Author')).toBeTruthy()
   })
 
   it('filter count badge shows active secondary filter count', () => {
-    setup({ libAuthors: ['Frank Herbert'], libMoods: ['tense'] })
+    setup({}, { libAuthors: ['Frank Herbert'], libMoods: ['tense'] })
     // secondaryCount = 2 → label "▼ Filters · 2"
     expect(screen.getByText('▼ Filters · 2')).toBeTruthy()
   })
 
   it('toggle button has cursor:default when secondary filters are active', () => {
-    setup({ libAuthors: ['Frank Herbert'] })
+    setup({}, { libAuthors: ['Frank Herbert'] })
     const badge = screen.getByText('▼ Filters · 1').closest('button')
     expect(badge.style.cursor).toBe('default')
   })

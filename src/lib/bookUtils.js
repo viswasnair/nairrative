@@ -1,3 +1,24 @@
+import { sanitizeShortInput, sanitizePromptInput } from "./textUtils";
+
+/**
+ * @typedef {{ id: string|number, title: string, author: string, year?: number,
+ *   year_read_start?: number, year_read_end?: number, genre?: string[],
+ *   pages?: number, fiction?: boolean, format?: string, series?: string,
+ *   country?: string, rating?: string, description?: string, notes?: string,
+ *   mood?: string, narrative_style?: string, setting_era?: string,
+ *   archetype?: string, theme?: string[], cover_url?: string,
+ *   authors?: Array<{name: string, country?: string}>,
+ *   book_authors?: Array<{authors: {name: string, country?: string}, author_order: number}>
+ * }} Book
+ */
+
+export const RATING_ORDER = ["transformative", "loved", "enjoyed", "meh", "dont_remember", "dropped", "didnt_like"];
+
+/**
+ * Strips markdown formatting symbols from a string.
+ * @param {string} str
+ * @returns {string}
+ */
 export const stripMd = str => str
   .replace(/\*\*(.+?)\*\*/gs, '$1')
   .replace(/\*(.+?)\*/gs, '$1')
@@ -6,8 +27,11 @@ export const stripMd = str => str
   .replace(/`([^`]+)`/g, '$1')
   .replace(/^\s*[-*+] /gm, '');
 
-// ── normalizeBook ─────────────────────────────────────────────────────────
-// Flattens the Supabase nested book_authors join into a clean book object.
+/**
+ * Flattens the Supabase nested book_authors join into a clean book object.
+ * @param {object} b - raw Supabase row with book_authors join
+ * @returns {Book}
+ */
 export function normalizeBook(b) {
   const sortedAuthors = (b.book_authors || [])
     .sort((x, y) => x.author_order - y.author_order)
@@ -23,24 +47,44 @@ export function normalizeBook(b) {
   };
 }
 
-// ── toRow ─────────────────────────────────────────────────────────────────
-// Serialises a single book into a compact pipe-delimited string for AI prompts.
-export const toRow = b =>
-  `[${b.year_read_end || b.year}] "${b.title}" by ${b.author} | ${(b.genre || []).join("/")}` +
-  `${b.pages ? " | " + b.pages + "pp" : ""}` +
-  `${b.series ? " | series: " + b.series : ""}` +
-  `${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}` +
-  `${b.mood ? " | mood: " + b.mood : ""}` +
-  `${b.narrative_style ? " | style: " + b.narrative_style : ""}` +
-  `${b.setting_era ? " | era: " + b.setting_era : ""}` +
-  `${b.archetype ? " | archetype: " + b.archetype : ""}` +
-  `${(b.theme || []).length ? " | themes: " + b.theme.join(", ") : ""}` +
-  `${b.rating ? " | rating: " + b.rating : ""}` +
-  `${b.description ? " | desc: " + b.description : ""}` +
-  `${b.notes ? " | notes: " + b.notes : ""}`;
+/**
+ * Serialises a single book into a compact pipe-delimited string for AI prompts.
+ * String fields are sanitized to strip control characters before insertion.
+ * @param {Book} b
+ * @returns {string}
+ */
+export const toRow = b => {
+  const title  = sanitizeShortInput(b.title  || "");
+  const author = sanitizeShortInput(b.author || "");
+  const series    = b.series         ? sanitizeShortInput(b.series)         : null;
+  const mood      = b.mood           ? sanitizeShortInput(b.mood)           : null;
+  const style     = b.narrative_style? sanitizeShortInput(b.narrative_style): null;
+  const era       = b.setting_era    ? sanitizeShortInput(b.setting_era)    : null;
+  const archetype = b.archetype      ? sanitizeShortInput(b.archetype)      : null;
+  const themes    = (b.theme || []).map(t => sanitizeShortInput(t));
+  const desc      = b.description    ? sanitizePromptInput(b.description, 300) : null;
+  const notes     = b.notes          ? sanitizePromptInput(b.notes, 200)       : null;
+  return (
+    `[${b.year_read_end || b.year}] "${title}" by ${author} | ${(b.genre || []).join("/")}` +
+    `${b.pages ? " | " + b.pages + "pp" : ""}` +
+    `${series    ? " | series: "    + series    : ""}` +
+    `${b.fiction !== undefined ? " | " + (b.fiction ? "fiction" : "non-fiction") : ""}` +
+    `${mood      ? " | mood: "      + mood      : ""}` +
+    `${style     ? " | style: "     + style     : ""}` +
+    `${era       ? " | era: "       + era       : ""}` +
+    `${archetype ? " | archetype: " + archetype : ""}` +
+    `${themes.length ? " | themes: " + themes.join(", ") : ""}` +
+    `${b.rating  ? " | rating: "    + b.rating  : ""}` +
+    `${desc      ? " | desc: "      + desc      : ""}` +
+    `${notes     ? " | notes: "     + notes     : ""}`
+  );
+};
 
-// ── buildBookContext ──────────────────────────────────────────────────────
-// Builds a compact text summary of the reading database for AI prompts.
+/**
+ * Builds a compact text summary of the reading database for AI prompts.
+ * @param {Book[]} books
+ * @returns {string}
+ */
 export function buildBookContext(books) {
   const byYear = {}, byGenre = {}, byAuthor = {}, byCountry = {};
   const byTheme = {}, byMood = {}, byStyle = {}, byEra = {}, byArchetype = {}, byRating = {};
@@ -57,16 +101,17 @@ export function buildBookContext(books) {
     if (b.archetype) byArchetype[b.archetype] = (byArchetype[b.archetype] || 0) + 1;
     if (b.rating) byRating[b.rating] = (byRating[b.rating] || 0) + 1;
   });
-  const topN = (obj, n) => Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, c]) => `${k}(${c})`).join(", ");
+  const topN = (obj, n) => Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, c]) => `${sanitizeShortInput(k)}(${c})`).join(", ");
   const topAuthors = topN(byAuthor, 25);
   const genres = Object.entries(byGenre).sort((a, b) => b[1] - a[1]).map(([g, c]) => `${g}(${c})`).join(", ");
   const years = Object.entries(byYear).sort((a, b) => parseInt(a[0]) - parseInt(b[0])).map(([y, c]) => `${y}:${c}`).join(", ");
   const countries = topN(byCountry, 10);
   const seriesList = [...new Set(books.filter(b => b.series?.trim()).map(b => b.series))].join(", ");
-  const minYear = Math.min(...books.map(b => b.year_read_start || b.year).filter(Boolean));
-  const maxYear = Math.max(...books.map(b => b.year_read_end || b.year).filter(Boolean));
+  const yearStarts = books.map(b => b.year_read_start || b.year).filter(Boolean);
+  const yearEnds = books.map(b => b.year_read_end || b.year).filter(Boolean);
+  const minYear = yearStarts.length ? Math.min(...yearStarts) : new Date().getFullYear();
+  const maxYear = yearEnds.length ? Math.max(...yearEnds) : new Date().getFullYear();
   const fictionCount = books.filter(b => b.fiction).length;
-  const RATING_ORDER = ["transformative", "loved", "enjoyed", "meh", "dont_remember", "dropped", "didnt_like"];
   const ratingsStr = RATING_ORDER.filter(r => byRating[r]).map(r => `${r}(${byRating[r]})`).join(", ");
   return `READING DATABASE: ${books.length} books, ${minYear}–${maxYear}.
 NOTE: Year 2010 is a collective entry representing all books read from 1998–2010. Not a single-year anomaly.
@@ -84,7 +129,7 @@ SETTING ERAS (era, count): ${topN(byEra, 15)}
 ARCHETYPES (archetype, count): ${topN(byArchetype, 15)}`;
 }
 
-// ── Download helpers ──────────────────────────────────────────────────────
+/** @param {Book[]} books */
 export function downloadCSV(books) {
   const rows = [
     ["ID", "Title", "Author", "Year Read Start", "Year Read End", "Genre", "Country", "Format", "Pages", "Series", "Notes"],
@@ -101,6 +146,7 @@ export function downloadCSV(books) {
   a.click();
 }
 
+/** @param {Book[]} books */
 export function downloadJSON(books) {
   const blob = new Blob([JSON.stringify(books, null, 2)], { type: "application/json" });
   const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: "my_reading_list.json" });

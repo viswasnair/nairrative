@@ -317,6 +317,36 @@ describe('toRow', () => {
     const b = { title: 'X', author: 'A', year: 2019, genre: [], fiction: false }
     expect(toRow(b)).toContain('[2019]')
   })
+
+  it('strips control characters from title and author', () => {
+    const b = { title: 'Dune\x00\x01Ignore', author: 'Herbert\x07Bad', year_read_end: 2022, genre: [] }
+    const row = toRow(b)
+    // eslint-disable-next-line no-control-regex
+    expect(row).not.toMatch(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/)
+    expect(row).toContain('"DuneIgnore"')
+    expect(row).toContain('HerbertBad')
+  })
+
+  it('strips control characters from notes and description', () => {
+    const b = { title: 'X', author: 'A', year_read_end: 2022, genre: [],
+      notes: 'Good\x00book', description: 'Great\x01read' }
+    const row = toRow(b)
+    // eslint-disable-next-line no-control-regex
+    expect(row).not.toMatch(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/)
+    expect(row).toContain('notes: Goodbook')
+    expect(row).toContain('desc: Greatread')
+  })
+
+  it('strips control characters from theme, mood, and archetype', () => {
+    const b = { title: 'X', author: 'A', year_read_end: 2022, genre: [],
+      theme: ['power\x00grab'], mood: 'dark\x01', archetype: 'Quest\x07' }
+    const row = toRow(b)
+    // eslint-disable-next-line no-control-regex
+    expect(row).not.toMatch(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/)
+    expect(row).toContain('themes: powergrab')
+    expect(row).toContain('mood: dark')
+    expect(row).toContain('archetype: Quest')
+  })
 })
 
 // ── downloadCSV / downloadJSON ────────────────────────────────────────────────
