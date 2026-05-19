@@ -4,7 +4,7 @@ import { sanitizeShortInput, sanitizePromptInput } from "./textUtils";
  * @typedef {{ id: string|number, title: string, author: string, year?: number,
  *   year_read_start?: number, year_read_end?: number, genre?: string[],
  *   pages?: number, fiction?: boolean, format?: string, series?: string,
- *   country?: string, rating?: string, description?: string, notes?: string,
+ *   country?: string, rating?: string, description?: string,
  *   mood?: string, narrative_style?: string, setting_era?: string,
  *   archetype?: string, theme?: string[], cover_url?: string,
  *   authors?: Array<{name: string, country?: string}>,
@@ -63,7 +63,6 @@ export const toRow = b => {
   const archetype = b.archetype      ? sanitizeShortInput(b.archetype)      : null;
   const themes    = (b.theme || []).map(t => sanitizeShortInput(t));
   const desc      = b.description    ? sanitizePromptInput(b.description, 300) : null;
-  const notes     = b.notes          ? sanitizePromptInput(b.notes, 200)       : null;
   return (
     `[${b.year_read_end || b.year}] "${title}" by ${author} | ${(b.genre || []).join("/")}` +
     `${b.pages ? " | " + b.pages + "pp" : ""}` +
@@ -75,8 +74,7 @@ export const toRow = b => {
     `${archetype ? " | archetype: " + archetype : ""}` +
     `${themes.length ? " | themes: " + themes.join(", ") : ""}` +
     `${b.rating  ? " | rating: "    + b.rating  : ""}` +
-    `${desc      ? " | desc: "      + desc      : ""}` +
-    `${notes     ? " | notes: "     + notes     : ""}`
+    `${desc      ? " | desc: "      + desc      : ""}`
   );
 };
 
@@ -132,13 +130,13 @@ ARCHETYPES (archetype, count): ${topN(byArchetype, 15)}`;
 /** @param {Book[]} books */
 export function downloadCSV(books) {
   const rows = [
-    ["ID", "Title", "Author", "Year Read Start", "Year Read End", "Genre", "Country", "Format", "Pages", "Series", "Notes"],
+    ["ID", "Title", "Author", "Year Read Start", "Year Read End", "Genre", "Country", "Format", "Pages", "Series"],
     ...books.map(b => [
       b.id, `"${b.title}"`, `"${b.author}"`,
       b.year_read_start, b.year_read_end,
       `"${(b.genre || []).join("/")}"`,
       b.country || "", b.format || "", b.pages || "",
-      `"${b.series || ""}"`, `"${b.notes || ""}"`
+      `"${b.series || ""}"`,
     ]),
   ];
   const blob = new Blob([rows.map(r => r.join(",")).join("\n")], { type: "text/csv" });

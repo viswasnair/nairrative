@@ -45,7 +45,6 @@ create table public.books (
   series           text default '',
   series_number    numeric[],
   pages            integer,
-  notes            text default '',
   user_added       boolean default false,
   cover_url        text,
   rating           text check (rating = any (array[
