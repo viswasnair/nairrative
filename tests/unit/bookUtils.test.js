@@ -264,7 +264,7 @@ describe('toRow', () => {
     genre: ['Sci-Fi', 'Classic'], pages: 412, series: 'Dune', fiction: true,
     mood: 'epic', narrative_style: 'omniscient third-person', setting_era: 'far future',
     archetype: "Hero's Journey", theme: ['survival', 'power'],
-    rating: 'loved', description: 'A desert planet epic.', notes: 'Re-read',
+    rating: 'loved', description: 'A desert planet epic.',
   }
 
   it('includes year, title, author, and genre', () => {
@@ -297,11 +297,6 @@ describe('toRow', () => {
     expect(row).toContain('desc: A desert planet epic.')
   })
 
-  it('includes notes', () => {
-    const row = toRow(fullBook)
-    expect(row).toContain('notes: Re-read')
-  })
-
   it('omits optional fields when absent', () => {
     const minimal = { title: 'X', author: 'A', year_read_end: 2020, genre: [], fiction: true }
     const row = toRow(minimal)
@@ -310,7 +305,6 @@ describe('toRow', () => {
     expect(row).not.toContain('mood:')
     expect(row).not.toContain('rating:')
     expect(row).not.toContain('desc:')
-    expect(row).not.toContain('notes:')
   })
 
   it('falls back to b.year when year_read_end is absent', () => {
@@ -327,13 +321,12 @@ describe('toRow', () => {
     expect(row).toContain('HerbertBad')
   })
 
-  it('strips control characters from notes and description', () => {
+  it('strips control characters from description', () => {
     const b = { title: 'X', author: 'A', year_read_end: 2022, genre: [],
-      notes: 'Good\x00book', description: 'Great\x01read' }
+      description: 'Great\x01read' }
     const row = toRow(b)
     // eslint-disable-next-line no-control-regex
     expect(row).not.toMatch(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/)
-    expect(row).toContain('notes: Goodbook')
     expect(row).toContain('desc: Greatread')
   })
 
@@ -356,9 +349,9 @@ describe('toRow', () => {
 const DL_BOOKS = [
   { id: 1, title: 'Dune', author: 'Frank Herbert', year_read_start: 2022, year_read_end: 2022,
     genre: ['Science Fiction'], country: 'United States', format: 'Novel', pages: 412,
-    series: 'Dune', notes: '' },
+    series: 'Dune' },
   { id: 2, title: 'Sapiens', author: 'Yuval Harari', year_read_start: 2023, year_read_end: 2023,
-    genre: [], country: '', format: 'Non-Fiction', pages: 443, series: '', notes: 'Great book' },
+    genre: [], country: '', format: 'Non-Fiction', pages: 443, series: '' },
 ]
 
 describe('downloadCSV', () => {
