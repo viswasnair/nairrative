@@ -77,6 +77,9 @@ create policy "books_update"
 create policy "books_delete"
   on public.books for delete to authenticated using (auth.uid() = user_id);
 
+-- Required so the anon role can execute the books_select policy above.
+grant select on public.books to anon;
+
 
 -- ── book_authors ──────────────────────────────────────────────────────────────
 
