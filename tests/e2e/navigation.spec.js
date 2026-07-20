@@ -32,7 +32,7 @@ test.describe('Navigation — all pages render correctly', () => {
   test('Library tab shows book table and controls', async ({ page }) => {
     await clickTab(page, 'Library');
     await expect(page.locator('input[placeholder="Search…"]')).toBeVisible();
-    await expect(page.locator('button.btn-gold', { hasText: '+ Book' })).toBeVisible();
+    await expect(page.locator('button.btn-gold', { hasText: '+ Add Book' })).toBeVisible();
     // Table header columns — scope to .lib-row to avoid matching hidden <option> elements
     await expect(page.locator('.lib-row div', { hasText: 'Title' }).first()).toBeVisible();
     await expect(page.locator('.lib-row div', { hasText: 'Author' }).first()).toBeVisible();
