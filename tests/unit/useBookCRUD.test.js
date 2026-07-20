@@ -91,7 +91,7 @@ describe('useBookCRUD — modal state', () => {
       authors: [{ name: 'Frank Herbert' }],
       genre: ['Sci-Fi'], format: 'Novel', fiction: true,
       year_read_start: 2022, year_read_end: 2022, year: 2022,
-      series: 'Dune', pages: 412, notes: '', cover_url: '', rating: 'loved',
+      series: 'Dune', pages: 412, cover_url: '', rating: 'loved',
     }
     const params = makeParams()
     const { result } = renderHook(() => useBookCRUD(params))

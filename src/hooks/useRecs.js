@@ -12,6 +12,30 @@ const LS_DATA = "nairrative_recs";
 const LS_FP   = "nairrative_recs_fp";
 const TABLE   = "recs_cache";
 
+// Filters already-read books and deduplicates across panels for cached rec data.
+// First panel claiming a title wins; subsequent panels with the same title are dropped.
+function normalizeCachedRecs(data, books) {
+  const readTitles = new Set(books.map(b => b.title?.toLowerCase()).filter(Boolean));
+
+  const filtered = {};
+  for (const [id, arr] of Object.entries(data)) {
+    if (!Array.isArray(arr) || !arr.length) continue;
+    const clean = arr.filter(r => r?.title && !readTitles.has(r.title.toLowerCase()));
+    if (clean.length) filtered[id] = clean;
+  }
+
+  const seen = new Set();
+  const result = {};
+  for (const [id, arr] of Object.entries(filtered)) {
+    const key = arr[0]?.title?.toLowerCase();
+    if (key && !seen.has(key)) {
+      seen.add(key);
+      result[id] = arr;
+    }
+  }
+  return result;
+}
+
 export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }) {
   const intentAbortRef = useRef({});
   useEffect(() => {
@@ -40,7 +64,17 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
     if (!booksFingerprint) { setIntentResults(SEED_RECS); return; }
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       const cached = await loadCachedData({ table: TABLE, lsDataKey: LS_DATA, lsFpKey: LS_FP, fingerprint: booksFingerprint, session });
-      setIntentResults(cached ? { ...SEED_RECS, ...cached } : SEED_RECS);
+      if (cached) {
+        const safe = normalizeCachedRecs(cached, books);
+        allocatedTitlesRef.current = {};
+        for (const [id, arr] of Object.entries(safe)) {
+          const r = arr[0];
+          if (r?.title) allocatedTitlesRef.current[id] = { title: r.title, author: r.author || "" };
+        }
+        setIntentResults({ ...SEED_RECS, ...safe });
+      } else {
+        setIntentResults(SEED_RECS);
+      }
     });
   }, [activeTab, booksFingerprint]);
 
@@ -93,8 +127,8 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
       return m ? JSON.parse(m[0]) : JSON.parse(txt.replace(/```json|```/g, "").trim());
     };
 
-    const isAlreadyRead = (title) =>
-      !!title && books.some(b => b.title?.toLowerCase() === title.toLowerCase());
+    const readTitles = new Set(books.map(b => b.title?.toLowerCase()).filter(Boolean));
+    const isAlreadyRead = (title) => !!title && readTitles.has(title.toLowerCase());
 
     const isAllocatedElsewhere = (title) =>
       !!title && Object.entries(allocatedTitlesRef.current)
@@ -103,13 +137,31 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
     try {
       let parsed = await attemptFetch();
       if (controller.signal.aborted) return;
-      const pick = parsed[0];
-      if (pick?.title && (isAlreadyRead(pick.title) || isAllocatedElsewhere(pick.title))) {
-        parsed = await attemptFetch([`"${pick.title}" by ${pick.author}`]);
+      let pick = parsed[0];
+      const extraExclusions = [];
+
+      // Retry up to 3 times if the AI returns a book the user already read or another panel claimed.
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (!pick?.title || (!isAlreadyRead(pick.title) && !isAllocatedElsewhere(pick.title))) break;
+        extraExclusions.push(`"${pick.title}" by ${pick.author}`);
+        parsed = await attemptFetch(extraExclusions);
+        if (controller.signal.aborted) return;
+        pick = parsed[0];
       }
-      if (controller.signal.aborted) return;
-      if (parsed[0]?.title) {
-        allocatedTitlesRef.current[intentId] = { title: parsed[0].title, author: parsed[0].author || "" };
+
+      // Hard enforcement: never store a book the user has already read.
+      if (pick?.title && isAlreadyRead(pick.title)) {
+        setIntentResults(p => {
+          const updated = { ...p, [intentId]: [{ title: "No unread match found", author: "", reason: "All suggestions were already in your library. Try refreshing for a different pick." }] };
+          saveRecs(updated);
+          return updated;
+        });
+        setIntentLoading(p => { const n = { ...p }; delete n[intentId]; return n; });
+        return;
+      }
+
+      if (pick?.title) {
+        allocatedTitlesRef.current[intentId] = { title: pick.title, author: pick.author || "" };
       }
       setIntentResults(prev => {
         const updated = { ...prev, [intentId]: Array.isArray(parsed) ? parsed.slice(0, 1) : [] };
