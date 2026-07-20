@@ -27,6 +27,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Check for dead exports (knip)
+        run: npm run check:dead
+
       - name: Build
         run: npm run build
         env:

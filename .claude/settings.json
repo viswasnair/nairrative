@@ -25,7 +25,13 @@
       "Bash(git fetch *)",
       "mcp__claude_ai_Vercel__get_deployment_build_logs",
       "Bash(git show *)",
-      "Bash(del \"c:\\\\Users\\\\viswa\\\\Projects\\\\nairrative\\\\REVIEW.md\")"
+      "Bash(del \"c:\\\\Users\\\\viswa\\\\Projects\\\\nairrative\\\\REVIEW.md\")",
+      "Bash(dir c:\\\\Users\\\\viswa\\\\Projects\\\\nairrative\\\\*.md)",
+      "PowerShell(git -C \"c:\\\\Users\\\\viswa\\\\Projects\\\\nairrative\" branch --show-current)",
+      "PowerShell(git -C \"c:\\\\Users\\\\viswa\\\\Projects\\\\nairrative\" show \"origin/claude/code-cleanup-review-j0ecA\":cleanup-hanoff.md 2>&1)",
+      "PowerShell(git -C \"c:\\\\Users\\\\viswa\\\\Projects\\\\nairrative\" show \"origin/claude/code-cleanup-review-j0ecA\":cleanup-handoff.md)",
+      "PowerShell(git -C \"c:\\\\Users\\\\viswa\\\\Projects\\\\nairrative\" show \"HEAD:tests/unit/db.test.js\" 2>&1)",
+      "Bash(git branch *)"
     ]
   }
 }

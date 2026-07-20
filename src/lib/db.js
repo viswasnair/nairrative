@@ -83,29 +83,6 @@ export function insertGenre(fields) {
   return supabase.from("genres").insert([fields]).select().single();
 }
 
-// ── Analysis cache ────────────────────────────────────────────────────────────
-
-export function getAnalysisCache(userId) {
-  const q = supabase.from("analysis_cache").select("data");
-  return (userId ? q.eq("user_id", userId) : q).maybeSingle();
-}
-
-export function saveAnalysisCache(userId, fingerprint, data) {
-  return supabase.from("analysis_cache").upsert(
-    { user_id: userId, fingerprint, data },
-    { onConflict: "user_id" }
-  );
-}
-
-// ── Recs cache ────────────────────────────────────────────────────────────────
-
-export function saveRecsCache(userId, fingerprint, data) {
-  return supabase.from("recs_cache").upsert(
-    { user_id: userId, fingerprint, data },
-    { onConflict: "user_id" }
-  );
-}
-
 // ── Panel prompts ─────────────────────────────────────────────────────────────
 
 export function getPanelPrompts(userId) {

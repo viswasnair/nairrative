@@ -69,7 +69,7 @@ Nairrative is a personal reading dashboard — a React SPA deployed on Vercel wi
 - `analysisPrompts.js` — `buildAnalysisRequestBody`, `buildRegenerateRequestBody`, `parseAnalysisResponse`
 - `recsPrompts.js` — `buildLensPrompts` (15 lens prompt strings)
 - `aiClient.js` — `callAI(messages, options, session)` + `AI_MODELS` (`fast/standard/quality` tiers: Haiku/Sonnet/Opus) — single entry point for all client-side AI fetch calls; swap provider here
-- `db.js` — all Supabase data access as named functions (`getBooks`, `insertBook`, `getAnalysisCache`, etc.) — swap backend here
+- `db.js` — all Supabase data access as named functions (`getBooks`, `insertBook`, `getGenres`, `getPanelPrompts`, etc.) — swap backend here. Note: `getAnalysisCache`, `saveAnalysisCache`, and `saveRecsCache` were removed; cache I/O now goes through `aiCache.js` → `loadCacheRow`/`saveCacheRow`.
 - `auth.js` — all Supabase Auth calls (`getSession`, `signIn`, `signOut`, `onAuthStateChange`) — swap auth provider here
 - `bookSearch.js` — `searchBookCovers`, `coverUrl` — OpenLibrary cover search adapter; swap book data source here
 - `supabase.js` — Supabase client (imported only by `db.js` and `auth.js`)

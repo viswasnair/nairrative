@@ -169,7 +169,7 @@ export function computeAnalysisInsights(books, stats) {
     loyal, sampledCount, booksFromLoyal, loyaltyRatio,
     challengingCount, challengePct, challengingAuthorsFromData,
     seriesCount, seriesPct,
-    fictionByEra: moodByEra, peakFictionEra: null, lowFictionEra: null,
+    fictionByEra: moodByEra,
     notableYears, topAuthorChannels,
   };
 }
