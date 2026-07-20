@@ -57,8 +57,9 @@ const flushPromises = () => new Promise(r => setTimeout(r, 0))
  * Returns handles for the books.update chain so callers can assert on it.
  */
 function setupMocks({ booksData = [], authorsData = [], genresData = [] } = {}) {
-  const booksUpdateEq = vi.fn().mockResolvedValue({ error: null })
-  const booksUpdate   = vi.fn().mockReturnValue({ eq: booksUpdateEq })
+  const booksUpdateEq2 = vi.fn().mockResolvedValue({ error: null })
+  const booksUpdateEq  = vi.fn().mockReturnValue({ eq: booksUpdateEq2 })
+  const booksUpdate    = vi.fn().mockReturnValue({ eq: booksUpdateEq })
 
   supabase.from.mockImplementation((table) => {
     if (table === 'books') return {
@@ -101,7 +102,7 @@ function setupMocks({ booksData = [], authorsData = [], genresData = [] } = {}) 
     }
   })
 
-  return { booksUpdate, booksUpdateEq }
+  return { booksUpdate, booksUpdateEq, booksUpdateEq2 }
 }
 
 // ── Tests: modal state management ─────────────────────────────────────────────

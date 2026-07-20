@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
-
-const RATING_ORDER = ["transformative", "loved", "enjoyed", "meh", "dont_remember", "dropped", "didnt_like"];
+import { RATING_ORDER } from "../lib/bookUtils";
 
 export function useLibraryFilters(books, stats) {
   const [search,       setSearch]       = useState("");

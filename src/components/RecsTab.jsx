@@ -3,6 +3,7 @@ import G from "../constants/theme";
 import { stripMd } from "../lib/bookUtils";
 import SeriesTab from "./SeriesTab";
 import NewReleasesTab from "./NewReleasesTab";
+import { useRecsContext } from "../contexts/RecsContext";
 
 const RecList = memo(({ results, loading }) => {
   if (loading) return (
@@ -30,23 +31,8 @@ const SUB_TABS = [
   { id: "recap",    label: "Recap" },
 ];
 
-export default function RecsTab({
-  books,
-  genreList,
-  session,
-  intentInputs,
-  setIntentInputs,
-  intentResults,
-  setIntentResults,
-  intentLoading,
-  fetchIntentRecs,
-  selectedSeries,
-  setSelectedSeries,
-  seriesRecap,
-  setSeriesRecap,
-  seriesLoading,
-  generateSeriesRecap,
-}) {
+export default function RecsTab({ books, genreList, session }) {
+  const { intentInputs, setIntentInputs, intentResults, setIntentResults, intentLoading, fetchIntentRecs, selectedSeries, setSelectedSeries, seriesRecap, setSeriesRecap, seriesLoading, generateSeriesRecap } = useRecsContext();
   const [subTab, setSubTab] = useState("picks");
   const lastBook = books[books.length - 1];
 

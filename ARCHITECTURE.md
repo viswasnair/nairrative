@@ -15,26 +15,35 @@ flowchart TD
         App["App.jsx\n(shell · auth · nav · hook wiring)"]
         subgraph Components["Components"]
             OT["OverviewTab\n8 Recharts charts + KPI cards"]
-            LT["LibraryTab\nFilterable / sortable table"]
+            LT["LibraryTab\nVirtualized table\n↳ BookshelfTab (cover grid)\n↳ NewReleasesTab"]
             AT["AnalysisTab\n8 AI insight panels"]
             RT["RecsTab\n15 discovery lenses"]
             CT["ChatTab\nConversational assistant"]
             BM["BookModal\nAdd / edit + AI fill"]
+            EB["ErrorBoundary\n(per tab)"]
         end
         subgraph Hooks["Hooks"]
             uAuth["useAuth"]
-            uBooks["useBooks\n↳ useGenres\n↳ useBookAiFill"]
+            uBooks["useBooks\n↳ useBookCRUD\n↳ useGenres\n↳ useBookAiFill"]
             uAn["useAnalysis"]
             uRecs["useRecs"]
             uChat["useChat"]
             uFilt["useLibraryFilters"]
         end
-        subgraph Lib["Lib / Constants"]
-            apiLib["api.js\nLLM_URL · claudeHeaders"]
+        BAC["BookActionsContext\n(save · delete · draft)"]
+        AC["AnalysisContext\n(panels · prompts · loading)"]
+        RC["RecsContext\n(lenses · series recap)"]
+        LFC["LibraryFiltersContext\n(filters · filteredBooks · derived arrays)"]
+        subgraph Lib["Lib / Adapters / Constants"]
+            aiClient["aiClient.js\ncallAI · AI_MODELS"]
+            dbLib["db.js\nall Supabase data calls"]
+            authLib["auth.js\ngetSession · signIn · signOut"]
+            bookSearchLib["bookSearch.js\nOpenLibrary covers"]
             cache["aiCache.js\n3-layer cache"]
             bookUtils["bookUtils.js\nnormalizeBook · buildBookContext · toRow"]
             prompts["analysisPrompts.js\nrecsPrompts.js"]
             theme["theme.js · config.js · seeds.js"]
+            apiConf["api.js\nLLM_URL · claudeHeaders"]
         end
         LS[("localStorage\n(fast cache)")]
     end
@@ -52,21 +61,32 @@ flowchart TD
         subgraph DB["PostgreSQL (RLS on all tables)"]
             T1["books · book_authors · authors · genres"]
             T2["analysis_cache · recs_cache · panel_prompts"]
+            T3["new_releases\n(populated by check-releases fn)"]
         end
     end
 
     subgraph External["External Services"]
-        Anthropic["Anthropic API\nclaude-sonnet-4-6"]
+        Anthropic["Anthropic API\nclaude-haiku / sonnet / opus"]
         Redis[("Upstash Redis\n30 req / 60 s per user")]
+        OL["OpenLibrary\ncover search"]
     end
 
     App --> Components
     App --> Hooks
+    App -->|"provides"| BAC
+    BAC -->|"consumed by"| BM
+    App -->|"provides"| AC
+    AC -->|"consumed by"| AT
+    App -->|"provides"| RC
+    RC -->|"consumed by"| RT
+    App -->|"provides"| LFC
+    LFC -->|"consumed by"| LT
     Hooks --> Lib
     Lib --> LS
-    Lib --> apiLib
-    apiLib -->|"POST /api/claude\nBearer token"| proxy
-    Hooks -->|"Supabase JS client"| SupabaseCloud
+    aiClient -->|"POST /api/claude\nBearer token"| proxy
+    dbLib -->|"Supabase JS client"| DB
+    authLib -->|"Supabase JS client"| Auth
+    bookSearchLib -->|"HTTPS"| OL
     proxy -->|"JWKS fetch"| Auth
     proxy -->|"rate-limit check"| Redis
     providers -->|"HTTPS"| Anthropic
@@ -97,12 +117,14 @@ flowchart LR
 
     subgraph Tabs["Tab Components"]
         OT["OverviewTab"]
-        LT["LibraryTab"]
+        LT["LibraryTab\n↳ BookshelfTab\n↳ NewReleasesTab"]
         AT["AnalysisTab"]
         RT["RecsTab"]
         CT["ChatTab"]
-        BM["BookModal"]
+        BM["BookModal\n(via BookActionsContext)"]
     end
+
+    BAC["BookActionsContext"]
 
     App --> uAuth
     App --> uBooks
@@ -113,12 +135,13 @@ flowchart LR
 
     uAuth -->|"session"| App
 
-    App -->|"books · openModal · saveBook"| OT
+    App -->|"books · openModal"| OT
     App -->|"filteredBooks · filters · setFilters"| LT
     App -->|"panels · regenerate · prompts"| AT
     App -->|"lenses · intentInputs · refresh"| RT
     App -->|"messages · sendChat · books"| CT
-    App -->|"editBook · saveBook · aiFill"| BM
+    App -->|"provides context"| BAC
+    BAC -->|"save · delete · draft callbacks"| BM
 
     LT -->|"uses"| uFilt
 ```

@@ -99,11 +99,6 @@ export function saveAnalysisCache(userId, fingerprint, data) {
 
 // ── Recs cache ────────────────────────────────────────────────────────────────
 
-export function getRecsCache(userId) {
-  const q = supabase.from("recs_cache").select("data");
-  return (userId ? q.eq("user_id", userId) : q).maybeSingle();
-}
-
 export function saveRecsCache(userId, fingerprint, data) {
   return supabase.from("recs_cache").upsert(
     { user_id: userId, fingerprint, data },

@@ -1,9 +1,10 @@
 import { buildBookContext, toRow } from "./bookUtils";
+import { AI_MODELS } from "./aiClient";
 
 const TEMPORAL_DIMS = new Set(["temporal", "genre", "contextual"]);
 
 // Returns the full fetch body for a single analysis panel request.
-export function buildAnalysisRequestBody({ dimension, books, panelPrompts, model = "claude-sonnet-4-6", maxTokens = 400 }) {
+export function buildAnalysisRequestBody({ dimension, books, panelPrompts, model = AI_MODELS.standard, maxTokens = 400 }) {
   const currentYear = new Date().getFullYear();
   const isRecent = dimension === "recent";
   const listSource = isRecent
@@ -39,7 +40,7 @@ export function buildAnalysisRequestBody({ dimension, books, panelPrompts, model
 
 // Returns the full fetch body for a single panel regeneration (uses a stronger model).
 export function buildRegenerateRequestBody({ dimension, books, panelPrompts }) {
-  return buildAnalysisRequestBody({ dimension, books, panelPrompts, model: "claude-opus-4-6", maxTokens: 450 });
+  return buildAnalysisRequestBody({ dimension, books, panelPrompts, model: AI_MODELS.quality, maxTokens: 450 });
 }
 
 // Parses a JSON text response from an analysis panel into { insight, evidence }.

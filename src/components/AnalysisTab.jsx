@@ -1,6 +1,8 @@
+import { useState } from "react";
 import G from "../constants/theme";
 import { DEFAULT_PANEL_PROMPTS } from "../constants/config";
 import { stripMd } from "../lib/bookUtils";
+import { useAnalysisContext } from "../contexts/AnalysisContext";
 
 const MOOD_COLORS = { "Dark & Tense": "#e06c75", "Imaginative": "#4a9eff", "Reflective": "#c3a6ff", "Informative": "#ffd166" };
 
@@ -14,31 +16,22 @@ function relativeTime(iso) {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-export default function AnalysisTab({
-  books,
-  stats,
-  analysisInsights,
-  genreMap,
-  session,
-  analysisAI,
-  analysisAILoading,
-  panelPrompts,
-  editingPanel,
-  setEditingPanel,
-  viewingPanel,
-  setViewingPanel,
-  panelLoading,
-  updatePanelPrompt,
-  resetPanelPrompt,
-  savePanelPromptsToSupabase,
-  regeneratePanel,
-  onCiteClick,
-}) {
-  const minYear = Math.min(...books.map(b => b.year_read_start));
-  const maxYear = Math.max(...books.map(b => b.year_read_end));
-  const span = maxYear - minYear + 1;
+export default function AnalysisTab({ books, booksLoading, stats, analysisInsights, genreMap, session, onCiteClick }) {
+  const { analysisAI, analysisAILoading, panelPrompts, editingPanel, setEditingPanel, viewingPanel, setViewingPanel, panelLoading, updatePanelPrompt, resetPanelPrompt, savePanelPromptsToSupabase, regeneratePanel } = useAnalysisContext();
+  const [saveMsg, setSaveMsg] = useState(null);
+
+  const handleSavePrompt = async (dimension) => {
+    const ok = await savePanelPromptsToSupabase(panelPrompts);
+    setSaveMsg({ dimension, ok });
+    if (ok) setTimeout(() => setSaveMsg(null), 2000);
+    setEditingPanel(null);
+  };
 
   const currentYear = new Date().getFullYear();
+  const minYear = books.length ? Math.min(...books.map(b => b.year_read_start)) : currentYear;
+  const maxYear = books.length ? Math.max(...books.map(b => b.year_read_end)) : currentYear;
+  const span = maxYear - minYear + 1;
+
   const recentBooksList = books.filter(b => (b.year_read_end || b.year) >= currentYear - 1);
   const recentCount = recentBooksList.length;
   const recentPages = recentBooksList.reduce((s, b) => s + (b.pages || 0), 0);
@@ -105,10 +98,13 @@ export default function AnalysisTab({
               placeholder="Describe what this panel should focus on…"
               style={{ width: "100%", minHeight: 68, background: G.card2, border: `1px solid ${G.border}`, borderRadius: 6, color: G.text, fontSize: 11, padding: "8px 10px", resize: "vertical", fontFamily: "inherit", boxSizing: "border-box" }}
             />
-            <div style={{ display: "flex", gap: 6, marginTop: 6, justifyContent: "flex-end" }}>
+            <div style={{ display: "flex", gap: 6, marginTop: 6, justifyContent: "flex-end", alignItems: "center" }}>
+              {saveMsg?.dimension === dimension && !saveMsg.ok && (
+                <span style={{ fontSize: 11, color: "#e06c75" }}>Save failed</span>
+              )}
               <button onClick={() => resetPanelPrompt(dimension)} title="Reset to default prompt"
                 style={{ background: "none", border: `1px solid ${G.border}`, borderRadius: 5, color: G.dimmed, fontSize: 11, padding: "4px 10px", cursor: "pointer" }}>Reset</button>
-              <button onClick={() => { savePanelPromptsToSupabase(panelPrompts); setEditingPanel(null); }}
+              <button onClick={() => handleSavePrompt(dimension)}
                 style={{ background: "none", border: `1px solid ${G.border}`, borderRadius: 5, color: G.muted, fontSize: 11, padding: "4px 10px", cursor: "pointer" }}>Save</button>
               <button onClick={() => regeneratePanel(dimension)}
                 style={{ background: G.gold, border: "none", borderRadius: 5, color: "#000", fontSize: 11, fontWeight: 600, padding: "4px 12px", cursor: "pointer" }}>Regenerate</button>
@@ -148,6 +144,25 @@ export default function AnalysisTab({
       </div>
     );
   };
+
+  if (booksLoading) return (
+    <div>
+      <div style={{ marginBottom: 24, textAlign: "center" }}>
+        <div className="pulse" style={{ height: 13, width: 280, background: G.border, borderRadius: 4, margin: "0 auto" }} />
+      </div>
+      <div className="analysis-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 14 }}>
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "20px 22px" }}>
+            <div className="pulse" style={{ height: 10, width: 60, background: G.border, borderRadius: 4, marginBottom: 12 }} />
+            <div className="pulse" style={{ height: 15, width: "60%", background: G.border, borderRadius: 4, marginBottom: 16 }} />
+            <div className="pulse" style={{ height: 10, width: "100%", background: G.border, borderRadius: 4, marginBottom: 6 }} />
+            <div className="pulse" style={{ height: 10, width: "90%", background: G.border, borderRadius: 4, marginBottom: 6 }} />
+            <div className="pulse" style={{ height: 10, width: "80%", background: G.border, borderRadius: 4 }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div>

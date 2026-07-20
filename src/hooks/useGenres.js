@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../lib/supabase";
+import * as db from "../lib/db";
 import { LLM_URL, claudeHeaders } from "../lib/api";
-import { sanitizeShortInput } from "../lib/textUtils";
-import { fuzzyMatches } from "../lib/textUtils";
+import { sanitizeShortInput, fuzzyMatches } from "../lib/textUtils";
 
 export function useGenres({ session }) {
   const [genreList, setGenreList] = useState([]);
@@ -13,7 +12,7 @@ export function useGenres({ session }) {
   const [genreSuggestion, setGenreSuggestion] = useState(null);
 
   useEffect(() => {
-    supabase.from("genres").select("name, color, sort_order").order("sort_order").then(({ data }) => {
+    db.getGenres().then(({ data }) => {
       if (data) {
         setGenreList(data.map(g => g.name));
         setGenreMap(Object.fromEntries(data.map(g => [g.name, g.color])));
@@ -61,7 +60,7 @@ export function useGenres({ session }) {
     } catch { /* fallback to default */ }
 
     const sortOrder = genreList.length + 1;
-    const { data, error } = await supabase.from("genres").insert([{ name: sanitized, color, sort_order: sortOrder }]).select().single();
+    const { data, error } = await db.insertGenre({ name: sanitized, color, sort_order: sortOrder });
     if (!error && data) {
       setGenreList(prev => [...prev, sanitized].sort());
       setGenreMap(prev => ({ ...prev, [sanitized]: color }));

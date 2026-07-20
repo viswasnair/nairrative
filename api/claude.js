@@ -1,6 +1,6 @@
 export const config = { runtime: "edge" };
 
-import { corsHeaders, checkRateLimit, verifyJWT } from "./lib/apiUtils.js";
+import { corsHeaders, checkOrigin, checkRateLimit, verifyJWT } from "./lib/apiUtils.js";
 import { PROVIDERS, resolveProvider, isAllowedModel } from "./lib/providers.js";
 
 const MAX_TOKENS_HARD_LIMIT = 2000;
@@ -27,6 +27,11 @@ export default async function handler(req) {
 
   const cors = corsHeaders(req);
 
+  const originCheck = checkOrigin(req);
+  if (!originCheck.ok) {
+    securityLog("cors_rejected", req, { origin: originCheck.origin });
+  }
+
   const authHeader = req.headers.get("Authorization") || "";
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token) {
@@ -51,6 +56,8 @@ export default async function handler(req) {
 
   if (!Array.isArray(body.messages) || body.messages.length === 0)
     return new Response("Invalid request: messages must be a non-empty array", { status: 400, headers: cors });
+  if (!body.messages.every(m => typeof m.role === "string" && (typeof m.content === "string" || Array.isArray(m.content))))
+    return new Response("Invalid request: each message must have role (string) and content (string or array)", { status: 400, headers: cors });
   if (body.max_tokens !== undefined) {
     if (!Number.isInteger(body.max_tokens) || body.max_tokens <= 0)
       return new Response("Invalid request: max_tokens must be a positive integer", { status: 400, headers: cors });

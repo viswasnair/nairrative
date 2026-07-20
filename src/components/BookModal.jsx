@@ -2,37 +2,39 @@ import { useEffect, useRef, useState } from "react";
 import G from "../constants/theme";
 import MultiSelect from "./MultiSelect";
 import { searchBookCovers, coverUrl } from "../lib/bookSearch";
+import { useBookActions } from "../contexts/BookActionsContext";
 
-export default function BookModal({
-  editingBook,
-  bookDraft,
-  setBookDraft,
-  bookChatInputRef,
-  bookChatLoading,
-  bookChatPending,
-  bookSaving,
-  bookMsg,
-  newGenreInput,
-  setNewGenreInput,
-  newGenreOpen,
-  setNewGenreOpen,
-  newGenreSaving,
-  genreList,
-  chatFillBook,
-  applyPending,
-  setBookChatPending,
-  addGenre,
-  saveBook,
-  deleteBook,
-  onClose,
-  authorSuggestions,
-  checkAuthorSuggestion,
-  acceptAuthorSuggestion,
-  dismissAuthorSuggestion,
-  genreSuggestion,
-  acceptGenreSuggestion,
-  dismissGenreSuggestion,
-}) {
+export default function BookModal() {
+  const {
+    editingBook,
+    bookDraft,
+    setBookDraft,
+    bookChatInputRef,
+    bookChatLoading,
+    bookChatPending,
+    setBookChatPending,
+    bookSaving,
+    bookMsg,
+    newGenreInput,
+    setNewGenreInput,
+    newGenreOpen,
+    setNewGenreOpen,
+    newGenreSaving,
+    genreList,
+    chatFillBook,
+    applyPending,
+    addGenre,
+    saveBook,
+    deleteBook,
+    onClose,
+    authorSuggestions,
+    checkAuthorSuggestion,
+    acceptAuthorSuggestion,
+    dismissAuthorSuggestion,
+    genreSuggestion,
+    acceptGenreSuggestion,
+    dismissGenreSuggestion,
+  } = useBookActions();
   const [coverResults, setCoverResults] = useState([]);
   const [coverSearching, setCoverSearching] = useState(false);
   const [coverSearched, setCoverSearched] = useState(false);

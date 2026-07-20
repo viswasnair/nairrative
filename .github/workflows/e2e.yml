@@ -127,6 +127,16 @@ jobs:
       - name: Install Playwright Chromium browser
         run: npx playwright install chromium --with-deps
 
+      - name: Verify preview URL is available
+        run: |
+          if [ -z "$PREVIEW_URL" ]; then
+            echo "::error::No Vercel preview URL — security tests cannot run. Ensure Vercel preview deployment exists for this PR."
+            exit 1
+          fi
+          echo "Preview URL: $PREVIEW_URL"
+        env:
+          PREVIEW_URL: ${{ steps.preview.outputs.url }}
+
       - name: Run security tests against preview
         run: npx playwright test tests/e2e/security.spec.js
         env:
