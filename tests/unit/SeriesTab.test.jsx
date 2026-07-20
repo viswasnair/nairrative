@@ -124,7 +124,7 @@ describe('SeriesTab', () => {
     expect(screen.getByText('Great series recap!')).toBeTruthy()
   })
 
-  it('custom recap shows error text when fetch throws', async () => {
+  it('custom recap shows a generic error message when fetch throws (no raw error details leaked)', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network error')))
 
     setup({ session: SESSION })
@@ -136,7 +136,8 @@ describe('SeriesTab', () => {
       fireEvent.click(screen.getByRole('button', { name: /Recap/i }))
     })
 
-    expect(screen.getByText(/network error/i)).toBeTruthy()
+    expect(screen.getByText(/something went wrong/i)).toBeTruthy()
+    expect(screen.queryByText(/network error/i)).toBeNull()
   })
 
   it('seriesLoading=true shows loading pulse while generating series recap', () => {

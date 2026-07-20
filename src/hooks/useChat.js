@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { buildBookContext, toRow } from "../lib/bookUtils";
-import { LLM_URL, claudeHeaders } from "../lib/api";
+import { callAI, AI_MODELS } from "../lib/aiClient";
 
 const ANALYSIS_LABELS = {
   temporal: "Reading Pace & Volume", genre: "Genre Evolution",
@@ -124,11 +124,10 @@ export function useChat({ books, stats, analysisInsights, analysisAI, intentResu
 
       const seriesRecapContext = seriesRecap ? `Series: ${selectedSeries}\n${seriesRecap}` : "";
 
-      const res = await fetch(LLM_URL, {
-        method: "POST", headers: claudeHeaders(session),
-        signal: controller.signal,
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6", max_tokens: 1200,
+      const data = await callAI(
+        updated.map(m => ({ role: m.role, content: m.content })),
+        {
+          model: AI_MODELS.standard, maxTokens: 1200, signal: controller.signal,
           system: `You are an insightful personal reading assistant with full access to the user's reading database, AI analysis, and recommendations. Use the data below to answer questions accurately and specifically.
 
 IMPORTANT CONTEXT: Year 2010 is a collective placeholder for all books read between 1998 and 2010 — not a single-year anomaly. Do not treat it as unusual.
@@ -149,16 +148,17 @@ ${seriesRecapContext ? `\n--- SERIES RECAP ---\n${seriesRecapContext}` : ""}
 Answer primarily from the data, with specific references to books, authors, years, and patterns. When the user asks about analysis insights or recommendations, draw on the AI analysis panels and recommendation results above. For general knowledge questions about books or authors not requiring personal library data, you may use your broader knowledge — but never invent books the user has read.
 
 Formatting rules: Write in clean, natural prose. Do not use markdown syntax — no asterisks for bold or italic, no hash symbols for headers, no hyphens or asterisks as bullet points. When a list genuinely helps, use "1." for numbered lists or "•" for bullet points. Keep responses direct and conversational — not a structured report.`,
-          messages: updated.map(m => ({ role: m.role, content: m.content }))
-        })
-      });
-      const data = await res.json();
+        },
+        session
+      );
       if (data.error) console.error("Chat API error:", data.error);
       if (!controller.signal.aborted)
         setMessages(prev => [...prev, { role: "assistant", content: data.content?.[0]?.text || "Sorry, try again." }]);
     } catch (e) {
-      if (e.name !== "AbortError")
+      if (e.name !== "AbortError") {
+        console.error("sendChat error:", e);
         setMessages(prev => [...prev, { role: "assistant", content: "Connection error. Please try again." }]);
+      }
     }
     finally { if (!controller.signal.aborted) setChatLoading(false); }
   };
@@ -172,17 +172,14 @@ Formatting rules: Write in clean, natural prose. Do not use markdown syntax — 
     setSeriesRecap(null);
     const seriesBks = books.filter(b => b.series === seriesName).sort((a, b) => (a.id - b.id));
     try {
-      const res = await fetch(LLM_URL, {
-        method: "POST", headers: claudeHeaders(session),
-        signal: controller.signal,
-        body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001", max_tokens: 800,
+      const data = await callAI(
+        [{ role: "user", content: `Please recap the "${seriesName}" series. The reader has read these books (in order): ${seriesBks.map((b, i) => `${i+1}. ${b.title} (${b.year_read_end})`).join(", ")}. Give a short recap of each book and a "What to remember" section with the 3–5 most important things going into the next installment.` }],
+        {
+          model: AI_MODELS.fast, maxTokens: 800, signal: controller.signal,
           system: `You are a literary companion helping a reader catch up on a book series. Write engaging recaps — key characters, major plot turns, how each book ends. Keep each book recap to 2–3 sentences. Be concise.`,
-          messages: [{ role: "user", content: `Please recap the "${seriesName}" series. The reader has read these books (in order): ${seriesBks.map((b, i) => `${i+1}. ${b.title} (${b.year_read_end})`).join(", ")}. Give a short recap of each book and a "What to remember" section with the 3–5 most important things going into the next installment.` }]
-        })
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+        },
+        session
+      );
       if (!controller.signal.aborted)
         setSeriesRecap({ series: seriesName, books: seriesBks, text: data.content?.[0]?.text || "Could not generate recap." });
     } catch (e) {

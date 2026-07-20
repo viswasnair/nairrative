@@ -21,6 +21,7 @@ describe("fetchAuthorCountry", () => {
 
   it("returns the country text from the API response", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
       json: () => Promise.resolve({ content: [{ text: "United Kingdom" }] }),
     }));
     const result = await fetchAuthorCountry("Kazuo Ishiguro", SESSION);
@@ -35,6 +36,7 @@ describe("fetchAuthorCountry", () => {
 
   it("returns null when content is missing", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
       json: () => Promise.resolve({}),
     }));
     const result = await fetchAuthorCountry("Author", SESSION);

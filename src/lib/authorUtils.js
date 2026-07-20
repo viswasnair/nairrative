@@ -1,6 +1,5 @@
 import * as db from "./db";
-import { LLM_URL, claudeHeaders } from "./api";
-import { AI_MODELS } from "./aiClient";
+import { callAI, AI_MODELS } from "./aiClient";
 import { sanitizeShortInput } from "./textUtils";
 
 /**
@@ -10,14 +9,11 @@ import { sanitizeShortInput } from "./textUtils";
  */
 export async function fetchAuthorCountry(authorName, session) {
   try {
-    const res = await fetch(LLM_URL, {
-      method: "POST", headers: claudeHeaders(session),
-      body: JSON.stringify({
-        model: AI_MODELS.fast, max_tokens: 20,
-        messages: [{ role: "user", content: `What country is the author "${sanitizeShortInput(authorName)}" from? Reply with only the ISO 3166-1 short country name (e.g. "United Kingdom" not "UK", "United States" not "USA", "Czechia" not "Czech Republic"). If unknown, reply "Unknown".` }]
-      })
-    });
-    const data = await res.json();
+    const data = await callAI(
+      [{ role: "user", content: `What country is the author "${sanitizeShortInput(authorName)}" from? Reply with only the ISO 3166-1 short country name (e.g. "United Kingdom" not "UK", "United States" not "USA", "Czechia" not "Czech Republic"). If unknown, reply "Unknown".` }],
+      { model: AI_MODELS.fast, maxTokens: 20 },
+      session
+    );
     return data.content?.[0]?.text?.trim() || null;
   } catch { return null; }
 }

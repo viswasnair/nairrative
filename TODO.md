@@ -12,7 +12,6 @@ Tasks are added here as they come up in chat. Completed tasks are removed.
   - [ ] Containerize the API proxy (`api/claude.js` → Express app) and frontend for AWS deployment (ECS/App Runner + S3/CloudFront)
 - [ ] Support for movies
 - [ ] Relationship graph chart
-- [ ] Migrate all raw `fetch(LLM_URL)` callers to use `callAI` from `aiClient.js` (currently bypassed in `SeriesTab.jsx`, `useGenres.js`, `useBookAiFill.js`, `useChat.js`, `useRecs.js`)
 ---
 
 ## How this works

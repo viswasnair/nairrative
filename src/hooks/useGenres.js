@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import * as db from "../lib/db";
-import { LLM_URL, claudeHeaders } from "../lib/api";
+import { callAI, AI_MODELS } from "../lib/aiClient";
 import { sanitizeShortInput, fuzzyMatches } from "../lib/textUtils";
 
 export function useGenres({ session }) {
@@ -47,14 +47,11 @@ export function useGenres({ session }) {
     setNewGenreSaving(true);
     let color = "#a0a0a0";
     try {
-      const res = await fetch(LLM_URL, {
-        method: "POST", headers: claudeHeaders(session),
-        body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001", max_tokens: 16,
-          messages: [{ role: "user", content: `Pick a single hex color code that visually represents the "${sanitized}" book genre. Consider the mood and tone of the genre. Reply with only the hex code (e.g. #a29bfe), nothing else. Avoid colors already used for similar genres: ${Object.entries(genreMap).map(([g, c]) => g + ":" + c).join(", ")}` }]
-        })
-      });
-      const data = await res.json();
+      const data = await callAI(
+        [{ role: "user", content: `Pick a single hex color code that visually represents the "${sanitized}" book genre. Consider the mood and tone of the genre. Reply with only the hex code (e.g. #a29bfe), nothing else. Avoid colors already used for similar genres: ${Object.entries(genreMap).map(([g, c]) => g + ":" + c).join(", ")}` }],
+        { model: AI_MODELS.fast, maxTokens: 16 },
+        session
+      );
       const hex = data.content?.[0]?.text?.trim();
       if (/^#[0-9a-fA-F]{6}$/.test(hex)) color = hex;
     } catch { /* fallback to default */ }
