@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import G from "../constants/theme";
-import * as db from "../lib/db";
+import { getNewReleases, triggerReleasesCheck } from "../lib/db";
 
 export default function NewReleasesTab({ books, session }) {
   const [releases, setReleases] = useState([]);
@@ -14,7 +14,7 @@ export default function NewReleasesTab({ books, session }) {
 
   const fetchReleases = async () => {
     setLoading(true);
-    const { data } = await db.getNewReleases();
+    const { data } = await getNewReleases();
     setReleases(data || []);
     setLoading(false);
   };
@@ -22,7 +22,7 @@ export default function NewReleasesTab({ books, session }) {
   const refresh = async () => {
     setRefreshing(true);
     try {
-      await db.triggerReleasesCheck();
+      await triggerReleasesCheck();
       await fetchReleases();
       setLastChecked(new Date());
     } catch (e) {

@@ -1,6 +1,24 @@
 import G from "../constants/theme";
 
-// Computes raw aggregation counts from a books array.
+/**
+ * @typedef {Object} BookStats
+ * @property {number} total
+ * @property {Object} byYear
+ * @property {Object} byYearTracked
+ * @property {Object} byGenre
+ * @property {Object} byAuthor
+ * @property {Object} byCountry
+ * @property {Array} sortedAuthors
+ * @property {Array} sortedGenres
+ * @property {Array} sortedYears
+ * @property {number} readingSpan
+ */
+
+/**
+ * Computes raw aggregation counts from a books array.
+ * @param {import('./bookUtils').Book[]} books
+ * @returns {BookStats}
+ */
 export function computeStats(books) {
   const byYear = {}, byYearTracked = {}, byGenre = {}, byAuthor = {}, byCountry = {};
   books.forEach(b => {
@@ -47,7 +65,12 @@ function topGenreIn(books) {
   return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
 }
 
-// Derives higher-level reading insights from books + stats.
+/**
+ * Derives higher-level reading insights from books and pre-computed stats.
+ * @param {import('./bookUtils').Book[]} books
+ * @param {BookStats} stats
+ * @returns {object|null} Rich insights object, or null if books is empty
+ */
 export function computeAnalysisInsights(books, stats) {
   if (!books.length) return null;
 
@@ -68,11 +91,12 @@ export function computeAnalysisInsights(books, stats) {
   const graphicNovels = books.filter(b => (b.genre || []).includes("Graphic Novel")).length;
   const genreCount    = Object.keys(stats.byGenre).length;
   const era = (s, e) => books.filter(b => b.year >= s && b.year <= e);
+  const currentYear = new Date().getFullYear();
   const genreEra = [
     { era: "2010–14", top: topGenreIn(era(2010, 2014)) },
     { era: "2015–19", top: topGenreIn(era(2015, 2019)) },
     { era: "2020–24", top: topGenreIn(era(2020, 2024)) },
-    { era: "2025–26", top: topGenreIn(era(2025, 2026)) },
+    { era: `2025–${String(currentYear).slice(-2)}`, top: topGenreIn(era(2025, currentYear)) },
   ];
 
   // Geographic
@@ -132,7 +156,7 @@ export function computeAnalysisInsights(books, stats) {
          : y.count > yearAvg * 1.3 ? "Active year"
          : y.count < yearAvg * 0.5 ? "Quiet year"
          : null,
-  })).filter(y => y.label).sort((a, b) => b.books - a.books).slice(0, 5).sort((a, b) => a.year - b.year);
+  })).filter(y => y.label).sort((a, b) => b.books - a.books).slice(0, 5).sort((a, b) => Number(a.year) - Number(b.year));
 
   const topAuthorChannels = loyal.slice(0, 4).map(([author, count]) => ({
     channel: author, example: `${count} books read`, color: G.gold,

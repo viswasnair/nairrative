@@ -50,6 +50,27 @@ describe("buildLensPrompts", () => {
 
   it("handles null lastBook gracefully", () => {
     const prompts = buildLensPrompts({ ...BASE, lastBook: null });
-    expect(prompts["more-like"]).toContain("undefined");
+    expect(prompts["more-like"]).not.toContain("undefined");
+  });
+
+  it("strips control characters from lastBook title", () => {
+    const prompts = buildLensPrompts({ ...BASE, lastBook: { title: "Dune\x00\x01Evil" } });
+    // eslint-disable-next-line no-control-regex
+    expect(prompts["more-like"]).not.toMatch(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/);
+    expect(prompts["more-like"]).toContain("DuneEvil");
+  });
+
+  it("strips control characters from lastAuthor", () => {
+    const prompts = buildLensPrompts({ ...BASE, lastAuthor: "Herbert\x07Bad" });
+    // eslint-disable-next-line no-control-regex
+    expect(prompts["more-by-last"]).not.toMatch(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/);
+    expect(prompts["more-by-last"]).toContain("HerbertBad");
+  });
+
+  it("strips control characters from user input", () => {
+    const prompts = buildLensPrompts({ ...BASE, input: "Dune\x00Inject" });
+    // eslint-disable-next-line no-control-regex
+    expect(prompts["loved"]).not.toMatch(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/);
+    expect(prompts["loved"]).toContain("DuneInject");
   });
 });

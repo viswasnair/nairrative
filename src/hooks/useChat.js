@@ -30,11 +30,21 @@ export function useChat({ books, stats, analysisInsights, analysisAI, intentResu
   const [seriesLoading, setSeriesLoading] = useState(false);
   const [selectedSeries, setSelectedSeries] = useState("Wheel of Time");
   const chatEndRef = useRef(null);
+  const chatAbortRef = useRef(null);
+  const seriesAbortRef = useRef(null);
+
+  useEffect(() => () => {
+    chatAbortRef.current?.abort();
+    seriesAbortRef.current?.abort();
+  }, []);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   const sendChat = async () => {
     if (!chatInput.trim() || chatLoading) return;
+    chatAbortRef.current?.abort();
+    const controller = new AbortController();
+    chatAbortRef.current = controller;
     const userMsg = { role: "user", content: chatInput };
     const updated = [...messages, userMsg];
     setMessages(updated);
@@ -116,6 +126,7 @@ export function useChat({ books, stats, analysisInsights, analysisAI, intentResu
 
       const res = await fetch(LLM_URL, {
         method: "POST", headers: claudeHeaders(session),
+        signal: controller.signal,
         body: JSON.stringify({
           model: "claude-sonnet-4-6", max_tokens: 1200,
           system: `You are an insightful personal reading assistant with full access to the user's reading database, AI analysis, and recommendations. Use the data below to answer questions accurately and specifically.
@@ -143,19 +154,27 @@ Formatting rules: Write in clean, natural prose. Do not use markdown syntax — 
       });
       const data = await res.json();
       if (data.error) console.error("Chat API error:", data.error);
-      setMessages(prev => [...prev, { role: "assistant", content: data.content?.[0]?.text || "Sorry, try again." }]);
-    } catch { setMessages(prev => [...prev, { role: "assistant", content: "Connection error. Please try again." }]); }
-    finally { setChatLoading(false); }
+      if (!controller.signal.aborted)
+        setMessages(prev => [...prev, { role: "assistant", content: data.content?.[0]?.text || "Sorry, try again." }]);
+    } catch (e) {
+      if (e.name !== "AbortError")
+        setMessages(prev => [...prev, { role: "assistant", content: "Connection error. Please try again." }]);
+    }
+    finally { if (!controller.signal.aborted) setChatLoading(false); }
   };
 
   const generateSeriesRecap = async (seriesName) => {
     if (!seriesName || seriesLoading) return;
+    seriesAbortRef.current?.abort();
+    const controller = new AbortController();
+    seriesAbortRef.current = controller;
     setSeriesLoading(true);
     setSeriesRecap(null);
     const seriesBks = books.filter(b => b.series === seriesName).sort((a, b) => (a.id - b.id));
     try {
       const res = await fetch(LLM_URL, {
         method: "POST", headers: claudeHeaders(session),
+        signal: controller.signal,
         body: JSON.stringify({
           model: "claude-haiku-4-5-20251001", max_tokens: 800,
           system: `You are a literary companion helping a reader catch up on a book series. Write engaging recaps — key characters, major plot turns, how each book ends. Keep each book recap to 2–3 sentences. Be concise.`,
@@ -164,12 +183,14 @@ Formatting rules: Write in clean, natural prose. Do not use markdown syntax — 
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setSeriesRecap({ series: seriesName, books: seriesBks, text: data.content?.[0]?.text || "Could not generate recap." });
+      if (!controller.signal.aborted)
+        setSeriesRecap({ series: seriesName, books: seriesBks, text: data.content?.[0]?.text || "Could not generate recap." });
     } catch (e) {
+      if (e.name === "AbortError") return;
       console.error("generateSeriesRecap error:", e);
       setSeriesRecap({ series: seriesName, books: seriesBks, text: "Could not generate recap. Please try again." });
     }
-    finally { setSeriesLoading(false); }
+    finally { if (!controller.signal.aborted) setSeriesLoading(false); }
   };
 
   return {

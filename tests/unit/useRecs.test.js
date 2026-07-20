@@ -6,7 +6,7 @@
  * using onConflict: "user_id".
  */
 
-import { vi, describe, it, expect, beforeEach } from 'vitest'
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { supabase } from '../../src/lib/supabase'
 import { useRecs } from '../../src/hooks/useRecs'
@@ -208,5 +208,128 @@ describe('useRecs — saveRecsToSupabase (via fetchIntentRecs)', () => {
     await flushPromises()
 
     expect(supabase.from).toHaveBeenCalledWith('recs_cache')
+  })
+})
+
+// ── Tests: already-read enforcement + cross-panel dedup ──────────────────────
+
+describe('useRecs — already-read enforcement', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+    supabase.auth.getSession.mockResolvedValue({ data: { session: null } })
+    makeFromMock()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('retries when AI returns an already-read book and stores first unread pick', async () => {
+    const alreadyRead = [{ title: 'Dune', author: 'Frank Herbert', year: 1965, reason: 'Classic.' }]
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ content: [{ type: 'text', text: JSON.stringify(alreadyRead) }] }) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ content: [{ type: 'text', text: JSON.stringify(MOCK_REC) }] }) })
+    )
+
+    const { result } = renderHook(() => useRecs(DEFAULT_PROPS))
+    await act(async () => { await result.current.fetchIntentRecs('loved', 'test') })
+    await flushPromises()
+
+    expect(result.current.intentResults['loved']?.[0].title).toBe('Foundation')
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('stores "no unread match" message after 3 retries all return already-read books', async () => {
+    const alreadyRead = [{ title: 'Dune', author: 'Frank Herbert', year: 1965, reason: 'Classic.' }]
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ content: [{ type: 'text', text: JSON.stringify(alreadyRead) }] }),
+    }))
+
+    const { result } = renderHook(() => useRecs(DEFAULT_PROPS))
+    await act(async () => { await result.current.fetchIntentRecs('loved', 'test') })
+    await flushPromises()
+
+    expect(result.current.intentResults['loved']?.[0].title).toBe('No unread match found')
+    // initial fetch + 3 retry attempts = 4 total
+    expect(fetch).toHaveBeenCalledTimes(4)
+  })
+
+  it('filters already-read books from cache when loading on recs tab', async () => {
+    // 'Dune' is in BOOKS (already read); 'Foundation' is not
+    const cached = {
+      'more-like': [{ title: 'Dune', author: 'Frank Herbert', reason: 'Already read.' }],
+      'trending':  [{ title: 'Foundation', author: 'Isaac Asimov', reason: 'Unread.' }],
+    }
+    localStorage.setItem('nairrative_recs_fp', 'fp-recs')
+    localStorage.setItem('nairrative_recs', JSON.stringify(cached))
+
+    const { result } = renderHook(() => useRecs({ ...DEFAULT_PROPS, activeTab: 'recs' }))
+    await act(async () => { await flushPromises() })
+
+    // Dune is filtered from 'more-like'; seed data fills the gap — confirm it isn't Dune
+    expect(result.current.intentResults['more-like']?.[0].title).not.toBe('Dune')
+    // Foundation is unread — it should survive the filter
+    expect(result.current.intentResults['trending']?.[0].title).toBe('Foundation')
+  })
+
+  it('deduplicates across panels when loading from cache — first panel wins', async () => {
+    const cached = {
+      'more-like': [{ title: 'Foundation', author: 'Isaac Asimov', reason: 'First claim.' }],
+      'trending':  [{ title: 'Foundation', author: 'Isaac Asimov', reason: 'Duplicate.' }],
+    }
+    localStorage.setItem('nairrative_recs_fp', 'fp-recs')
+    localStorage.setItem('nairrative_recs', JSON.stringify(cached))
+
+    const { result } = renderHook(() => useRecs({ ...DEFAULT_PROPS, activeTab: 'recs' }))
+    await act(async () => { await flushPromises() })
+
+    // 'more-like' claimed Foundation first — it should keep it
+    expect(result.current.intentResults['more-like']?.[0].title).toBe('Foundation')
+    // 'trending' had a duplicate — it's dropped and seed fills the gap; confirm it isn't Foundation
+    expect(result.current.intentResults['trending']?.[0].title).not.toBe('Foundation')
+  })
+})
+
+// ── Tests: abort / race conditions ────────────────────────────────────────────
+
+describe('useRecs — abort and race condition handling', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+    supabase.auth.getSession.mockResolvedValue({ data: { session: null } })
+    makeFromMock()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('AbortError from fetch is silently swallowed — no error entry in intentResults', async () => {
+    const abortError = new DOMException('The user aborted a request.', 'AbortError')
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(abortError))
+
+    const { result } = renderHook(() => useRecs(DEFAULT_PROPS))
+    await act(async () => { await result.current.fetchIntentRecs('loved', 'Dune') })
+    await flushPromises()
+
+    expect(result.current.intentResults['loved']?.some(r => r.title === 'Could not load')).toBeFalsy()
+  })
+
+  it('unmounting the hook aborts any pending intent fetch requests', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise(() => {})))
+
+    const { result, unmount } = renderHook(() => useRecs(DEFAULT_PROPS))
+    act(() => { void result.current.fetchIntentRecs('loved', 'Dune') })
+
+    // Flush microtasks so supabase.auth.getSession() resolves and fetch gets called
+    await act(async () => { await flushPromises() })
+
+    const signal = fetch.mock.calls[0]?.[1]?.signal
+    expect(signal).toBeDefined()
+
+    unmount()
+    expect(signal.aborted).toBe(true)
   })
 })

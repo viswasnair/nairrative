@@ -221,4 +221,86 @@ describe('OverviewTab', () => {
     setup({ onChartClick })
     expect(screen.getByText('Books Read')).toBeTruthy()
   })
+
+  describe('chart data computation', () => {
+    it('Format Breakdown legend renders format names derived from book data', () => {
+      setup()
+      // BOOKS has 3 Novels and 2 Non-Fiction — both should appear in the legend
+      expect(screen.getAllByText('Novel').length).toBeGreaterThan(0)
+      // 'Non-Fiction' also appears in the Fiction/Non-Fiction stacked area legend
+      expect(screen.getAllByText('Non-Fiction').length).toBeGreaterThan(0)
+    })
+
+    it('Archetype Distribution legend renders archetype names when books have archetypes', () => {
+      const booksWithArchetype = BOOKS.map((b, i) => ({
+        ...b, archetype: i < 4 ? "Hero's Journey" : 'Quest',
+      }))
+      setup({ books: booksWithArchetype })
+      expect(screen.getAllByText("Hero's Journey").length).toBeGreaterThan(0)
+      expect(screen.getByText('Quest')).toBeTruthy()
+    })
+
+    it('Archetype Distribution legend has no entries when no books have archetypes', () => {
+      setup() // base BOOKS have no archetype field
+      expect(screen.queryByText("Hero's Journey")).toBeNull()
+      expect(screen.queryByText('Quest')).toBeNull()
+    })
+
+    it('Genre Evolution legend shows top genres derived from book genre arrays', () => {
+      setup()
+      // Science Fiction appears in 3 of 5 BOOKS — it should be in geTop5 legend
+      expect(screen.getAllByText('Science Fiction').length).toBeGreaterThan(0)
+    })
+
+    it('Mood Over Time legend renders top moods when books have a mood field', () => {
+      const booksWithMood = BOOKS.map((b, i) => ({
+        ...b, mood: i < 3 ? 'Reflective' : 'Optimistic',
+      }))
+      setup({ books: booksWithMood })
+      // mtTopMoods should include both moods in the legend
+      expect(screen.getAllByText('Reflective').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('Optimistic').length).toBeGreaterThan(0)
+    })
+
+    it('Mood Over Time legend is empty when no books have a mood field', () => {
+      setup() // base BOOKS have no mood
+      expect(screen.queryByText('Reflective')).toBeNull()
+      expect(screen.queryByText('Optimistic')).toBeNull()
+    })
+
+    it('getChartRange is called for every chart section on render', () => {
+      const fn = vi.fn().mockImplementation(getChartRange)
+      setup({ getChartRange: fn })
+      const calledIds = fn.mock.calls.map(c => c[0])
+      ;['yc', 'fn', 'ge', 'al', 'mt', 'gc', 'ac', 'co'].forEach(id => {
+        expect(calledIds).toContain(id)
+      })
+    })
+
+    it('chart data recomputes when books prop changes', () => {
+      const props = {
+        books: BOOKS,
+        stats: STATS,
+        genreMap: { 'Science Fiction': '#4a9eff', History: '#c9a84c', Psychology: '#c3a6ff', Mystery: '#e06c75' },
+        allYearsList: ALL_YEARS,
+        allYearsListFull: ALL_YEARS,
+        chartRanges: {},
+        getChartRange: vi.fn(getChartRange),
+        setChartRange: vi.fn(),
+      }
+      const { rerender } = render(<OverviewTab {...props} />)
+      // Mystery not in any original BOOK genre arrays
+      expect(screen.queryByText('Mystery')).toBeNull()
+
+      // Add a book with Mystery genre
+      const newBooks = [...BOOKS, {
+        id: 6, title: 'Sherlock', author: 'Arthur Doyle', year: 2023,
+        year_read_start: 2023, year_read_end: 2023, pages: 300,
+        fiction: true, genre: ['Mystery'], format: 'Novel', country: 'United Kingdom',
+      }]
+      rerender(<OverviewTab {...props} books={newBooks} stats={{ ...STATS, total: 6 }} getChartRange={vi.fn(getChartRange)} />)
+      // Mystery should now appear in the Genre Evolution legend
+      expect(screen.getAllByText('Mystery').length).toBeGreaterThan(0)
+    })
+  })
 })

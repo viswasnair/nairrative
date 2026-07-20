@@ -22,14 +22,15 @@ SELECT lives_ok(
   'anon role: UPDATE on books runs without error (USING clause silently filters all rows)'
 );
 
--- ── 3. Anon cannot DELETE from books ─────────────────────────────────────────
--- DELETE with RLS should silently affect 0 rows (not throw), but anon should see no rows
+-- ── 3. Anon sees 0 rows in an empty test DB ───────────────────────────────────
+-- RLS allows anon to read books owned by the hardcoded owner UUID; with no data
+-- inserted yet the count is 0.  In production, anon sees the owner's books.
 RESET role;
 SET LOCAL role TO anon;
 SELECT is(
   (SELECT count(*)::int FROM public.books),
   0,
-  'anon role: SELECT on books returns 0 rows (RLS filters all)'
+  'anon role: SELECT on books returns 0 rows (no owner-UUID books in test data)'
 );
 
 -- ── 4. Authenticated user can only SELECT their own rows ──────────────────────

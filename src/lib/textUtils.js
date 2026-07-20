@@ -1,6 +1,11 @@
 // ── Text / input utilities ────────────────────────────────────────────────
 // Extracted here so they can be unit-tested independently of the hook.
 
+/**
+ * @param {string} a
+ * @param {string} b
+ * @returns {number}
+ */
 export function levenshtein(a, b) {
   const m = a.length, n = b.length;
   const dp = [];
@@ -12,18 +17,32 @@ export function levenshtein(a, b) {
   return dp[m][n];
 }
 
-// Strip control chars (except \n/\t) and truncate — for free-form inputs sent to Claude
+/**
+ * Strips control chars (except \n/\t) and truncates — for free-form inputs sent to Claude.
+ * @param {string} str
+ * @param {number} [max]
+ * @returns {string}
+ */
 export function sanitizePromptInput(str, max = 500) {
   // eslint-disable-next-line no-control-regex
   return str.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "").slice(0, max).trim();
 }
 
-// Strip ALL control chars including newlines and truncate — for short structured fields
+/**
+ * Strips ALL control chars including newlines and truncates — for short structured fields.
+ * @param {string} str
+ * @param {number} [max]
+ * @returns {string}
+ */
 export function sanitizeShortInput(str, max = 100) {
   // eslint-disable-next-line no-control-regex
   return str.replace(/[\x00-\x1f\x7f]/g, "").slice(0, max).trim();
 }
 
+/**
+ * @param {string|null|undefined} url
+ * @returns {string|null}
+ */
 export function sanitizeCoverUrl(url) {
   if (!url) return null;
   try {
@@ -32,6 +51,11 @@ export function sanitizeCoverUrl(url) {
   } catch { return null; }
 }
 
+/**
+ * @param {string} input
+ * @param {string[]} list
+ * @returns {string[]}
+ */
 export function fuzzyMatches(input, list) {
   if (!input || !list.length) return [];
   const lower = input.toLowerCase().trim();

@@ -12,10 +12,6 @@ Tasks are added here as they come up in chat. Completed tasks are removed.
   - [ ] Containerize the API proxy (`api/claude.js` → Express app) and frontend for AWS deployment (ECS/App Runner + S3/CloudFront)
 - [ ] Support for movies
 - [ ] Relationship graph chart
-## Security (red teaming)
-
-- [ ] Create a dedicated Supabase test account for Playwright tests — currently `.env.local` holds the real login credential; tests should run against a blank account that sets up and tears down its own data.
-
 ---
 
 ## How this works

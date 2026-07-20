@@ -19,13 +19,13 @@ beforeEach(() => { vi.clearAllMocks(); });
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe("AI_MODELS", () => {
-  it("exports non-empty strings for fast, balanced, smart", () => {
+  it("exports non-empty strings for fast, standard, quality", () => {
     expect(typeof AI_MODELS.fast).toBe("string");
     expect(AI_MODELS.fast.length).toBeGreaterThan(0);
-    expect(typeof AI_MODELS.balanced).toBe("string");
-    expect(AI_MODELS.balanced.length).toBeGreaterThan(0);
-    expect(typeof AI_MODELS.smart).toBe("string");
-    expect(AI_MODELS.smart.length).toBeGreaterThan(0);
+    expect(typeof AI_MODELS.standard).toBe("string");
+    expect(AI_MODELS.standard.length).toBeGreaterThan(0);
+    expect(typeof AI_MODELS.quality).toBe("string");
+    expect(AI_MODELS.quality.length).toBeGreaterThan(0);
   });
 
   it("exports distinct model strings", () => {

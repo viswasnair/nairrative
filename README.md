@@ -5,7 +5,7 @@ A personal reading dashboard that turns a book list into a living portrait of yo
 ## Features
 
 - **Overview** — 8 interactive charts (reading activity, genre breakdown, author origins, fiction/non-fiction split, genre evolution, avg book length, format breakdown) with filterable date ranges, and 9 KPI cards
-- **Library** — Filterable, sortable table of all books with CSV/JSON export
+- **Library** — Filterable, sortable table of all books with CSV/JSON export; subtabs for a visual cover bookshelf and new releases
 - **Analysis** — 8 AI-powered insight panels with customisable prompts and per-panel regeneration (see panel list below)
 - **Recommendations** — 15 discovery lenses (more like last book, trending, challenge me, by mood, by genre, pair with a film, and more) — one curated pick each
 - **Series** — AI catch-up recaps for any series in your library
@@ -77,6 +77,7 @@ ANTHROPIC_API_KEY
 |-------|-----------|
 | UI | React 19 + Vite |
 | Charts | Recharts |
+| Virtualization | @tanstack/react-virtual (LibraryTab row recycling) |
 | Database | Supabase (PostgreSQL + Auth) |
 | AI | Anthropic Claude API via Vercel Edge Function |
 | Fonts | Playfair Display, DM Sans (Google Fonts) |
@@ -91,32 +92,46 @@ src/
     useBooks.js        # Book CRUD, modal, AI fill
     useAnalysis.js     # Analysis panels + caching
     useRecs.js         # 15-lens recommendations + caching
+    useChat.js         # Conversational AI chat
+    useLibraryFilters.js  # Library filter state
+    useAuth.js         # Session + login modal
+  contexts/
+    BookActionsContext.jsx  # Book action callbacks for BookModal
   components/
     OverviewTab.jsx
-    LibraryTab.jsx
+    LibraryTab.jsx     # Virtualized book table
     AnalysisTab.jsx
     RecsTab.jsx
     SeriesTab.jsx
     ChatTab.jsx
+    BookshelfTab.jsx   # Library subtab: visual cover grid
+    NewReleasesTab.jsx # Library subtab: new releases
     BookModal.jsx
+    BookCover.jsx      # Cover image with OpenLibrary picker
+    RatingFlashcard.jsx  # Bulk-rating flashcard queue
+    ErrorBoundary.jsx  # Per-tab crash isolation
     MultiSelect.jsx
     RangeFilter.jsx
     DarkTooltip.jsx
   constants/
     theme.js           # Colour tokens
-    config.js          # Tabs, prompts, defaults
+    config.js          # Tabs, prompts, model tiers, defaults
     seeds.js           # Fallback data for logged-out users
   lib/
+    aiClient.js        # callAI() — AI fetch adapter (swap LLM provider here)
+    db.js              # All Supabase data access (swap backend here)
+    auth.js            # Auth adapter (swap auth provider here)
+    bookSearch.js      # OpenLibrary cover search adapter
     bookUtils.js       # Context builder, CSV/JSON export, stripMd utility
     textUtils.js       # levenshtein, fuzzyMatches, sanitize helpers
     supabase.js        # Supabase client
-    api.js             # Shared CLAUDE_URL + claudeHeaders(session)
+    api.js             # LLM_URL + claudeHeaders(session)
 api/
   claude.js            # Vercel Edge Function → Anthropic API proxy
   lib/
     apiUtils.js        # corsHeaders, checkRateLimit, verifyJWT (edge-safe)
 tests/
-  unit/                # Vitest unit + component tests (138 tests)
+  unit/                # Vitest unit + component tests (543 tests)
   e2e/                 # Playwright end-to-end tests
 supabase/
   tests/               # pgTAP RLS tests (run via npm run test:db)
@@ -130,8 +145,9 @@ npm run dev             # Vite dev server
 npm run build           # Production build
 npm run lint            # ESLint
 npm run audit:ci        # Dependency vulnerability check (also runs on every Vercel deploy)
-npm run test:unit       # Vitest unit + component tests (~5 s, no browser)
+npm run test:unit       # Vitest unit + component tests (~8 s, no browser)
 npm run test:coverage   # Same with v8 coverage report + per-file thresholds
+npm run type:check      # TypeScript type-check (checkJs) on src/lib — no emit
 npm run test:db         # pgTAP RLS tests against linked Supabase project (no Docker needed)
 npm run test:security   # Playwright security regression tests against deployed URL
 ```
@@ -172,6 +188,8 @@ Supabase RLS enforces row-level ownership on all tables — unauthenticated requ
 ## Database Schema
 
 Full DDL including all tables, constraints, and RLS policies is in [`supabase/schema.sql`](supabase/schema.sql).
+
+Core tables: `books`, `authors`, `book_authors`, `genres`, `analysis_cache`, `recs_cache`, `panel_prompts`. The `new_releases` table is populated by a Supabase Edge Function (`check-releases`) and surfaces curated recent releases in the Library → New Releases subtab.
 
 ## Analysis Panels
 
