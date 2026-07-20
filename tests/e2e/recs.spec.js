@@ -77,7 +77,7 @@ test.describe('Recommendations — panels loading and refreshing', () => {
     // Wait for mock to resolve
     await expect(firstAutoLens.locator('.pulse').first()).not.toBeVisible({ timeout: 15_000 });
     // Should now show the mock recommendation title
-    await expect(firstAutoLens).toContainText('The Name of the Wind', { timeout: 5_000 });
+    await expect(firstAutoLens).toContainText('The Ember Cartographer', { timeout: 5_000 });
     await logout(page);
   });
 
@@ -98,7 +98,7 @@ test.describe('Recommendations — panels loading and refreshing', () => {
 
     // Should show loading skeleton then result
     await expect(lovedLens.locator('.pulse').first()).toBeVisible({ timeout: 5_000 });
-    await expect(lovedLens).toContainText('The Name of the Wind', { timeout: 15_000 });
+    await expect(lovedLens).toContainText('The Ember Cartographer', { timeout: 15_000 });
     await logout(page);
   });
 
@@ -117,7 +117,7 @@ test.describe('Recommendations — panels loading and refreshing', () => {
 
     // Should trigger a fetch
     await expect(genreLens.locator('.pulse').first()).toBeVisible({ timeout: 5_000 });
-    await expect(genreLens).toContainText('The Name of the Wind', { timeout: 15_000 });
+    await expect(genreLens).toContainText('The Ember Cartographer', { timeout: 15_000 });
     await logout(page);
   });
 });

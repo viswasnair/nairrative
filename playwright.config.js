@@ -29,6 +29,14 @@ export default defineConfig({
     // Allow enough time for Supabase + AI calls
     actionTimeout: 15_000,
     navigationTimeout: 30_000,
+    // Bypass Vercel Deployment Protection when testing against a preview URL
+    // (see Vercel project settings → Deployment Protection → Protection Bypass for Automation)
+    ...(process.env.VERCEL_AUTOMATION_BYPASS_SECRET ? {
+      extraHTTPHeaders: {
+        'x-vercel-protection-bypass': process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
+        'x-vercel-set-bypass-cookie': 'true',
+      },
+    } : {}),
   },
   projects: [
     {
