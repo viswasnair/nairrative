@@ -58,6 +58,22 @@ describe('db.getBooks', () => {
     expect(chain.eq).not.toHaveBeenCalled()
     expect(chain.order).toHaveBeenCalledWith('id')
   })
+
+  it('public column list includes every field the Overview/Analysis UI reads from books', () => {
+    const chain = makeChain()
+    supabase.from.mockReturnValue(chain)
+
+    db.getBooks(null)
+
+    const selectArg = chain.select.mock.calls[0][0]
+    // These drive OverviewTab's bottom-row charts and last-3 KPI tiles
+    // (Mood Breakdown, Archetype Distribution, Top Themes, Mood Over Time).
+    // Regression guard for a bug where logged-out visitors saw all of them blank
+    // because PUBLIC_COLS silently omitted these columns.
+    for (const field of ['mood', 'archetype', 'theme']) {
+      expect(selectArg).toMatch(new RegExp(`(^|,\\s*)${field}(,|\\s*$)`))
+    }
+  })
 })
 
 describe('db.insertBook', () => {
