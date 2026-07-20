@@ -3,8 +3,8 @@ import { supabase } from "../lib/supabase";
 import { buildBookContext, toRow } from "../lib/bookUtils";
 import { SEED_RECS } from "../constants/seeds";
 import { AUTO_RECS } from "../constants/config";
-import { AI_MODELS } from "../lib/aiClient";
-import { LLM_URL, claudeHeaders, INTER_REQUEST_DELAY_MS } from "../lib/api";
+import { callAI, AI_MODELS } from "../lib/aiClient";
+import { INTER_REQUEST_DELAY_MS } from "../lib/api";
 import { loadCachedData, saveCachedData } from "../lib/aiCache";
 import { buildLensPrompts } from "../lib/recsPrompts";
 
@@ -112,15 +112,13 @@ export function useRecs({ books, booksFingerprint, activeTab, readTitlesString }
         : "";
       const useWebSearch = intentId === "trending" || intentId === "pair";
       const fullList = books.map(toRow).join("\n");
-      const body = {
-        model: AI_MODELS.fast, max_tokens: 400,
+      const options = {
+        model: AI_MODELS.fast, maxTokens: 400, signal: controller.signal,
         system: `You are a precise book recommendation engine. Today is ${today}. Reader history:\n${buildBookContext(books)}\n\nFULL BOOK LIST (${books.length} books):\n${fullList}\n\nDo NOT recommend any of these already-read titles: ${readTitlesString}.${crossPanelNote}\nOnly recommend unread books published up to ${today}.\n\n${prompts[intentId] || input}\n\nReturn ONLY a JSON array — no markdown, no explanation. Exactly 1 item. Format: [{"title": "...", "author": "...", "year": 2024, "reason": "1-2 sentences why it fits this reader"}].`,
-        messages: [{ role: "user", content: "JSON array only." }],
       };
-      if (useWebSearch) body.tools = [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }];
+      if (useWebSearch) options.tools = [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }];
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(LLM_URL, { method: "POST", headers: claudeHeaders(session), body: JSON.stringify(body), signal: controller.signal });
-      const data = await res.json();
+      const data = await callAI([{ role: "user", content: "JSON array only." }], options, session);
       if (data.error) { console.error("claude api error:", data.error); throw new Error("api_error"); }
       const txt = (data.content || []).filter(c => c.type === "text").map(c => c.text).join("");
       const m = txt.match(/\[[\s\S]*?\]/);

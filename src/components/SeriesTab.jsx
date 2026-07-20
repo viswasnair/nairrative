@@ -1,6 +1,6 @@
 import { useState } from "react";
 import G from "../constants/theme";
-import { LLM_URL, claudeHeaders } from "../lib/api";
+import { callAI, AI_MODELS } from "../lib/aiClient";
 
 export default function SeriesTab({ books, session, selectedSeries, setSelectedSeries, seriesRecap, setSeriesRecap, seriesLoading, generateSeriesRecap }) {
   const [customInput, setCustomInput] = useState("");
@@ -16,19 +16,18 @@ export default function SeriesTab({ books, session, selectedSeries, setSelectedS
     setCustomLoading(true);
     setCustomRecap(null);
     try {
-      const res = await fetch(LLM_URL, {
-        method: "POST",
-        headers: claudeHeaders(session),
-        body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001", max_tokens: 800,
+      const data = await callAI(
+        [{ role: "user", content: `Please give me a recap of "${customInput.trim()}". Include key characters, major plot points, central themes, and the most important things to remember.` }],
+        {
+          model: AI_MODELS.fast, maxTokens: 800,
           system: "You are a literary companion helping a reader recall a book or series. Write an engaging recap covering key characters, major plot turns, central themes, and what's most important to remember. Be concise but thorough.",
-          messages: [{ role: "user", content: `Please give me a recap of "${customInput.trim()}". Include key characters, major plot points, central themes, and the most important things to remember.` }]
-        })
-      });
-      const data = await res.json();
+        },
+        session
+      );
       setCustomRecap(data.content?.[0]?.text || "Could not generate recap.");
     } catch (e) {
-      setCustomRecap(`Error: ${e?.message || "Unknown error"}`);
+      console.error("generateCustomRecap error:", e);
+      setCustomRecap("Something went wrong. Please try again.");
     } finally {
       setCustomLoading(false);
     }
