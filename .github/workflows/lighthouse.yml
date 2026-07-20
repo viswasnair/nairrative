@@ -20,11 +20,14 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           max_timeout: 300
+          vercel_protection_bypass_header: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
 
       - name: Run Lighthouse against preview URL
         uses: treosh/lighthouse-ci-action@v12
         with:
-          urls: ${{ steps.preview.outputs.url }}
+          # Bypass Vercel Deployment Protection via query params (see playwright.config.js
+          # for the header-based equivalent used by the E2E/security test runs).
+          urls: ${{ steps.preview.outputs.url }}?x-vercel-protection-bypass=${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}&x-vercel-set-bypass-cookie=true
           uploadArtifacts: true
           temporaryPublicStorage: true
           budgetPath: .github/lighthouse-budget.json
