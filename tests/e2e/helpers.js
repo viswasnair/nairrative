@@ -68,8 +68,11 @@ export async function mockClaudeAPI(page) {
       system.includes('unread books')
     ) {
       // Book recommendations — single item array
+      // NOTE: title must not exist in the seeded test library (checked case-insensitively
+      // against book titles in useRecs.js), or the app's already-read filter will correctly
+      // reject it and show "No unread match found" instead.
       responseText =
-        '[{"title":"The Name of the Wind","author":"Patrick Rothfuss","year":2007,"reason":"A perfect match for your love of immersive epic fantasy with rich world-building and a compelling protagonist."}]';
+        '[{"title":"The Ember Cartographer","author":"Selin Voss","year":2019,"reason":"A perfect match for your love of immersive epic fantasy with rich world-building and a compelling protagonist."}]';
     } else if (
       system.includes('book database assistant') ||
       system.includes('identify the exact book') ||
