@@ -1,3 +1,17 @@
+Looking at the diff, I need to assess what's architecturally significant:
+
+1. **`api/health.js`** — new endpoint added (new API surface)
+2. **`api/lib/apiUtils.js`** — new `checkOrigin` function exported and used in `claude.js`; rate limit now fails closed instead of open (behavioral change worth noting)
+3. **`api/claude.js`** — uses new `checkOrigin`; adds message validation
+4. **`src/App.jsx`** — imports `ErrorBoundary`, `BookActionsContext`, `AnalysisContext`, `RecsContext`, `LibraryFiltersContext` — but looking at the current diagrams, these are already represented in the System Layers diagram (the contexts and ErrorBoundary are already there)
+
+The `api/health.js` endpoint is a new external-facing API route, which is an architectural addition. The `checkOrigin` function is a new security utility added to `apiUtils.js`. These warrant updating the System Layers diagram to reflect the new health endpoint and the updated `apiUtils.js` exports.
+
+The rate-limit behavior change (fails closed vs. open) is worth capturing in the sequence diagram comment/note area since it's a meaningful security policy change.
+
+The `src/App.jsx` changes (contexts, ErrorBoundary) are already represented in the current diagrams.
+
+```markdown
 # Architecture
 
 Three diagrams covering different levels of the system.
@@ -49,11 +63,13 @@ flowchart TD
     end
 
     subgraph Vercel["Vercel Edge Function"]
-        proxy["api/claude.js\nCORS · JWT verify · rate limit\nmodel allowlist · provider routing"]
-        apiUtils["apiUtils.js\ncorsHeaders · verifyJWT · checkRateLimit"]
+        proxy["api/claude.js\nCORS · origin check · JWT verify\nrate limit · model allowlist\nprovider routing · message validation"]
+        health["api/health.js\nliveness probe"]
+        apiUtils["apiUtils.js\ncorsHeaders · checkOrigin · verifyJWT\ncheckRateLimit (fails closed)"]
         providers["providers.js\nAnthropic · OpenAI normalisation"]
         proxy --> apiUtils
         proxy --> providers
+        health
     end
 
     subgraph SupabaseCloud["Supabase"]
@@ -174,7 +190,8 @@ sequenceDiagram
             H->>LS: sync to localStorage
         else full miss
             H->>Edge: POST /api/claude<br/>{ model, messages, system, max_tokens }<br/>Authorization: Bearer <token>
-            Edge->>JWKS: verify JWT signature
+            Edge->>Edge: checkOrigin (validate request origin)
+            Edge->>JWKS: verify JWT signature + algorithm family
             JWKS-->>Edge: claims (sub, exp)
             Edge->>Redis: INCR rl:{sub} (30 req / 60 s)
             Redis-->>Edge: count OK
@@ -192,3 +209,8 @@ sequenceDiagram
 > Any add, edit, or delete changes the fingerprint and invalidates both caches.
 >
 > **Sequential pacing** — `useAnalysis` calls the edge function once per panel with an 8-second inter-request delay (`INTER_REQUEST_DELAY_MS`) to respect Anthropic rate limits.
+>
+> **Rate limit fail-closed** — if Upstash Redis is unreachable, `checkRateLimit` blocks the request rather than allowing it through.
+>
+> **Origin validation** — `checkOrigin` runs on every request to `api/claude.js`; mismatches are logged but do not independently block the response (CORS headers govern browser-level enforcement).
+```

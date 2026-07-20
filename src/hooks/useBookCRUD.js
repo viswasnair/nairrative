@@ -14,7 +14,6 @@ export const makeDraft = () => ({
   fiction: true,
   series: "",
   pages: "",
-  notes: "",
   cover_url: "",
   rating: "",
   description: "",
@@ -64,7 +63,6 @@ export function useBookCRUD({ session, books, setBooks, bookDraft, setBookDraft,
       fiction: b.fiction !== false,
       series: b.series || "",
       pages: b.pages ? String(b.pages) : "",
-      notes: b.notes || "",
       cover_url: b.cover_url || "",
       rating: b.rating || "",
       description: b.description || "",
@@ -102,7 +100,7 @@ export function useBookCRUD({ session, books, setBooks, bookDraft, setBookDraft,
   };
 
   const saveBook = async () => {
-    const { title, authors, genres: draftGenres, yearStart, yearEnd, format, fiction, series, pages, notes, cover_url, rating, description, mood, narrative_style, setting_era, archetype, theme } = bookDraft;
+    const { title, authors, genres: draftGenres, yearStart, yearEnd, format, fiction, series, pages, cover_url, rating, description, mood, narrative_style, setting_era, archetype, theme } = bookDraft;
     if (!title.trim() || !authors[0]?.name?.trim()) { setBookMsg("Title and at least one author are required."); return; }
 
     const saveSuggestions = authors.map(a => {
@@ -126,7 +124,7 @@ export function useBookCRUD({ session, books, setBooks, bookDraft, setBookDraft,
         const { error } = await db.updateBook(editingBook.id, {
           title: title.trim(), year_read_start: ys, year_read_end: ye,
           genre: draftGenres, format, fiction, series: series || "",
-          pages: pages ? parseInt(pages) : null, notes: notes || "",
+          pages: pages ? parseInt(pages) : null,
           cover_url: sanitizeCoverUrl(cover_url),
           rating: rating || null, description: description || "",
           mood: mood || null, narrative_style: narrative_style || null,
@@ -136,7 +134,7 @@ export function useBookCRUD({ session, books, setBooks, bookDraft, setBookDraft,
         if (error) throw error;
         await db.deleteBookAuthors(editingBook.id);
         const updatedAuthors = await resolveAuthorLinks(authors, editingBook.id, session);
-        const normalized = normalizeBook({ ...editingBook, title: title.trim(), year_read_start: ys, year_read_end: ye, genre: draftGenres, format, fiction, series, pages: pages ? parseInt(pages) : null, notes, cover_url: sanitizeCoverUrl(cover_url), rating: rating || null, description: description || "", book_authors: updatedAuthors });
+        const normalized = normalizeBook({ ...editingBook, title: title.trim(), year_read_start: ys, year_read_end: ye, genre: draftGenres, format, fiction, series, pages: pages ? parseInt(pages) : null, cover_url: sanitizeCoverUrl(cover_url), rating: rating || null, description: description || "", book_authors: updatedAuthors });
         setBooks(prev => prev.map(b => b.id === editingBook.id ? normalized : b));
         const updatedNames = authors.map(a => a.name.trim()).filter(n => n && !authorList.includes(n));
         if (updatedNames.length) setAuthorList(prev => [...new Set([...prev, ...updatedNames])].sort());
@@ -146,7 +144,7 @@ export function useBookCRUD({ session, books, setBooks, bookDraft, setBookDraft,
           user_id: session.user.id,
           title: title.trim(), year_read_start: ys, year_read_end: ye,
           genre: draftGenres, format, fiction, series: series || "",
-          pages: pages ? parseInt(pages) : null, notes: notes || "",
+          pages: pages ? parseInt(pages) : null,
           cover_url: sanitizeCoverUrl(cover_url),
           rating: rating || null, description: description || "",
           mood: mood || null, narrative_style: narrative_style || null,
