@@ -11,26 +11,6 @@ const MOOD_PALETTE = ["#e06c75", "#4a9eff", "#d97706", "#06b6d4", "#a855f7", "#2
 const TIME_CHART_IDS = new Set(["yc", "fn", "ge", "al", "mt"]);
 
 export default function OverviewTab({ books, booksLoading, stats, genreMap, allYearsList, allYearsListFull, chartRanges, getChartRange, setChartRange, onChartClick }) {
-  if (booksLoading) return (
-    <div>
-      <div className="kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10, marginBottom: 24 }}>
-        {Array.from({ length: 12 }).map((_, i) => (
-          <div key={i} className="stat-card" style={{ padding: "12px 14px" }}>
-            <div className="pulse" style={{ height: 9, width: "70%", background: G.border, borderRadius: 4, marginBottom: 8 }} />
-            <div className="pulse" style={{ height: 18, width: "50%", background: G.border, borderRadius: 4 }} />
-          </div>
-        ))}
-      </div>
-      <div className="chart-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "18px 20px", height: 300 }}>
-            <div className="pulse" style={{ height: 13, width: "40%", background: G.border, borderRadius: 4, marginBottom: 20 }} />
-            <div className="pulse" style={{ height: 200, width: "100%", background: G.border, borderRadius: 8 }} />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
   const {
     ycData, ycMax, gcData, fnData,
     geData, geTop5, acData, coData, alData,
@@ -134,6 +114,27 @@ export default function OverviewTab({ books, booksLoading, stats, genreMap, allY
       dominantMood, topTheme, topArchetype,
     };
   }, [books, getChartRange]);
+
+  if (booksLoading) return (
+    <div>
+      <div className="kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10, marginBottom: 24 }}>
+        {Array.from({ length: 12 }).map((_, i) => (
+          <div key={i} className="stat-card" style={{ padding: "12px 14px" }}>
+            <div className="pulse" style={{ height: 9, width: "70%", background: G.border, borderRadius: 4, marginBottom: 8 }} />
+            <div className="pulse" style={{ height: 18, width: "50%", background: G.border, borderRadius: 4 }} />
+          </div>
+        ))}
+      </div>
+      <div className="chart-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} style={{ background: G.card, border: `1px solid ${G.border}`, borderRadius: 12, padding: "18px 20px", height: 300 }}>
+            <div className="pulse" style={{ height: 13, width: "40%", background: G.border, borderRadius: 4, marginBottom: 20 }} />
+            <div className="pulse" style={{ height: 200, width: "100%", background: G.border, borderRadius: 8 }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 
   const truncTick = (maxChars) => ({ x, y, payload, index }) => {
     if (index % 2 !== 0) return null;

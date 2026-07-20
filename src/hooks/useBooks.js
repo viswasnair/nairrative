@@ -45,6 +45,7 @@ export function useBooks({ session }) {
     session, books, setBooks, bookDraft, setBookDraft,
     authorList, setAuthorList,
     onReset: () => {
+      // eslint-disable-next-line react-hooks/immutability -- ref.current mutation is the intended way to clear an input ref; not a hook-return mutation
       if (aiFill.bookChatInputRef.current) aiFill.bookChatInputRef.current.value = "";
       aiFill.setBookChatPending(null);
       genres.dismissGenreSuggestion();
