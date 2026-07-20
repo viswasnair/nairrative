@@ -4,7 +4,7 @@
 
 import { supabase } from "./supabase";
 
-const PUBLIC_COLS = "id, user_id, title, year_read_start, year_read_end, genre, format, fiction, series, series_number, pages, user_added, created_at, updated_at, cover_url, rating, description";
+const PUBLIC_COLS = "id, user_id, title, year_read_start, year_read_end, genre, format, fiction, series, series_number, pages, user_added, created_at, updated_at, cover_url, rating, description, mood, archetype, theme, narrative_style, setting_era";
 const BOOK_AUTHORS_JOIN = "book_authors(author_order, authors(id, name, country))";
 
 // ── Books ─────────────────────────────────────────────────────────────────────
