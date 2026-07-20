@@ -22,7 +22,6 @@ export async function mockClaudeAPI(page) {
       // Author country lookup
       responseText = 'Unknown';
     } else if (
-      system.includes('recap') ||
       system.includes('catch up on a book series') ||
       system.includes('literary companion')
     ) {
