@@ -76,8 +76,10 @@ Nairrative is a personal reading dashboard — a React SPA deployed on Vercel wi
 - `api.js` — `LLM_URL`, `INTER_REQUEST_DELAY_MS`, `claudeHeaders(session)` — request config for the AI proxy, used by `aiClient.js`
 
 ### API (`api/`)
-- `claude.js` — Vercel Edge Function proxying requests to Anthropic API. Reads `ANTHROPIC_API_KEY` from environment. Enforces JWT auth (JWKS), CORS restriction, rate limiting (30 req/min per user), model allowlist, and max_tokens cap.
-- `lib/apiUtils.js` — `corsHeaders`, `checkRateLimit`, `verifyJWT` extracted from `claude.js` for unit testability. Edge-runtime safe (no Node.js APIs).
+- `claude.js` — Vercel Edge Function proxying AI requests. Enforces origin check, JWT auth (JWKS), rate limiting (30 req/min per user), model allowlist, message validation, and max_tokens cap, then routes the request through `lib/providers.js`.
+- `health.js` — liveness probe (`GET /api/health`), no auth required.
+- `lib/apiUtils.js` — `corsHeaders`, `checkOrigin`, `checkRateLimit`, `verifyJWT` extracted from `claude.js` for unit testability. Edge-runtime safe (no Node.js APIs).
+- `lib/providers.js` — `PROVIDERS` (Anthropic + OpenAI request/response normalisation), `resolveProvider(model)`, `isAllowedModel(model)`. The app currently only ever sends Claude models client-side (`AI_MODELS` in `aiClient.js`); the OpenAI branch is server-side plumbing for a future/optional provider, reads `OPENAI_API_KEY` if used.
 
 ## Analysis Panels
 
@@ -124,7 +126,7 @@ npm run dev           # local dev server (Vite)
 npm run build         # production build
 npm run lint          # ESLint
 npm run audit:ci      # npm audit --audit-level=high (also runs on every Vercel deploy)
-npm run test:unit     # Vitest unit + component tests (543 tests, ~8 s)
+npm run test:unit     # Vitest unit + component tests (572 tests, ~8 s)
 npm run test:coverage # same + v8 coverage report
 npm run type:check    # TypeScript type-check (checkJs) — src/lib only, no emit
 npm run test:db       # pgTAP RLS tests against linked Supabase dev project (no Docker needed)
@@ -267,7 +269,7 @@ Update if someone reading the file would be **misled** or **miss something impor
 
 ## Security
 
-- **API proxy** (`api/claude.js`): JWKS JWT verification, CORS restricted to `nairrative.vercel.app`, rate limit 30 req/min per user, model allowlist, max_tokens hard cap of 2000.
+- **API proxy** (`api/claude.js`): origin check (`checkOrigin`), JWKS JWT verification, CORS restricted to `nairrative.vercel.app`, rate limit 30 req/min per user, model allowlist (`isAllowedModel`, `api/lib/providers.js`), max_tokens hard cap of 2000.
 - **Input sanitization** (`src/lib/textUtils.js`): control characters stripped and length-capped on all prompt inputs; `cover_url` validated to http/https only before saving. Helpers imported by `useBooks.js`.
 - **Security headers** (`vercel.json`): X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, CSP, HSTS (2yr + preload).
 - **Dependabot**: enabled on GitHub for automated CVE alerts.
@@ -302,7 +304,7 @@ These rules exist because vibecoded patterns introduced each of them as subtle b
 Before forwarding any request body to the Anthropic API, validate:
 - `body.messages` is a non-empty array.
 - `body.max_tokens`, if present, is a positive integer (not a string, not negative, not a float).
-- `body.model`, if present, is a string before calling `.has()` on it.
+- `body.model`, if present, is a string before checking it against the allowlist (`isAllowedModel`).
 
 Malformed payloads that pass through unvalidated reach Anthropic and can cause confusing failures. Validate at the boundary; reject early with a 400.
 

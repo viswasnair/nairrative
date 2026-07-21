@@ -1,17 +1,3 @@
-Looking at the diff, I need to assess what's architecturally significant:
-
-1. **`api/health.js`** — new endpoint added (new API surface)
-2. **`api/lib/apiUtils.js`** — new `checkOrigin` function exported and used in `claude.js`; rate limit now fails closed instead of open (behavioral change worth noting)
-3. **`api/claude.js`** — uses new `checkOrigin`; adds message validation
-4. **`src/App.jsx`** — imports `ErrorBoundary`, `BookActionsContext`, `AnalysisContext`, `RecsContext`, `LibraryFiltersContext` — but looking at the current diagrams, these are already represented in the System Layers diagram (the contexts and ErrorBoundary are already there)
-
-The `api/health.js` endpoint is a new external-facing API route, which is an architectural addition. The `checkOrigin` function is a new security utility added to `apiUtils.js`. These warrant updating the System Layers diagram to reflect the new health endpoint and the updated `apiUtils.js` exports.
-
-The rate-limit behavior change (fails closed vs. open) is worth capturing in the sequence diagram comment/note area since it's a meaningful security policy change.
-
-The `src/App.jsx` changes (contexts, ErrorBoundary) are already represented in the current diagrams.
-
-```markdown
 # Architecture
 
 Three diagrams covering different levels of the system.
@@ -213,4 +199,3 @@ sequenceDiagram
 > **Rate limit fail-closed** — if Upstash Redis is unreachable, `checkRateLimit` blocks the request rather than allowing it through.
 >
 > **Origin validation** — `checkOrigin` runs on every request to `api/claude.js`; mismatches are logged but do not independently block the response (CORS headers govern browser-level enforcement).
-```
