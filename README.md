@@ -127,11 +127,13 @@ src/
     supabase.js        # Supabase client
     api.js             # LLM_URL + claudeHeaders(session)
 api/
-  claude.js            # Vercel Edge Function → Anthropic API proxy
+  claude.js            # Vercel Edge Function → AI proxy (provider-routed)
+  health.js            # Liveness probe
   lib/
-    apiUtils.js        # corsHeaders, checkRateLimit, verifyJWT (edge-safe)
+    apiUtils.js        # corsHeaders, checkOrigin, checkRateLimit, verifyJWT (edge-safe)
+    providers.js        # Anthropic + OpenAI request/response normalisation, model allowlist
 tests/
-  unit/                # Vitest unit + component tests (543 tests)
+  unit/                # Vitest unit + component tests (572 tests)
   e2e/                 # Playwright end-to-end tests
 supabase/
   tests/               # pgTAP RLS tests (run via npm run test:db)

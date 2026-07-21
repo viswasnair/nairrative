@@ -4,7 +4,7 @@ Four independent test suites. Each targets a different layer of the system.
 
 | Suite | Runner | Count | Command |
 |-------|--------|-------|---------|
-| Unit + Component | Vitest | 571 tests | `npm run test:unit` |
+| Unit + Component | Vitest | 572 tests | `npm run test:unit` |
 | Type checking | TypeScript `tsc` | — (no emit) | `npm run type:check` |
 | Database / RLS | pgTAP | 3 files | `npm run test:db` |
 | E2E + Security | Playwright | ~50 tests | `npm run test:security` |
@@ -20,7 +20,7 @@ Four independent test suites. Each targets a different layer of the system.
 ### Running
 
 ```bash
-npm run test:unit          # run all 544 tests once
+npm run test:unit          # run all 572 tests once
 npm run test:coverage      # same + v8 coverage report (enforces per-file floors)
 npx vitest --watch         # interactive watch mode
 npx vitest tests/unit/bookUtils.test.js  # single file
